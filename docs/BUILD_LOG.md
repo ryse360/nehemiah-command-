@@ -330,3 +330,30 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Tests: `src/nehemiah/decision-record-integrity.test.ts`
 - Founder memory: `src/nehemiah/founder-memory.ts`
 - Memory interface: `src/components/founder-memory-panel.tsx`
+
+## 2026-07-20 — v0.14.0 Cloud Persistence
+
+### Completed
+- [x] Added a durable Founder memory store contract.
+- [x] Added PostgreSQL production persistence for the complete integrity ledger.
+- [x] Added optimistic revision control and stale-write conflict rejection.
+- [x] Added local/cloud ledger merge without duplicate record versions.
+- [x] Added authenticated Founder memory GET and PUT API routes.
+- [x] Added local-first interface synchronization and cloud connection status.
+- [x] Added database migration SQL and environment configuration template.
+- [x] Added three automated cloud persistence tests.
+
+### Verification
+- [x] 55 automated tests passed.
+- [x] TypeScript strict checking passed.
+- [x] Next.js optimized production build passed.
+- [x] Dynamic `/api/founder-memory` route compiled successfully.
+
+### Evidence
+- Release: `docs/releases/v0.14.0-cloud-persistence.md`
+- Store contract: `src/nehemiah/cloud-memory.ts`
+- PostgreSQL adapter: `src/nehemiah/postgres-founder-memory-store.ts`
+- API route: `src/app/api/founder-memory/route.ts`
+- Client synchronization: `src/nehemiah/cloud-memory-client.ts`
+- Migration: `docs/database/001-founder-memory.sql`
+- Tests: `src/nehemiah/cloud-memory.test.ts`

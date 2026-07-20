@@ -56,4 +56,14 @@ Decision history is searchable and filterable. Nehemiah preserves lessons, detec
 
 ## Current Milestone
 
-Decision Record Integrity now preserves append-only decision versions, source provenance, a chained audit trail, legacy-memory migration, and visible integrity verification for every archived Founder decision.
+Cloud Persistence now moves the complete Founder integrity ledger into a private PostgreSQL database with authenticated API access, revision control, conflict protection, and local-first recovery.
+
+
+## Cloud persistence setup
+
+1. Provision PostgreSQL and run `docs/database/001-founder-memory.sql`.
+2. Copy `.env.example` to `.env.local`.
+3. Configure `DATABASE_URL`, `NEHEMIAH_FOUNDER_ID`, and `NEHEMIAH_FOUNDER_ACCESS_KEY`.
+4. Start Nehemiah and use the Cloud control to enter the Founder access key for the browser session.
+
+Browser memory remains available when cloud configuration is absent. Cloud writes use revision checks so a stale device cannot silently overwrite newer Founder memory.
