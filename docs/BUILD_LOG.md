@@ -449,3 +449,23 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Tests: `src/nehemiah/ai-orchestration.test.ts`
 - API: `src/app/api/ai/decision-preparation/route.ts`
 - UI: `src/components/ai-decision-preparation.tsx`
+
+## 2026-07-20 — v0.19.0 Calendar and Gmail Integration
+
+### Completed
+- [x] Added dedicated governed ingestion routes for Google Calendar and Gmail.
+- [x] Added canonical signal normalization and bounded metadata retention.
+- [x] Added Gmail decision-request classification without storing message bodies.
+- [x] Added Founder-only agenda aggregation and ordering.
+- [x] Added Founder Agenda panel to the private command interface.
+- [x] Reused server-side authorization, integration authentication, rate limiting, duplicate protection, and security audit events.
+- [x] Added deployment contract for Google Workspace OAuth and synchronization bridge.
+
+### Evidence
+- Release: `docs/releases/v0.19.0-calendar-gmail-integration.md`
+- Integration logic: `src/nehemiah/calendar-gmail-integration.ts`
+- Tests: `src/nehemiah/calendar-gmail-integration.test.ts`
+- Calendar API: `src/app/api/integrations/google-calendar/route.ts`
+- Gmail API: `src/app/api/integrations/gmail/route.ts`
+- Founder agenda API: `src/app/api/founder-agenda/route.ts`
+- UI: `src/components/founder-agenda-panel.tsx`

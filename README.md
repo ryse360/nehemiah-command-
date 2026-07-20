@@ -56,7 +56,7 @@ Decision history is searchable and filterable. Nehemiah preserves lessons, detec
 
 ## Current Milestone
 
-Security Hardening protects Founder access with scrypt password hashes, revocable versioned sessions, rate limits, rotating integration keys, redacted security audit events, and restrictive HTTP headers.
+Calendar and Gmail Integration converts governed Google Workspace signals into a private Founder Agenda while preserving authorization boundaries and Founder decision authority.
 
 
 ## Cloud persistence setup
@@ -90,3 +90,8 @@ npm run security:verify-backup -- docs/security/backup-manifest.example.json
 ```
 
 Production distributed rate limiting requires `DATABASE_URL` and migration `004-security-exit-gate.sql`.
+
+
+## Calendar and Gmail integration (v0.19.0)
+
+Configure rotating keys for `google-calendar` and `gmail`, then connect an approved Google Workspace bridge to the dedicated ingestion routes. See `docs/integrations/google-workspace.md`. Nehemiah stores bounded message metadata and calendar commitments; it does not send email or modify calendar events in this release.

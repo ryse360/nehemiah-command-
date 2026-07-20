@@ -41,6 +41,9 @@ import { loadCloudFounderMemory, saveCloudFounderMemory } from '@/nehemiah/cloud
 import type { AIOrchestrationResult } from '@/nehemiah/ai-orchestration';
 import { requestAIDecisionPreparation } from '@/nehemiah/ai-orchestration-client';
 import { AIDecisionPreparationCard } from './ai-decision-preparation';
+import { FounderAgendaPanel } from './founder-agenda-panel';
+import type { FounderAgenda } from '@/nehemiah/calendar-gmail-integration';
+import { loadFounderAgenda } from '@/nehemiah/founder-agenda-client';
 
 export function NehemiahShell() {
   const [journey, setJourney] = useState(createFounderJourney);
@@ -57,6 +60,10 @@ export function NehemiahShell() {
   const [aiPreparation, setAiPreparation] = useState<AIOrchestrationResult | null>(null);
   const [aiStatus, setAiStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [aiError, setAiError] = useState('');
+  const [agenda, setAgenda] = useState<FounderAgenda | null>(null);
+  const [agendaOpen, setAgendaOpen] = useState(false);
+  const [agendaLoading, setAgendaLoading] = useState(false);
+  const [agendaError, setAgendaError] = useState('');
   const model = useMemo(() => buildShellModel(journey.lifecycle), [journey.lifecycle]);
   const strategicRecall = useMemo(
     () => journey.lifecycle === 'decision-required'
@@ -203,6 +210,24 @@ export function NehemiahShell() {
     }
   }
 
+
+  async function refreshAgenda() {
+    setAgendaLoading(true);
+    setAgendaError('');
+    try {
+      setAgenda(await loadFounderAgenda());
+    } catch (error) {
+      setAgendaError(error instanceof Error ? error.message : 'Founder agenda unavailable.');
+    } finally {
+      setAgendaLoading(false);
+    }
+  }
+
+  function openAgenda() {
+    setAgendaOpen(true);
+    if (!agenda && !agendaLoading) void refreshAgenda();
+  }
+
   async function signOut() {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.reload();
@@ -235,6 +260,7 @@ export function NehemiahShell() {
           <div><p className="eyebrow">NEHEMIAH</p><h1>The Founder’s Private Intelligence</h1></div>
           <div className="topbar-actions">
             <button className="search-button" type="button" onClick={() => setMemoryOpen(true)}>Memory · {memory.decisions.length}</button>
+            <button className="search-button" type="button" onClick={openAgenda}>Agenda{agenda ? ` · ${agenda.items.length}` : ''}</button>
             <span className="search-button" aria-label="Cloud memory status">Cloud · {cloudStatus}</span>
             <button className="search-button" type="button" onClick={signOut}>Sign out</button>
             <span className="private-status">Private Mode Active</span>
@@ -316,6 +342,14 @@ export function NehemiahShell() {
 
         <StateController current={journey.lifecycle} onAdvance={advanceJourney} />
       </main>
+      <FounderAgendaPanel
+        agenda={agenda}
+        isOpen={agendaOpen}
+        loading={agendaLoading}
+        error={agendaError}
+        onClose={() => setAgendaOpen(false)}
+        onRefresh={refreshAgenda}
+      />
       <FounderMemoryPanel
         memory={memory}
         isOpen={memoryOpen}
