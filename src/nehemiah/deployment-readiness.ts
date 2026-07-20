@@ -14,11 +14,12 @@ export const REQUIRED_MIGRATIONS = [
   '003-security-hardening.sql',
   '004-security-exit-gate.sql',
   '005-drive-obsidian-knowledge.sql',
+  '006-founder-pilot.sql',
 ] as const;
 
 const REQUIRED_BACKUP_TABLES = [
   'founder_memory', 'enterprise_context', 'integration_signals',
-  'security_audit_events', 'revoked_founder_sessions', 'distributed_rate_limit_attempts', 'knowledge_sources',
+  'security_audit_events', 'revoked_founder_sessions', 'distributed_rate_limit_attempts', 'knowledge_sources', 'founder_pilot_sessions',
 ] as const;
 
 export function assessDeploymentReadiness(

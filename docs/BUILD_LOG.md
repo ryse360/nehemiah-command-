@@ -522,3 +522,8 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Added ten-gate fail-closed release rehearsal.
 - Added authenticated deployment-readiness API and rehearsal script.
 - Added production rehearsal and rollback runbooks.
+
+## 2026-07-20 — v0.25.0 Founder Pilot Readiness
+- Added durable Founder pilot session records and migration 006.
+- Added five-session, five-second, proof, issue-severity, and Founder-approval release gate.
+- Added Founder pilot protocol and protected API.

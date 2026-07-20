@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getFounderSession } from '@/nehemiah/founder-auth-server';
 import { assessDeploymentReadiness, REQUIRED_MIGRATIONS } from '@/nehemiah/deployment-readiness';
-import { evaluateDeploymentRehearsal, type DeploymentRehearsalEvidence } from '@/nehemiah/deployment-rehearsal';
+import { evaluateDeploymentRehearsal, parseDeploymentRehearsalEvidence } from '@/nehemiah/deployment-rehearsal';
 
 export async function GET() {
   const session = await getFounderSession();
@@ -29,10 +29,13 @@ export async function POST(request: Request) {
   const session = await getFounderSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    const body = await request.json() as { evidence?: DeploymentRehearsalEvidence };
-    if (!body.evidence) return NextResponse.json({ error: 'Rehearsal evidence is required.' }, { status: 400 });
-    return NextResponse.json(evaluateDeploymentRehearsal(body.evidence));
-  } catch {
-    return NextResponse.json({ error: 'Invalid rehearsal evidence.' }, { status: 400 });
+    const body = await request.json() as { evidence?: unknown };
+    const evidence = parseDeploymentRehearsalEvidence(body.evidence);
+    return NextResponse.json(evaluateDeploymentRehearsal(evidence));
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Invalid rehearsal evidence.' },
+      { status: 400 },
+    );
   }
 }
