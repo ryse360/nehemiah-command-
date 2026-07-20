@@ -357,3 +357,21 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Client synchronization: `src/nehemiah/cloud-memory-client.ts`
 - Migration: `docs/database/001-founder-memory.sql`
 - Tests: `src/nehemiah/cloud-memory.test.ts`
+
+## 2026-07-20 — v0.15.0 Founder Authentication
+
+### Completed
+- [x] Added private Founder passphrase verification.
+- [x] Added signed, expiring HttpOnly Founder sessions.
+- [x] Added server-rendered sign-in gating for the application.
+- [x] Protected cloud Founder memory with authenticated sessions.
+- [x] Removed manually entered cloud access keys from the normal interface.
+- [x] Added explicit logout and recovery preparation.
+- [x] Added three authentication integrity tests.
+
+### Evidence
+- Release: `docs/releases/v0.15.0-founder-authentication.md`
+- Authentication domain: `src/nehemiah/founder-auth.ts`
+- Authentication tests: `src/nehemiah/founder-auth.test.ts`
+- Login route: `src/app/api/auth/login/route.ts`
+- Protected interface: `src/app/page.tsx`

@@ -2,14 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PostgresFounderMemoryStore } from '@/nehemiah/postgres-founder-memory-store';
 import { deserializeFounderMemory, type FounderMemory } from '@/nehemiah/founder-memory';
 import { MemoryConflictError } from '@/nehemiah/cloud-memory';
+import { getFounderSession } from '@/nehemiah/founder-auth-server';
 
 export const runtime = 'nodejs';
-
-function authorize(request: NextRequest): boolean {
-  const configured = process.env.NEHEMIAH_FOUNDER_ACCESS_KEY;
-  if (!configured) return false;
-  return request.headers.get('authorization') === `Bearer ${configured}`;
-}
 
 function store() {
   const connectionString = process.env.DATABASE_URL;
@@ -18,9 +13,10 @@ function store() {
 }
 
 export async function GET(request: NextRequest) {
-  if (!authorize(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getFounderSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    const founderId = process.env.NEHEMIAH_FOUNDER_ID ?? 'primary-founder';
+    const founderId = session.founderId;
     const record = await store().load(founderId);
     return NextResponse.json(record ?? {
       founderId,
@@ -34,13 +30,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (!authorize(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getFounderSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const body = await request.json() as { memory?: FounderMemory; expectedRevision?: number };
     if (!body.memory || typeof body.expectedRevision !== 'number') {
       return NextResponse.json({ error: 'Memory and expectedRevision are required.' }, { status: 400 });
     }
-    const founderId = process.env.NEHEMIAH_FOUNDER_ID ?? 'primary-founder';
+    const founderId = session.founderId;
     const record = await store().save(founderId, body.memory, body.expectedRevision);
     return NextResponse.json(record);
   } catch (error) {

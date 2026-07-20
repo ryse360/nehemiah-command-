@@ -37,7 +37,7 @@ import type { ReadinessDimension } from '@/nehemiah/founder-decision-readiness';
 import { DecisionPreparationWorkspaceCard } from './decision-preparation-workspace';
 import { addPreparationEvidence, verifyPreparationEvidence, type PreparationEvidenceInput } from '@/nehemiah/founder-decision-evidence';
 import { mergeFounderMemories } from '@/nehemiah/cloud-memory';
-import { CLOUD_ACCESS_KEY, loadCloudFounderMemory, saveCloudFounderMemory } from '@/nehemiah/cloud-memory-client';
+import { loadCloudFounderMemory, saveCloudFounderMemory } from '@/nehemiah/cloud-memory-client';
 
 export function NehemiahShell() {
   const [journey, setJourney] = useState(createFounderJourney);
@@ -48,7 +48,6 @@ export function NehemiahShell() {
   const [memory, setMemory] = useState(createFounderMemory);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [memoryLoaded, setMemoryLoaded] = useState(false);
-  const [cloudAccessKey, setCloudAccessKey] = useState('');
   const [cloudRevision, setCloudRevision] = useState(0);
   const [cloudStatus, setCloudStatus] = useState<'local' | 'connecting' | 'synced' | 'error'>('local');
   const [preparation, setPreparation] = useState<DecisionPreparationWorkspace | null>(null);
@@ -89,11 +88,8 @@ export function NehemiahShell() {
     setMemory(local);
     setMemoryLoaded(true);
 
-    const accessKey = window.sessionStorage.getItem(CLOUD_ACCESS_KEY) ?? '';
-    if (!accessKey) return;
-    setCloudAccessKey(accessKey);
     setCloudStatus('connecting');
-    loadCloudFounderMemory(accessKey)
+    loadCloudFounderMemory()
       .then((cloud) => {
         setMemory(mergeFounderMemories(local, cloud.memory));
         setCloudRevision(cloud.revision);
@@ -162,34 +158,21 @@ export function NehemiahShell() {
   function closeReview() {
     setMemory((current) => {
       const next = appendJourneyToMemory(current, journey);
-      if (cloudAccessKey) {
-        setCloudStatus('connecting');
-        void saveCloudFounderMemory(cloudAccessKey, next, cloudRevision)
-          .then((cloud) => {
-            setCloudRevision(cloud.revision);
-            setCloudStatus('synced');
-          })
-          .catch(() => setCloudStatus('error'));
-      }
+      setCloudStatus('connecting');
+      void saveCloudFounderMemory(next, cloudRevision)
+        .then((cloud) => {
+          setCloudRevision(cloud.revision);
+          setCloudStatus('synced');
+        })
+        .catch(() => setCloudStatus('error'));
       return next;
     });
     dispatch({ type: 'review-closed' });
   }
 
-  function connectCloud() {
-    const accessKey = window.prompt('Enter the Founder cloud access key.');
-    if (!accessKey?.trim()) return;
-    const normalized = accessKey.trim();
-    window.sessionStorage.setItem(CLOUD_ACCESS_KEY, normalized);
-    setCloudAccessKey(normalized);
-    setCloudStatus('connecting');
-    void loadCloudFounderMemory(normalized)
-      .then((cloud) => {
-        setMemory((local) => mergeFounderMemories(local, cloud.memory));
-        setCloudRevision(cloud.revision);
-        setCloudStatus('synced');
-      })
-      .catch(() => setCloudStatus('error'));
+  async function signOut() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.reload();
   }
 
   function submitProof(event: FormEvent<HTMLFormElement>) {
@@ -219,7 +202,8 @@ export function NehemiahShell() {
           <div><p className="eyebrow">NEHEMIAH</p><h1>The Founder’s Private Intelligence</h1></div>
           <div className="topbar-actions">
             <button className="search-button" type="button" onClick={() => setMemoryOpen(true)}>Memory · {memory.decisions.length}</button>
-            <button className="search-button" type="button" onClick={connectCloud}>Cloud · {cloudStatus}</button>
+            <span className="search-button" aria-label="Cloud memory status">Cloud · {cloudStatus}</span>
+            <button className="search-button" type="button" onClick={signOut}>Sign out</button>
             <span className="private-status">Private Mode Active</span>
             <span className="founder-chip">Founder · MiP</span>
           </div>

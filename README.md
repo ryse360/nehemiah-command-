@@ -67,3 +67,7 @@ Cloud Persistence now moves the complete Founder integrity ledger into a private
 4. Start Nehemiah and use the Cloud control to enter the Founder access key for the browser session.
 
 Browser memory remains available when cloud configuration is absent. Cloud writes use revision checks so a stale device cannot silently overwrite newer Founder memory.
+
+## Founder authentication
+
+Set `NEHEMIAH_FOUNDER_PASSWORD` and a long random `NEHEMIAH_SESSION_SECRET` before deployment. Nehemiah uses a signed HttpOnly session cookie; Founder memory APIs no longer accept manually entered access keys.
