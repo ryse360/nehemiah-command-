@@ -393,3 +393,23 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Migration: `docs/database/002-authorization-data-boundaries.sql`
 - Policy: `src/nehemiah/authorization.ts`
 - Boundary model: `src/nehemiah/data-boundaries.ts`
+
+## 2026-07-20 — v0.17.0 Security Hardening
+
+### Completed
+- [x] Replaced plaintext Founder password configuration with salted scrypt hashes.
+- [x] Added session IDs, authentication-version invalidation, and logout revocation.
+- [x] Added login and integration-ingestion rate limiting.
+- [x] Added time-bounded integration key rotation.
+- [x] Added redacted security audit events and PostgreSQL persistence.
+- [x] Added restrictive HTTP security headers.
+- [x] Added database migration, password-hash utility, backup controls, and incident-response runbook.
+- [x] Added ten security-focused automated tests.
+
+### Evidence
+- Release: `docs/releases/v0.17.0-security-hardening.md`
+- Security controls: `src/nehemiah/security-hardening.ts`
+- Security persistence: `src/nehemiah/security-store.ts`
+- Migration: `docs/database/003-security-hardening.sql`
+- Incident response: `docs/security/incident-response.md`
+- Backup recovery: `docs/security/backup-recovery.md`

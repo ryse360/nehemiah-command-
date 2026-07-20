@@ -1,13 +1,14 @@
 {
   "name": "nehemiah-command",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "test": "node --import tsx --test src/**/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "security:hash-password": "node --import tsx scripts/hash-founder-password.ts"
   },
   "dependencies": {
     "next": "16.2.10",

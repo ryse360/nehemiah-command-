@@ -1,18 +1,22 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { verifyPasswordHash } from './security-hardening';
 
 export const FOUNDER_SESSION_COOKIE = 'nehemiah_founder_session';
 
 export type FounderAuthConfig = {
   founderId: string;
-  password: string;
+  passwordHash: string;
   sessionSecret: string;
   sessionTtlSeconds: number;
+  authVersion: number;
 };
 
 export type FounderSession = {
   founderId: string;
   issuedAt: string;
   expiresAt: string;
+  sessionId: string;
+  authVersion: number;
 };
 
 function safeEqual(left: string, right: string): boolean {
@@ -35,25 +39,26 @@ function sign(payload: string, secret: string): string {
 }
 
 export function founderAuthConfigFromEnv(): FounderAuthConfig | null {
-  const password = process.env.NEHEMIAH_FOUNDER_PASSWORD;
+  const passwordHash = process.env.NEHEMIAH_FOUNDER_PASSWORD_HASH;
   const sessionSecret = process.env.NEHEMIAH_SESSION_SECRET;
-  if (!password || !sessionSecret) return null;
+  if (!passwordHash || !sessionSecret) return null;
   return {
     founderId: process.env.NEHEMIAH_FOUNDER_ID ?? 'primary-founder',
-    password,
+    passwordHash,
     sessionSecret,
     sessionTtlSeconds: Number(process.env.NEHEMIAH_SESSION_TTL_SECONDS ?? 60 * 60 * 12),
+    authVersion: Number(process.env.NEHEMIAH_AUTH_VERSION ?? 1),
   };
 }
 
 export function verifyFounderPassword(candidate: string, config: FounderAuthConfig): boolean {
-  return safeEqual(candidate, config.password);
+  return verifyPasswordHash(candidate, config.passwordHash);
 }
 
-export function createSessionToken(config: FounderAuthConfig, now = new Date()): string {
+export function createSessionToken(config: FounderAuthConfig, now = new Date(), sessionId: string = randomUUID()): string {
   const issuedAt = now.toISOString();
   const expiresAt = new Date(now.getTime() + config.sessionTtlSeconds * 1000).toISOString();
-  const payload = encode(JSON.stringify({ founderId: config.founderId, issuedAt, expiresAt } satisfies FounderSession));
+  const payload = encode(JSON.stringify({ founderId: config.founderId, issuedAt, expiresAt, sessionId, authVersion: config.authVersion } satisfies FounderSession));
   return `${payload}.${sign(payload, config.sessionSecret)}`;
 }
 
@@ -69,6 +74,7 @@ export function verifySessionToken(
   try {
     const session = JSON.parse(decode(payload)) as FounderSession;
     if (session.founderId !== config.founderId) return null;
+    if (!session.sessionId || session.authVersion !== config.authVersion) return null;
     if (Date.parse(session.expiresAt) <= now.getTime()) return null;
     return session;
   } catch {

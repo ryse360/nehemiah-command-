@@ -6,12 +6,14 @@ import {
   verifySessionToken,
   type FounderAuthConfig,
 } from './founder-auth';
+import { createPasswordHash } from './security-hardening';
 
 const config: FounderAuthConfig = {
   founderId: 'primary-founder',
-  password: 'correct horse battery staple',
+  passwordHash: createPasswordHash('correct horse battery staple', Buffer.alloc(16, 4)),
   sessionSecret: 'a-very-long-founder-session-secret-that-is-private',
   sessionTtlSeconds: 3600,
+  authVersion: 1,
 };
 
 test('verifies the configured Founder password without accepting a different value', () => {

@@ -56,22 +56,27 @@ Decision history is searchable and filterable. Nehemiah preserves lessons, detec
 
 ## Current Milestone
 
-Cloud Persistence now moves the complete Founder integrity ledger into a private PostgreSQL database with authenticated API access, revision control, conflict protection, and local-first recovery.
+Security Hardening protects Founder access with scrypt password hashes, revocable versioned sessions, rate limits, rotating integration keys, redacted security audit events, and restrictive HTTP headers.
 
 
 ## Cloud persistence setup
 
 1. Provision PostgreSQL and run `docs/database/001-founder-memory.sql`.
 2. Copy `.env.example` to `.env.local`.
-3. Configure `DATABASE_URL`, `NEHEMIAH_FOUNDER_ID`, and `NEHEMIAH_FOUNDER_ACCESS_KEY`.
-4. Start Nehemiah and use the Cloud control to enter the Founder access key for the browser session.
+3. Configure `DATABASE_URL`, `NEHEMIAH_FOUNDER_ID`, `NEHEMIAH_FOUNDER_PASSWORD_HASH`, and `NEHEMIAH_SESSION_SECRET`.
+4. Run all database migrations through `docs/database/003-security-hardening.sql`.
 
 Browser memory remains available when cloud configuration is absent. Cloud writes use revision checks so a stale device cannot silently overwrite newer Founder memory.
 
 ## Founder authentication
 
-Set `NEHEMIAH_FOUNDER_PASSWORD` and a long random `NEHEMIAH_SESSION_SECRET` before deployment. Nehemiah uses a signed HttpOnly session cookie; Founder memory APIs no longer accept manually entered access keys.
+Generate `NEHEMIAH_FOUNDER_PASSWORD_HASH` with `npm run security:hash-password -- "your passphrase"` and set a long random `NEHEMIAH_SESSION_SECRET` before deployment. Nehemiah uses a signed HttpOnly session cookie; Founder memory APIs no longer accept manually entered access keys.
 
 ## Authorization boundaries (v0.16.0)
 
 Nehemiah separates Founder-private memory, MiP enterprise context, and external integration signals. Authorization is enforced on the server. Run `docs/database/002-authorization-data-boundaries.sql` and configure `NEHEMIAH_INTEGRATION_KEYS` before enabling integrations.
+
+
+## Security hardening (v0.17.0)
+
+Run `docs/database/003-security-hardening.sql`, configure `NEHEMIAH_AUTH_VERSION`, and use the rotating integration-key format in `.env.example`. See `docs/security/incident-response.md` and `docs/security/backup-recovery.md` before production rollout.
