@@ -56,7 +56,7 @@ Decision history is searchable and filterable. Nehemiah preserves lessons, detec
 
 ## Current Milestone
 
-Drive and Obsidian Knowledge Integration adds governed source synchronization, provenance-preserving retrieval, and Founder-only evidence search.
+Projects and Actions Integration connects Founder decisions to governed ownership, deadlines, blockers, progress, and visible proof.
 
 
 ## Cloud persistence setup
@@ -100,3 +100,8 @@ Configure rotating keys for `google-calendar` and `gmail`, then connect an appro
 ## Drive and Obsidian knowledge integration (v0.20.0)
 
 Configure rotating keys for `google-drive` and `obsidian`, apply migration `005-drive-obsidian-knowledge.sql`, and connect only approved Drive folders and Obsidian vault paths. See `docs/integrations/drive-obsidian.md`. Nehemiah preserves source references, timestamps, visibility, citations, and controlled synchronization history.
+
+
+## Projects and Actions integration (v0.21.0)
+
+The authenticated Founder workspace now tracks enterprise projects and actions through the existing enterprise context boundary. Actions preserve ownership, dependencies, deadlines, blockers, progress, and proof. Completion is rejected until visible proof is recorded.

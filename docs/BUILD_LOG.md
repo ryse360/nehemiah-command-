@@ -488,3 +488,22 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Migration: `docs/database/005-drive-obsidian-knowledge.sql`
 - Core logic: `src/nehemiah/drive-obsidian-knowledge.ts`
 - Tests: `src/nehemiah/drive-obsidian-knowledge.test.ts`
+
+## 2026-07-20 — v0.21.0 Projects and Actions Integration
+
+### Completed
+- [x] Added governed project and action models with ownership, dependencies, blockers, deadlines, progress, and proof.
+- [x] Added Founder-only Projects and Actions API using enterprise-context revision control.
+- [x] Added portfolio summaries and a prioritized Founder-attention queue.
+- [x] Added project workspace to the private Founder interface.
+- [x] Added action status, progress, and visible-proof controls.
+- [x] Prevented action completion before visible proof exists.
+- [x] Added backward-compatible normalization for legacy enterprise project records.
+- [x] Added five project-and-action automated tests.
+
+### Evidence
+- Release: `docs/releases/v0.21.0-projects-actions.md`
+- Core logic: `src/nehemiah/projects-actions.ts`
+- Tests: `src/nehemiah/projects-actions.test.ts`
+- API: `src/app/api/projects-actions/route.ts`
+- UI: `src/components/founder-projects-panel.tsx`

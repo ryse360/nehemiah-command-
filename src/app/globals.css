@@ -410,3 +410,26 @@ body[data-state="proof-created"] .organism-core { box-shadow:0 0 34px 14px rgba(
 .knowledge-meta { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:10px; color:var(--slate); font-size:9px; }
 .knowledge-citation { margin-top:10px; padding-top:9px; border-top:1px solid var(--line); color:var(--slate); font-size:9px!important; }
 @media (max-width:640px) { .knowledge-panel .memory-controls { grid-template-columns:1fr; } }
+
+/* Projects and Actions */
+.projects-panel { width:min(760px,calc(100vw - 32px)); }
+.project-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:18px 0; }
+.project-summary span { padding:12px; border:1px solid var(--line); border-radius:14px; color:var(--slate); font-size:9px; text-transform:uppercase; letter-spacing:.07em; }
+.project-summary strong { display:block; color:var(--navy); font:400 24px Georgia,serif; }
+.project-attention { margin:18px 0; padding:16px; border-left:2px solid #8b4a36; background:rgba(139,74,54,.06); border-radius:0 16px 16px 0; }
+.project-attention article { padding:9px 0; border-top:1px solid var(--line); }
+.project-attention article:first-of-type { border-top:0; }
+.project-attention strong,.project-attention span { display:block; }
+.project-attention span { margin-top:3px; color:var(--slate); font-size:10px; }
+.project-attention p { margin:5px 0 0; color:#8b4a36; font-size:10px; }
+.project-actions { display:grid; gap:10px; margin-top:15px; }
+.project-action { padding:13px; border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.52); }
+.project-action.is-blocked { border-color:rgba(139,74,54,.34); }
+.project-action.is-complete { border-color:rgba(44,122,89,.28); background:rgba(44,122,89,.04); }
+.project-action > div:first-child { display:flex; justify-content:space-between; gap:12px; }
+.project-action > div:first-child span { color:var(--slate); font-size:9px; }
+.project-action-controls { display:grid; grid-template-columns:1fr 88px; gap:8px; margin-top:10px; }
+.project-action-controls select,.project-action-controls input,.project-proof-form input { border:1px solid var(--line); border-radius:10px; padding:9px 10px; background:rgba(255,255,255,.72); color:var(--navy); }
+.project-proof-form { display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:8px; }
+.project-action small { display:block; margin-top:8px; color:#2c7a59; }
+@media (max-width:640px) { .project-summary { grid-template-columns:1fr 1fr; } .project-action > div:first-child,.project-proof-form { grid-template-columns:1fr; display:grid; } }

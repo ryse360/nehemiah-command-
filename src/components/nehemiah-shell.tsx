@@ -47,6 +47,9 @@ import { loadFounderAgenda } from '@/nehemiah/founder-agenda-client';
 import type { KnowledgeIndex, KnowledgeSearchResponse } from '@/nehemiah/drive-obsidian-knowledge';
 import { loadFounderKnowledge } from '@/nehemiah/founder-knowledge-client';
 import { FounderKnowledgePanel } from './founder-knowledge-panel';
+import type { ProjectPortfolio } from '@/nehemiah/projects-actions';
+import { loadProjectPortfolio, saveProjectPortfolio } from '@/nehemiah/projects-actions-client';
+import { FounderProjectsPanel } from './founder-projects-panel';
 
 export function NehemiahShell() {
   const [journey, setJourney] = useState(createFounderJourney);
@@ -71,6 +74,12 @@ export function NehemiahShell() {
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [knowledgeError, setKnowledgeError] = useState('');
+  const [projects, setProjects] = useState<ProjectPortfolio | null>(null);
+  const [projectsRevision, setProjectsRevision] = useState(0);
+  const [projectsOpen, setProjectsOpen] = useState(false);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsSaving, setProjectsSaving] = useState(false);
+  const [projectsError, setProjectsError] = useState('');
   const model = useMemo(() => buildShellModel(journey.lifecycle), [journey.lifecycle]);
   const strategicRecall = useMemo(
     () => journey.lifecycle === 'decision-required'
@@ -252,6 +261,39 @@ export function NehemiahShell() {
     if (!knowledge && !knowledgeLoading) void refreshKnowledge();
   }
 
+  async function refreshProjects() {
+    setProjectsLoading(true);
+    setProjectsError('');
+    try {
+      const result = await loadProjectPortfolio();
+      setProjects(result.portfolio);
+      setProjectsRevision(result.revision);
+    } catch (error) {
+      setProjectsError(error instanceof Error ? error.message : 'Projects unavailable.');
+    } finally {
+      setProjectsLoading(false);
+    }
+  }
+
+  function openProjects() {
+    setProjectsOpen(true);
+    if (!projects && !projectsLoading) void refreshProjects();
+  }
+
+  async function persistProjects(nextProjects: ProjectPortfolio['projects']) {
+    setProjectsSaving(true);
+    setProjectsError('');
+    try {
+      const result = await saveProjectPortfolio(nextProjects, projectsRevision);
+      setProjects(result.portfolio);
+      setProjectsRevision(result.revision);
+    } catch (error) {
+      setProjectsError(error instanceof Error ? error.message : 'Projects could not be saved.');
+    } finally {
+      setProjectsSaving(false);
+    }
+  }
+
   async function signOut() {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.reload();
@@ -271,7 +313,7 @@ export function NehemiahShell() {
         <div className="brand-mark" aria-label="MiP Coaching">M</div>
         <nav>
           {['Command', 'Intelligence', 'Decisions', 'Projects', 'More'].map((item, index) => (
-            <button key={item} className={`rail-button${index === 0 ? ' is-active' : ''}`} type="button" aria-label={item} onClick={() => { if (item === 'Decisions') setMemoryOpen(true); if (item === 'Intelligence') openKnowledge(); }}>
+            <button key={item} className={`rail-button${index === 0 ? ' is-active' : ''}`} type="button" aria-label={item} onClick={() => { if (item === 'Decisions') setMemoryOpen(true); if (item === 'Intelligence') openKnowledge(); if (item === 'Projects') openProjects(); }}>
               {['⌂', '◇', '⌁', '□', '•••'][index]}
             </button>
           ))}
@@ -286,6 +328,7 @@ export function NehemiahShell() {
             <button className="search-button" type="button" onClick={() => setMemoryOpen(true)}>Memory · {memory.decisions.length}</button>
             <button className="search-button" type="button" onClick={openAgenda}>Agenda{agenda ? ` · ${agenda.items.length}` : ''}</button>
             <button className="search-button" type="button" onClick={openKnowledge}>Knowledge{knowledge ? ` · ${'results' in knowledge ? knowledge.results.length : knowledge.records.length}` : ''}</button>
+            <button className="search-button" type="button" onClick={openProjects}>Projects{projects ? ` · ${projects.projects.length}` : ''}</button>
             <span className="search-button" aria-label="Cloud memory status">Cloud · {cloudStatus}</span>
             <button className="search-button" type="button" onClick={signOut}>Sign out</button>
             <span className="private-status">Private Mode Active</span>
@@ -383,6 +426,16 @@ export function NehemiahShell() {
         onClose={() => setKnowledgeOpen(false)}
         onSearch={refreshKnowledge}
         onRefresh={() => refreshKnowledge()}
+      />
+      <FounderProjectsPanel
+        portfolio={projects}
+        isOpen={projectsOpen}
+        loading={projectsLoading}
+        saving={projectsSaving}
+        error={projectsError}
+        onClose={() => setProjectsOpen(false)}
+        onRefresh={refreshProjects}
+        onSave={persistProjects}
       />
       <FounderMemoryPanel
         memory={memory}
