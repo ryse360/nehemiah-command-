@@ -3,6 +3,7 @@ import { PostgresFounderMemoryStore } from '@/nehemiah/postgres-founder-memory-s
 import { deserializeFounderMemory, type FounderMemory } from '@/nehemiah/founder-memory';
 import { MemoryConflictError } from '@/nehemiah/cloud-memory';
 import { getFounderSession } from '@/nehemiah/founder-auth-server';
+import { createFounderPrincipal, requireAuthorization } from '@/nehemiah/authorization';
 
 export const runtime = 'nodejs';
 
@@ -16,6 +17,7 @@ export async function GET(request: NextRequest) {
   const session = await getFounderSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
+    requireAuthorization({ principal: createFounderPrincipal(session.founderId), domain: 'founder-private', action: 'read' });
     const founderId = session.founderId;
     const record = await store().load(founderId);
     return NextResponse.json(record ?? {
@@ -37,6 +39,7 @@ export async function PUT(request: NextRequest) {
     if (!body.memory || typeof body.expectedRevision !== 'number') {
       return NextResponse.json({ error: 'Memory and expectedRevision are required.' }, { status: 400 });
     }
+    requireAuthorization({ principal: createFounderPrincipal(session.founderId), domain: 'founder-private', action: 'write' });
     const founderId = session.founderId;
     const record = await store().save(founderId, body.memory, body.expectedRevision);
     return NextResponse.json(record);

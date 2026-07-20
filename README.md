@@ -71,3 +71,7 @@ Browser memory remains available when cloud configuration is absent. Cloud write
 ## Founder authentication
 
 Set `NEHEMIAH_FOUNDER_PASSWORD` and a long random `NEHEMIAH_SESSION_SECRET` before deployment. Nehemiah uses a signed HttpOnly session cookie; Founder memory APIs no longer accept manually entered access keys.
+
+## Authorization boundaries (v0.16.0)
+
+Nehemiah separates Founder-private memory, MiP enterprise context, and external integration signals. Authorization is enforced on the server. Run `docs/database/002-authorization-data-boundaries.sql` and configure `NEHEMIAH_INTEGRATION_KEYS` before enabling integrations.

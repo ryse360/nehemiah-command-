@@ -375,3 +375,21 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Authentication tests: `src/nehemiah/founder-auth.test.ts`
 - Login route: `src/app/api/auth/login/route.ts`
 - Protected interface: `src/app/page.tsx`
+
+## 2026-07-20 — v0.16.0 Authorization and Data Boundaries
+
+### Completed
+- [x] Added explicit Founder-private, enterprise, and integration data domains.
+- [x] Added server-side authorization policies and stable denial reasons.
+- [x] Protected Founder memory operations with Founder-private authorization.
+- [x] Added enterprise context API with private-field rejection and optimistic revisions.
+- [x] Added integration signal ingestion restricted to each approved integration identity.
+- [x] Added Founder-only integration signal review.
+- [x] Added PostgreSQL migration for isolated enterprise and integration storage.
+- [x] Added tests for cross-boundary denial, integration isolation, and payload validation.
+
+### Evidence
+- Release: `docs/releases/v0.16.0-authorization-data-boundaries.md`
+- Migration: `docs/database/002-authorization-data-boundaries.sql`
+- Policy: `src/nehemiah/authorization.ts`
+- Boundary model: `src/nehemiah/data-boundaries.ts`
