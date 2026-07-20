@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nehemiah Command — Phase 1</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-state="decision-required">
+  <div class="app-shell">
+    <aside class="rail" aria-label="Primary navigation">
+      <div class="brand-mark" aria-label="MiP Coaching">M</div>
+      <nav>
+        <button class="rail-button is-active" aria-label="Command">⌂</button>
+        <button class="rail-button" aria-label="Intelligence">◇</button>
+        <button class="rail-button" aria-label="Decisions">⌁</button>
+        <button class="rail-button" aria-label="Projects">□</button>
+        <button class="rail-button" aria-label="More">•••</button>
+      </nav>
+      <div class="rail-footer">Founder<br><span>MiP</span></div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">NEHEMIAH</p>
+          <h1>The Founder’s Private Intelligence</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="search-button">Search</button>
+          <span class="private-status">Private Mode Active</span>
+          <span class="founder-chip">Founder · MiP</span>
+        </div>
+      </header>
+
+      <section class="command-grid">
+        <div class="focus-column" id="focusColumn" aria-live="polite">
+          <p class="section-label">TODAY’S FOCUS</p>
+          <h2 id="focusBody">Remove the decision preventing Product from proceeding.</h2>
+          <button class="text-action" id="whyButton" type="button">Why this comes first ↓</button>
+          <p class="why-copy" id="whyCopy" hidden>One Founder-only decision is blocking Product and Engineering from moving together.</p>
+          <div class="protected-window">
+            <span class="window-icon">◷</span>
+            <div>
+              <p class="section-label">PROTECTED WINDOW</p>
+              <strong>7:30–9:30 a.m.</strong>
+              <span>Deep work · No meetings</span>
+            </div>
+          </div>
+        </div>
+
+        <section class="artifact-zone" aria-labelledby="primaryPrompt">
+          <h2 id="primaryPrompt">This requires your decision.</h2>
+          <div class="organism" role="img" aria-label="Nehemiah living intelligence artifact">
+            <span class="organism-shell shell-one"></span>
+            <span class="organism-shell shell-two"></span>
+            <span class="organism-shell shell-three"></span>
+            <span class="organism-core"></span>
+            <span class="signal-thread"></span>
+          </div>
+          <form class="command-bar" id="commandForm">
+            <label class="sr-only" for="commandInput">Ask Nehemiah</label>
+            <input id="commandInput" placeholder="Ask Nehemiah anything…" autocomplete="off" />
+            <button type="button" class="voice-button" id="voiceButton" aria-label="Start listening">◉</button>
+            <button type="submit" class="send-button" aria-label="Send command">↑</button>
+          </form>
+        </section>
+
+        <aside class="decision-field" id="decisionField" aria-live="polite">
+          <p class="decision-kicker">FOUNDER DECISION REQUIRED</p>
+          <h2>Authorize Platform v2 Restricted Pilot</h2>
+          <div class="decision-sequence">
+            <section>
+              <p class="section-label">WHY THIS SURFACED</p>
+              <p>The pilot team is blocked. Scope approval is the final Founder-only decision.</p>
+            </section>
+            <section>
+              <p class="section-label">WHAT COULD BECOME POSSIBLE</p>
+              <p>A unified intelligence layer that simplifies every coaching experience.</p>
+            </section>
+            <section>
+              <p class="section-label">THE TRADEOFF</p>
+              <p>Two weeks of focused build time and one paused lower-priority initiative.</p>
+            </section>
+            <section>
+              <p class="section-label">VISIBLE ACTION</p>
+              <p>Approve or revise the pilot scope and assign product and engineering ownership.</p>
+            </section>
+            <section>
+              <p class="section-label">PROOF REQUIRED</p>
+              <p>Pilot launched within 30 days with no critical failures and documented decisions.</p>
+            </section>
+          </div>
+          <button class="primary-button" id="openDecision">OPEN DECISION</button>
+          <p class="authority-line">Nehemiah prepares the decision. You choose the direction.</p>
+        </aside>
+      </section>
+
+      <section class="state-controller" aria-label="Prototype states">
+        <span>Prototype state</span>
+        <div id="stateButtons"></div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
