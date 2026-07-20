@@ -430,3 +430,22 @@ A public deployment requires either a connected GitHub repository or an authenti
 - [ ] Install real production secrets and pass `npm run security:check-readiness`.
 - [ ] Schedule encrypted backups and validate a real restore manifest.
 - [ ] Re-run dependency audit from a functioning production registry endpoint.
+
+## 2026-07-20 — v0.18.0 AI Orchestration
+
+### Completed
+- [x] Added authenticated live model orchestration for Founder decision preparation.
+- [x] Added strict structured-output validation and fail-closed behavior.
+- [x] Added Founder-authority prompt policy and no-execution boundary.
+- [x] Added bounded tool permissions with zero tool execution in this release.
+- [x] Added transient retry, timeout, and provider failure handling.
+- [x] Added auditable orchestration metadata and security events.
+- [x] Added governed AI preparation to the live decision chamber.
+- [x] Added production readiness requirements for AI credentials.
+
+### Evidence
+- Release: `docs/releases/v0.18.0-ai-orchestration.md`
+- Orchestrator: `src/nehemiah/ai-orchestration.ts`
+- Tests: `src/nehemiah/ai-orchestration.test.ts`
+- API: `src/app/api/ai/decision-preparation/route.ts`
+- UI: `src/components/ai-decision-preparation.tsx`

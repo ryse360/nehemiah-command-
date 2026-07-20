@@ -16,6 +16,8 @@ test('accepts a complete production configuration without exposing values', () =
     NEHEMIAH_FOUNDER_PASSWORD_HASH: 'scrypt$hash',
     NEHEMIAH_SESSION_SECRET: 'x'.repeat(32),
     NEHEMIAH_AUTH_VERSION: '1',
+    NEHEMIAH_AI_API_KEY: 'private-ai-key',
+    NEHEMIAH_AI_MODEL: 'decision-model',
   };
   const migrations = ['001-founder-memory.sql','002-authorization-data-boundaries.sql','003-security-hardening.sql','004-security-exit-gate.sql'];
   const report = assessDeploymentReadiness(environment, migrations);

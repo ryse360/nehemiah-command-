@@ -38,6 +38,9 @@ import { DecisionPreparationWorkspaceCard } from './decision-preparation-workspa
 import { addPreparationEvidence, verifyPreparationEvidence, type PreparationEvidenceInput } from '@/nehemiah/founder-decision-evidence';
 import { mergeFounderMemories } from '@/nehemiah/cloud-memory';
 import { loadCloudFounderMemory, saveCloudFounderMemory } from '@/nehemiah/cloud-memory-client';
+import type { AIOrchestrationResult } from '@/nehemiah/ai-orchestration';
+import { requestAIDecisionPreparation } from '@/nehemiah/ai-orchestration-client';
+import { AIDecisionPreparationCard } from './ai-decision-preparation';
 
 export function NehemiahShell() {
   const [journey, setJourney] = useState(createFounderJourney);
@@ -51,6 +54,9 @@ export function NehemiahShell() {
   const [cloudRevision, setCloudRevision] = useState(0);
   const [cloudStatus, setCloudStatus] = useState<'local' | 'connecting' | 'synced' | 'error'>('local');
   const [preparation, setPreparation] = useState<DecisionPreparationWorkspace | null>(null);
+  const [aiPreparation, setAiPreparation] = useState<AIOrchestrationResult | null>(null);
+  const [aiStatus, setAiStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [aiError, setAiError] = useState('');
   const model = useMemo(() => buildShellModel(journey.lifecycle), [journey.lifecycle]);
   const strategicRecall = useMemo(
     () => journey.lifecycle === 'decision-required'
@@ -108,6 +114,9 @@ export function NehemiahShell() {
       return;
     }
     setPreparation(null);
+    setAiPreparation(null);
+    setAiStatus('idle');
+    setAiError('');
   }, [baseDecisionReadiness, journey.command, journey.lifecycle]);
 
 
@@ -168,6 +177,30 @@ export function NehemiahShell() {
       return next;
     });
     dispatch({ type: 'review-closed' });
+  }
+
+
+  async function prepareWithAI() {
+    if (journey.lifecycle !== 'decision-required' || !journey.command) return;
+    setAiStatus('loading');
+    setAiError('');
+    try {
+      const result = await requestAIDecisionPreparation({
+        command: journey.command,
+        requestedTools: ['search-founder-memory', 'read-enterprise-context'],
+        context: {
+          founderMemorySummary: `${memory.decisions.length} preserved Founder decision records.`,
+          decisionReadinessSummary: decisionReadiness
+            ? `${decisionReadiness.status}; score ${decisionReadiness.score}; missing: ${decisionReadiness.missing.join(', ') || 'none'}.`
+            : undefined,
+        },
+      });
+      setAiPreparation(result);
+      setAiStatus('ready');
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : 'AI decision preparation failed.');
+      setAiStatus('error');
+    }
   }
 
   async function signOut() {
@@ -251,6 +284,12 @@ export function NehemiahShell() {
             {model.showDecision && model.decision ? (
               <div className="decision-chamber">
                 {decisionReadiness ? <FounderDecisionReadinessCard readiness={decisionReadiness} /> : null}
+                <AIDecisionPreparationCard
+                  result={aiPreparation}
+                  status={aiStatus}
+                  error={aiError}
+                  onPrepare={prepareWithAI}
+                />
                 {preparation && preparation.status !== 'not-needed' ? (
                   <DecisionPreparationWorkspaceCard
                     workspace={preparation}

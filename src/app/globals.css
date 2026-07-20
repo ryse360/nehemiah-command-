@@ -386,3 +386,19 @@ body[data-state="proof-created"] .organism-core { box-shadow:0 0 34px 14px rgba(
 .record-integrity-details li { margin:6px 0; line-height:1.45; }
 
 .auth-screen{min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 38%,#fff 0,#f7f5f1 48%,#eee9df 100%);padding:2rem}.auth-card{width:min(430px,100%);padding:3rem;border:1px solid rgba(196,154,77,.38);background:rgba(255,255,255,.78);box-shadow:0 30px 80px rgba(8,22,38,.12);backdrop-filter:blur(22px);text-align:center}.auth-mark{width:64px;height:64px;margin:0 auto 1.5rem;border:1px solid #c49a4d;border-radius:50%;display:grid;place-items:center;font-family:serif;font-size:2rem;color:#c49a4d}.auth-card h1{font-family:serif;font-weight:500;color:#081626;margin:.4rem 0 1rem}.auth-copy{color:#4b5563;line-height:1.6;margin-bottom:2rem}.auth-card form{display:grid;gap:.75rem;text-align:left}.auth-card input{width:100%;padding:.9rem 1rem;border:1px solid rgba(8,22,38,.2);background:#fff;font:inherit}.auth-card .primary-button{margin-top:.5rem}.auth-recovery{margin-top:1.25rem;border:0;background:none;color:#4b5563;text-decoration:underline;cursor:pointer}.auth-status{min-height:1.5rem;color:#4b5563;font-size:.9rem;margin-top:1rem}
+
+.ai-preparation-card {
+  border: 1px solid rgba(196, 154, 77, 0.28);
+  border-radius: 18px;
+  padding: 1.1rem;
+  background: rgba(247, 245, 241, 0.8);
+  box-shadow: 0 18px 50px rgba(8, 22, 38, 0.06);
+}
+.ai-preparation-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.ai-preparation-header h3 { margin: 0.15rem 0 0; font-family: var(--font-display); font-size: 1.2rem; }
+.ai-preparation-content { display: grid; gap: 0.85rem; margin-top: 1rem; }
+.ai-preparation-content section { border-top: 1px solid rgba(8, 22, 38, 0.08); padding-top: 0.75rem; }
+.ai-preparation-content ol, .ai-preparation-content ul { margin: 0.35rem 0 0; padding-left: 1.2rem; }
+.ai-preparation-content blockquote { margin: 0; padding: 0.85rem 1rem; border-left: 2px solid var(--gold); background: rgba(196, 154, 77, 0.06); }
+.ai-audit-line { font-size: 0.72rem; color: var(--slate); }
+.form-error { color: #8a2f2f; font-size: 0.82rem; }
