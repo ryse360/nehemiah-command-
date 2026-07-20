@@ -56,4 +56,4 @@ Decision history is searchable and filterable. Nehemiah preserves lessons, detec
 
 ## Current Milestone
 
-Preparation Evidence Attachments now add structured sources, owners, due dates, and verification status to readiness requirements. Evidence readiness cannot resolve until a source has been verified.
+Decision Record Integrity now preserves append-only decision versions, source provenance, a chained audit trail, legacy-memory migration, and visible integrity verification for every archived Founder decision.

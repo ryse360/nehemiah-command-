@@ -311,3 +311,22 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Release: `docs/releases/v0.12.0-preparation-evidence-attachments.md`
 - Domain logic: `src/nehemiah/founder-decision-evidence.ts`
 - Tests: `src/nehemiah/founder-decision-evidence.test.ts`
+
+## 2026-07-20 — v0.13.0 Decision Record Integrity
+
+### Completed
+- [x] Upgraded Founder memory to a version 2 integrity ledger.
+- [x] Added append-only decision record versioning.
+- [x] Added source provenance from the Founder journey.
+- [x] Added chained audit events with record digests and prior hashes.
+- [x] Added integrity verification and tamper detection.
+- [x] Added material revision rules that preserve prior versions.
+- [x] Added automatic migration from legacy v1 browser memory.
+- [x] Added record version, integrity status, provenance, and audit history to Founder Memory.
+
+### Evidence
+- Release: `docs/releases/v0.13.0-decision-record-integrity.md`
+- Integrity engine: `src/nehemiah/decision-record-integrity.ts`
+- Tests: `src/nehemiah/decision-record-integrity.test.ts`
+- Founder memory: `src/nehemiah/founder-memory.ts`
+- Memory interface: `src/components/founder-memory-panel.tsx`

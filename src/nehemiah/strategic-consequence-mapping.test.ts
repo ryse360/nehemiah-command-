@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildConsequenceMap } from './strategic-consequence-mapping';
 import type { StrategicRecall } from './founder-strategic-recall';
+import type { FounderDecisionRecord } from './founder-memory';
 
 const recall: StrategicRecall = {
   headline: 'Relevant precedent found before this decision moves forward.',
@@ -17,7 +18,7 @@ const recall: StrategicRecall = {
       proof: 'The pilot launched but context transfer failed twice and delayed onboarding.',
       proofRecordedAt: '2026-07-20T13:00:00.000Z',
       lesson: 'Do not expand the platform until context transfer is proven under load.',
-    },
+    } as unknown as FounderDecisionRecord,
     score: 0.72,
     sharedTerms: ['restricted', 'platform', 'pilot'],
   },

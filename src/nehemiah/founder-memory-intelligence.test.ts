@@ -8,7 +8,7 @@ import {
 } from './founder-memory-intelligence';
 import type { FounderMemory } from './founder-memory';
 
-const memory: FounderMemory = {
+const memory = {
   version: 1,
   decisions: [
     {
@@ -45,7 +45,7 @@ const memory: FounderMemory = {
       lesson: 'Do not expand before the core experience is proven.',
     },
   ],
-};
+} as unknown as FounderMemory;
 
 test('filters decision history by search text and disposition', () => {
   const results = filterFounderDecisions(memory.decisions, {

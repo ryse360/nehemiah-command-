@@ -3,7 +3,7 @@ import test from 'node:test';
 import { buildStrategicRecall } from './founder-strategic-recall';
 import type { FounderMemory } from './founder-memory';
 
-const memory: FounderMemory = {
+const memory = {
   version: 1,
   decisions: [
     {
@@ -31,7 +31,7 @@ const memory: FounderMemory = {
       lesson: 'Bounded pilots preserve momentum when the activation gate is explicit.',
     },
   ],
-};
+} as unknown as FounderMemory;
 
 test('introduces the strongest relevant precedent into a live decision', () => {
   const recall = buildStrategicRecall(

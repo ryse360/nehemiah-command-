@@ -376,3 +376,11 @@ body[data-state="proof-created"] .organism-core { box-shadow:0 0 34px 14px rgba(
 .evidence-fields label { display:grid; gap:5px; font-size:10px; color:var(--slate); }
 .evidence-fields .is-wide { grid-column:1 / -1; }
 .evidence-fields input,.evidence-fields select { width:100%; border:1px solid var(--line); border-radius:10px; padding:9px 10px; background:rgba(255,255,255,.72); color:var(--navy); }
+
+.integrity-badge { display:inline-flex; margin-top:12px; padding:5px 9px; border-radius:999px; font-size:9px; letter-spacing:.08em; text-transform:uppercase; }
+.integrity-badge.is-valid { background:rgba(53,112,77,.1); color:#2f6a47; border:1px solid rgba(53,112,77,.22); }
+.integrity-badge.is-invalid { background:rgba(139,59,49,.1); color:#8b3b31; border:1px solid rgba(139,59,49,.22); }
+.record-integrity-details { margin-top:14px; padding-top:12px; border-top:1px solid var(--line); color:var(--slate); font-size:11px; }
+.record-integrity-details summary { cursor:pointer; color:var(--navy); font-weight:600; }
+.record-integrity-details ol { margin:9px 0 0; padding-left:18px; }
+.record-integrity-details li { margin:6px 0; line-height:1.45; }

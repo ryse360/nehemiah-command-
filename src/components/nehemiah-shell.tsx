@@ -12,6 +12,7 @@ import {
   createFounderMemory,
   deserializeFounderMemory,
   FOUNDER_MEMORY_KEY,
+  LEGACY_FOUNDER_MEMORY_KEY,
   serializeFounderMemory,
 } from '@/nehemiah/founder-memory';
 import { DecisionField } from './decision-field';
@@ -77,7 +78,9 @@ export function NehemiahShell() {
   );
 
   useEffect(() => {
-    setMemory(deserializeFounderMemory(window.localStorage.getItem(FOUNDER_MEMORY_KEY)));
+    const current = window.localStorage.getItem(FOUNDER_MEMORY_KEY);
+    const legacy = window.localStorage.getItem(LEGACY_FOUNDER_MEMORY_KEY);
+    setMemory(deserializeFounderMemory(current ?? legacy));
     setMemoryLoaded(true);
   }, []);
 

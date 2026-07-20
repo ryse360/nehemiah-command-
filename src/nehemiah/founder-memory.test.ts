@@ -29,7 +29,7 @@ const completedJourney: FounderJourney = {
 
 test('creates an empty versioned Founder memory', () => {
   const memory = createFounderMemory();
-  assert.equal(memory.version, 1);
+  assert.equal(memory.version, 2);
   assert.deepEqual(memory.decisions, []);
 });
 
@@ -37,6 +37,8 @@ test('archives a completed journey with decision, action, and proof', () => {
   const memory = appendJourneyToMemory(createFounderMemory(), completedJourney);
   assert.equal(memory.decisions.length, 1);
   assert.equal(memory.decisions[0]?.command, completedJourney.command);
+  assert.equal(memory.decisions[0]?.recordVersion, 1);
+  assert.equal(memory.decisions[0]?.auditTrail.length, 1);
   assert.equal(memory.decisions[0]?.disposition, 'approve-with-limits');
   assert.equal(memory.decisions[0]?.proof, completedJourney.proof?.evidence);
 });
@@ -58,7 +60,7 @@ test('serializes and restores Founder memory', () => {
 
 test('returns empty memory for invalid stored content', () => {
   assert.deepEqual(deserializeFounderMemory('{broken'), createFounderMemory());
-  assert.deepEqual(deserializeFounderMemory('{"version":2}'), createFounderMemory());
+  assert.deepEqual(deserializeFounderMemory('{"version":3}'), createFounderMemory());
 });
 
 test('archives the Founder lesson with completed proof', () => {
@@ -70,4 +72,22 @@ test('archives the Founder lesson with completed proof', () => {
     },
   });
   assert.equal(memory.decisions[0]?.lesson, 'Use a restricted pilot to protect momentum.');
+});
+
+test('migrates legacy v1 memory into the integrity ledger', () => {
+  const legacy = JSON.stringify({
+    version: 1,
+    decisions: [{
+      id: 'legacy-decision',
+      command: 'Review the pilot.',
+      disposition: 'approve',
+      decidedAt: '2026-07-20T12:00:00.000Z',
+      proof: 'Pilot reviewed.',
+      proofRecordedAt: '2026-07-20T13:00:00.000Z',
+    }],
+  });
+  const migrated = deserializeFounderMemory(legacy);
+  assert.equal(migrated.version, 2);
+  assert.equal(migrated.decisions[0]?.recordVersion, 1);
+  assert.equal(migrated.decisions[0]?.auditTrail[0]?.reason.includes('migrated'), true);
 });

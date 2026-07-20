@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { DecisionDisposition } from '@/nehemiah/founder-journey';
 import type { FounderMemory } from '@/nehemiah/founder-memory';
+import { verifyDecisionRecordIntegrity } from '@/nehemiah/decision-record-integrity';
 import {
   analyzeFounderMemory,
   filterFounderDecisions,
@@ -118,14 +119,29 @@ export function FounderMemoryPanel({ memory, isOpen, onClose, currentCommand = '
           {decisions.map((record) => (
             <li key={record.id} className="memory-record">
               <div className="memory-record-topline">
-                <span>{record.disposition.replaceAll('-', ' ')}</span>
+                <span>{record.disposition.replaceAll('-', ' ')} · v{record.recordVersion}</span>
                 <time dateTime={record.proofRecordedAt}>{new Date(record.proofRecordedAt).toLocaleDateString()}</time>
+              </div>
+              <div className={`integrity-badge ${verifyDecisionRecordIntegrity(record) ? 'is-valid' : 'is-invalid'}`}>
+                {verifyDecisionRecordIntegrity(record) ? 'Integrity verified' : 'Integrity warning'}
               </div>
               <h3>{record.command}</h3>
               {record.decisionNote ? <p><strong>Limits:</strong> {record.decisionNote}</p> : null}
               {record.visibleAction ? <p><strong>Visible action:</strong> {record.visibleAction}</p> : null}
               <p><strong>Proof:</strong> {record.proof}</p>
               {record.lesson ? <p className="memory-lesson"><strong>Lesson:</strong> {record.lesson}</p> : null}
+              <details className="record-integrity-details">
+                <summary>Record provenance and audit trail</summary>
+                <p><strong>Logical record:</strong> {record.logicalDecisionId}</p>
+                <p><strong>Sources preserved:</strong> {record.provenance.length}</p>
+                <ol>
+                  {record.auditTrail.map((entry) => (
+                    <li key={entry.hash}>
+                      <strong>{entry.eventType.replaceAll('-', ' ')}</strong> by {entry.actor} · {entry.reason}
+                    </li>
+                  ))}
+                </ol>
+              </details>
             </li>
           ))}
         </ol>
