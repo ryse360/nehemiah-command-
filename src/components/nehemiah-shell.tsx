@@ -34,6 +34,7 @@ import {
 } from '@/nehemiah/founder-decision-preparation';
 import type { ReadinessDimension } from '@/nehemiah/founder-decision-readiness';
 import { DecisionPreparationWorkspaceCard } from './decision-preparation-workspace';
+import { addPreparationEvidence, verifyPreparationEvidence, type PreparationEvidenceInput } from '@/nehemiah/founder-decision-evidence';
 
 export function NehemiahShell() {
   const [journey, setJourney] = useState(createFounderJourney);
@@ -109,6 +110,14 @@ export function NehemiahShell() {
     if (journey.lifecycle === 'focus-surfaced') dispatch({ type: 'decision-justified' });
   }
 
+
+  function addEvidence(dimension: ReadinessDimension, evidence: PreparationEvidenceInput) {
+    setPreparation((current) => current ? addPreparationEvidence(current, dimension, evidence) : current);
+  }
+
+  function verifyEvidence(dimension: ReadinessDimension, evidenceId: string) {
+    setPreparation((current) => current ? verifyPreparationEvidence(current, dimension, evidenceId, 'Founder') : current);
+  }
 
   function resolvePreparation(dimension: ReadinessDimension, response: string) {
     setPreparation((current) => {
@@ -209,7 +218,12 @@ export function NehemiahShell() {
               <div className="decision-chamber">
                 {decisionReadiness ? <FounderDecisionReadinessCard readiness={decisionReadiness} /> : null}
                 {preparation && preparation.status !== 'not-needed' ? (
-                  <DecisionPreparationWorkspaceCard workspace={preparation} onResolve={resolvePreparation} />
+                  <DecisionPreparationWorkspaceCard
+                    workspace={preparation}
+                    onResolve={resolvePreparation}
+                    onAddEvidence={addEvidence}
+                    onVerifyEvidence={verifyEvidence}
+                  />
                 ) : null}
                 {strategicRecall ? <StrategicRecallCard recall={strategicRecall} /> : null}
                 {consequenceMap ? <StrategicConsequenceMapCard map={consequenceMap} /> : null}

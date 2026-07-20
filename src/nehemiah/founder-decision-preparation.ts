@@ -2,6 +2,7 @@ import type {
   FounderDecisionReadiness,
   ReadinessDimension,
 } from './founder-decision-readiness';
+import type { PreparationEvidence } from './founder-decision-evidence';
 
 export type PreparationItemStatus = 'unresolved' | 'resolved';
 
@@ -13,6 +14,7 @@ export type DecisionPreparationItem = {
   suggestedAction: string;
   status: PreparationItemStatus;
   response?: string;
+  evidence: PreparationEvidence[];
 };
 
 export type DecisionPreparationWorkspace = {
@@ -22,7 +24,7 @@ export type DecisionPreparationWorkspace = {
   total: number;
 };
 
-const preparationGuidance: Record<ReadinessDimension, Omit<DecisionPreparationItem, 'dimension' | 'status'>> = {
+const preparationGuidance: Record<ReadinessDimension, Omit<DecisionPreparationItem, 'dimension' | 'status' | 'evidence'>> = {
   evidence: {
     label: 'Evidence',
     prompt: 'What verified signal, source, or preserved precedent justifies placing this matter before the Founder?',
@@ -67,6 +69,7 @@ export function buildDecisionPreparationWorkspace(
     dimension,
     ...preparationGuidance[dimension],
     status: 'unresolved' as const,
+    evidence: [],
   }));
 
   return {
@@ -91,6 +94,9 @@ export function resolvePreparationItem(
   const items = workspace.items.map((item) => {
     if (item.dimension !== dimension) return item;
     found = true;
+    if (dimension === 'evidence' && !item.evidence.some((entry) => entry.verificationStatus === 'verified')) {
+      throw new Error('At least one verified evidence attachment is required before evidence readiness can be resolved.');
+    }
     return { ...item, status: 'resolved' as const, response: normalized };
   });
 

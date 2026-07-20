@@ -360,3 +360,19 @@ body[data-state="proof-created"] .organism-core { box-shadow:0 0 34px 14px rgba(
 .preparation-response { margin-top:11px; padding-top:10px; border-top:1px solid var(--line); }
 .preparation-response p { margin:0; color:var(--navy); font-size:11px; line-height:1.5; }
 .preparation-error { margin:12px 0 0; padding:10px 12px; border-radius:12px; color:#8b4a36; background:rgba(139,74,54,.08); font-size:10px; line-height:1.45; }
+
+/* v0.12 preparation evidence */
+.evidence-list { display:grid; gap:8px; margin:14px 0; }
+.evidence-record { display:flex; justify-content:space-between; gap:12px; padding:11px 12px; border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.5); }
+.evidence-record div { min-width:0; display:grid; gap:3px; }
+.evidence-record strong { font-size:12px; }
+.evidence-record span,.evidence-record small,.empty-evidence { color:var(--slate); font-size:10px; overflow-wrap:anywhere; }
+.evidence-record b { color:#2c7a59; font-size:10px; align-self:center; }
+.evidence-record.is-verified { border-color:rgba(44,122,89,.25); background:rgba(44,122,89,.05); }
+.empty-evidence { margin:0; padding:8px 0; }
+.evidence-composer { margin:14px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:10px 0; }
+.evidence-composer summary { cursor:pointer; font-size:11px; font-weight:700; color:var(--gold); }
+.evidence-fields { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0; }
+.evidence-fields label { display:grid; gap:5px; font-size:10px; color:var(--slate); }
+.evidence-fields .is-wide { grid-column:1 / -1; }
+.evidence-fields input,.evidence-fields select { width:100%; border:1px solid var(--line); border-radius:10px; padding:9px 10px; background:rgba(255,255,255,.72); color:var(--navy); }

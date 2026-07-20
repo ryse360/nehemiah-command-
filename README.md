@@ -56,4 +56,4 @@ Decision history is searchable and filterable. Nehemiah preserves lessons, detec
 
 ## Current Milestone
 
-Decision Preparation Workspace now converts blocked or conditional readiness gaps into actionable resolution tasks and recalculates the Founder decision gate as concrete answers are recorded.
+Preparation Evidence Attachments now add structured sources, owners, due dates, and verification status to readiness requirements. Evidence readiness cannot resolve until a source has been verified.

@@ -297,3 +297,17 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Tests: `src/nehemiah/founder-decision-preparation.test.ts`
 - Workspace UI: `src/components/decision-preparation-workspace.tsx`
 - Release: `docs/releases/decision-preparation-workspace-v0.11.0.md`
+
+## 2026-07-20 — v0.12.0 Preparation Evidence Attachments
+
+### Completed
+- [x] Added typed evidence records for links, file references, and source records.
+- [x] Added owners, due dates, timestamps, and verification state.
+- [x] Added evidence composition and verification controls to the preparation workspace.
+- [x] Required verified evidence before the Evidence readiness gap can resolve.
+- [x] Added four automated evidence-governance tests.
+
+### Evidence
+- Release: `docs/releases/v0.12.0-preparation-evidence-attachments.md`
+- Domain logic: `src/nehemiah/founder-decision-evidence.ts`
+- Tests: `src/nehemiah/founder-decision-evidence.test.ts`
