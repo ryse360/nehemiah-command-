@@ -469,3 +469,22 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Gmail API: `src/app/api/integrations/gmail/route.ts`
 - Founder agenda API: `src/app/api/founder-agenda/route.ts`
 - UI: `src/components/founder-agenda-panel.tsx`
+
+## 2026-07-20 — v0.20.0 Drive and Obsidian Knowledge Integration
+
+### Completed
+- [x] Added governed Google Drive and Obsidian source normalization.
+- [x] Added controlled source synchronization with stale-update protection.
+- [x] Added PostgreSQL knowledge source storage and migration 005.
+- [x] Added Founder-only knowledge index and search API.
+- [x] Added evidence excerpts, source provenance, visibility, and grounded citations.
+- [x] Added Founder Knowledge panel to the private command interface.
+- [x] Added deployment and integration documentation.
+- [x] Added five knowledge-focused automated tests.
+
+### Evidence
+- Release: `docs/releases/v0.20.0-drive-obsidian-knowledge.md`
+- Integration contract: `docs/integrations/drive-obsidian.md`
+- Migration: `docs/database/005-drive-obsidian-knowledge.sql`
+- Core logic: `src/nehemiah/drive-obsidian-knowledge.ts`
+- Tests: `src/nehemiah/drive-obsidian-knowledge.test.ts`

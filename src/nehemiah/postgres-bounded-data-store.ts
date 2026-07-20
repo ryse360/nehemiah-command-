@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import type { EnterpriseContext, IntegrationSignal } from './data-boundaries';
+import type { KnowledgeRecord } from './drive-obsidian-knowledge';
 import { MemoryConflictError } from './cloud-memory';
 
 export type CloudEnterpriseContext = {
@@ -109,4 +110,71 @@ export class PostgresBoundedDataStore {
       payload: row.payload,
     }));
   }
+  async upsertKnowledgeRecord(founderId: string, record: KnowledgeRecord): Promise<KnowledgeRecord> {
+    const rows = await this.sql<{
+      source_kind: 'google-drive' | 'obsidian';
+      external_id: string;
+      title: string;
+      source_ref: string;
+      modified_at: Date;
+      received_at: Date;
+      content: string;
+      visibility: 'founder-private' | 'enterprise';
+      tags: string[];
+      owners: string[];
+      mime_type: string | null;
+      content_hash: string | null;
+    }[]>`
+      insert into knowledge_sources (
+        founder_id, source_kind, external_id, title, source_ref, modified_at,
+        content, visibility, tags, owners, mime_type, content_hash
+      ) values (
+        ${founderId}, ${record.sourceKind}, ${record.id}, ${record.title}, ${record.sourceRef}, ${record.modifiedAt},
+        ${record.content}, ${record.visibility}, ${record.tags}, ${record.owners}, ${record.mimeType ?? null}, ${record.contentHash ?? null}
+      )
+      on conflict (founder_id, source_kind, external_id) do update
+      set title = excluded.title,
+          source_ref = excluded.source_ref,
+          modified_at = excluded.modified_at,
+          received_at = now(),
+          content = excluded.content,
+          visibility = excluded.visibility,
+          tags = excluded.tags,
+          owners = excluded.owners,
+          mime_type = excluded.mime_type,
+          content_hash = excluded.content_hash
+      where knowledge_sources.modified_at <= excluded.modified_at
+      returning source_kind, external_id, title, source_ref, modified_at, received_at, content, visibility, tags, owners, mime_type, content_hash
+    `;
+    const row = rows[0];
+    if (!row) return record;
+    return {
+      id: row.external_id, title: row.title, sourceKind: row.source_kind, sourceRef: row.source_ref,
+      modifiedAt: row.modified_at.toISOString(), receivedAt: row.received_at.toISOString(), content: row.content,
+      visibility: row.visibility, tags: row.tags ?? [], owners: row.owners ?? [],
+      mimeType: row.mime_type ?? undefined, contentHash: row.content_hash ?? undefined,
+    };
+  }
+
+  async listKnowledgeRecords(founderId: string, limit = 200): Promise<KnowledgeRecord[]> {
+    const boundedLimit = Math.max(1, Math.min(limit, 500));
+    const rows = await this.sql<{
+      source_kind: 'google-drive' | 'obsidian'; external_id: string; title: string; source_ref: string;
+      modified_at: Date; received_at: Date; content: string; visibility: 'founder-private' | 'enterprise';
+      tags: string[]; owners: string[]; mime_type: string | null; content_hash: string | null;
+    }[]>`
+      select source_kind, external_id, title, source_ref, modified_at, received_at, content, visibility, tags, owners, mime_type, content_hash
+      from knowledge_sources
+      where founder_id = ${founderId}
+      order by modified_at desc
+      limit ${boundedLimit}
+    `;
+    return rows.map((row) => ({
+      id: row.external_id, title: row.title, sourceKind: row.source_kind, sourceRef: row.source_ref,
+      modifiedAt: row.modified_at.toISOString(), receivedAt: row.received_at.toISOString(), content: row.content,
+      visibility: row.visibility, tags: row.tags ?? [], owners: row.owners ?? [],
+      mimeType: row.mime_type ?? undefined, contentHash: row.content_hash ?? undefined,
+    }));
+  }
+
 }

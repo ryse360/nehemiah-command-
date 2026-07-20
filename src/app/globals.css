@@ -402,3 +402,11 @@ body[data-state="proof-created"] .organism-core { box-shadow:0 0 34px 14px rgba(
 .ai-preparation-content blockquote { margin: 0; padding: 0.85rem 1rem; border-left: 2px solid var(--gold); background: rgba(196, 154, 77, 0.06); }
 .ai-audit-line { font-size: 0.72rem; color: var(--slate); }
 .form-error { color: #8a2f2f; font-size: 0.82rem; }
+
+/* Founder Knowledge */
+.knowledge-panel .memory-controls { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; }
+.knowledge-panel .memory-controls input { min-width:0; border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:rgba(255,255,255,.75); color:var(--navy); }
+.knowledge-record a,.knowledge-record code { display:inline-block; margin-top:10px; color:var(--gold); font-size:10px; overflow-wrap:anywhere; }
+.knowledge-meta { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:10px; color:var(--slate); font-size:9px; }
+.knowledge-citation { margin-top:10px; padding-top:9px; border-top:1px solid var(--line); color:var(--slate); font-size:9px!important; }
+@media (max-width:640px) { .knowledge-panel .memory-controls { grid-template-columns:1fr; } }

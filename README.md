@@ -56,7 +56,7 @@ Decision history is searchable and filterable. Nehemiah preserves lessons, detec
 
 ## Current Milestone
 
-Calendar and Gmail Integration converts governed Google Workspace signals into a private Founder Agenda while preserving authorization boundaries and Founder decision authority.
+Drive and Obsidian Knowledge Integration adds governed source synchronization, provenance-preserving retrieval, and Founder-only evidence search.
 
 
 ## Cloud persistence setup
@@ -64,7 +64,7 @@ Calendar and Gmail Integration converts governed Google Workspace signals into a
 1. Provision PostgreSQL and run `docs/database/001-founder-memory.sql`.
 2. Copy `.env.example` to `.env.local`.
 3. Configure `DATABASE_URL`, `NEHEMIAH_FOUNDER_ID`, `NEHEMIAH_FOUNDER_PASSWORD_HASH`, and `NEHEMIAH_SESSION_SECRET`.
-4. Run all database migrations through `docs/database/003-security-hardening.sql`.
+4. Run all database migrations through `docs/database/005-drive-obsidian-knowledge.sql`.
 
 Browser memory remains available when cloud configuration is absent. Cloud writes use revision checks so a stale device cannot silently overwrite newer Founder memory.
 
@@ -95,3 +95,8 @@ Production distributed rate limiting requires `DATABASE_URL` and migration `004-
 ## Calendar and Gmail integration (v0.19.0)
 
 Configure rotating keys for `google-calendar` and `gmail`, then connect an approved Google Workspace bridge to the dedicated ingestion routes. See `docs/integrations/google-workspace.md`. Nehemiah stores bounded message metadata and calendar commitments; it does not send email or modify calendar events in this release.
+
+
+## Drive and Obsidian knowledge integration (v0.20.0)
+
+Configure rotating keys for `google-drive` and `obsidian`, apply migration `005-drive-obsidian-knowledge.sql`, and connect only approved Drive folders and Obsidian vault paths. See `docs/integrations/drive-obsidian.md`. Nehemiah preserves source references, timestamps, visibility, citations, and controlled synchronization history.

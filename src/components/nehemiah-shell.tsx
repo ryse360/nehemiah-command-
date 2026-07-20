@@ -44,6 +44,9 @@ import { AIDecisionPreparationCard } from './ai-decision-preparation';
 import { FounderAgendaPanel } from './founder-agenda-panel';
 import type { FounderAgenda } from '@/nehemiah/calendar-gmail-integration';
 import { loadFounderAgenda } from '@/nehemiah/founder-agenda-client';
+import type { KnowledgeIndex, KnowledgeSearchResponse } from '@/nehemiah/drive-obsidian-knowledge';
+import { loadFounderKnowledge } from '@/nehemiah/founder-knowledge-client';
+import { FounderKnowledgePanel } from './founder-knowledge-panel';
 
 export function NehemiahShell() {
   const [journey, setJourney] = useState(createFounderJourney);
@@ -64,6 +67,10 @@ export function NehemiahShell() {
   const [agendaOpen, setAgendaOpen] = useState(false);
   const [agendaLoading, setAgendaLoading] = useState(false);
   const [agendaError, setAgendaError] = useState('');
+  const [knowledge, setKnowledge] = useState<KnowledgeIndex | KnowledgeSearchResponse | null>(null);
+  const [knowledgeOpen, setKnowledgeOpen] = useState(false);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [knowledgeError, setKnowledgeError] = useState('');
   const model = useMemo(() => buildShellModel(journey.lifecycle), [journey.lifecycle]);
   const strategicRecall = useMemo(
     () => journey.lifecycle === 'decision-required'
@@ -228,6 +235,23 @@ export function NehemiahShell() {
     if (!agenda && !agendaLoading) void refreshAgenda();
   }
 
+  async function refreshKnowledge(query = '') {
+    setKnowledgeLoading(true);
+    setKnowledgeError('');
+    try {
+      setKnowledge(await loadFounderKnowledge(query));
+    } catch (error) {
+      setKnowledgeError(error instanceof Error ? error.message : 'Founder knowledge unavailable.');
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  }
+
+  function openKnowledge() {
+    setKnowledgeOpen(true);
+    if (!knowledge && !knowledgeLoading) void refreshKnowledge();
+  }
+
   async function signOut() {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.reload();
@@ -247,7 +271,7 @@ export function NehemiahShell() {
         <div className="brand-mark" aria-label="MiP Coaching">M</div>
         <nav>
           {['Command', 'Intelligence', 'Decisions', 'Projects', 'More'].map((item, index) => (
-            <button key={item} className={`rail-button${index === 0 ? ' is-active' : ''}`} type="button" aria-label={item} onClick={() => item === 'Decisions' && setMemoryOpen(true)}>
+            <button key={item} className={`rail-button${index === 0 ? ' is-active' : ''}`} type="button" aria-label={item} onClick={() => { if (item === 'Decisions') setMemoryOpen(true); if (item === 'Intelligence') openKnowledge(); }}>
               {['⌂', '◇', '⌁', '□', '•••'][index]}
             </button>
           ))}
@@ -261,6 +285,7 @@ export function NehemiahShell() {
           <div className="topbar-actions">
             <button className="search-button" type="button" onClick={() => setMemoryOpen(true)}>Memory · {memory.decisions.length}</button>
             <button className="search-button" type="button" onClick={openAgenda}>Agenda{agenda ? ` · ${agenda.items.length}` : ''}</button>
+            <button className="search-button" type="button" onClick={openKnowledge}>Knowledge{knowledge ? ` · ${'results' in knowledge ? knowledge.results.length : knowledge.records.length}` : ''}</button>
             <span className="search-button" aria-label="Cloud memory status">Cloud · {cloudStatus}</span>
             <button className="search-button" type="button" onClick={signOut}>Sign out</button>
             <span className="private-status">Private Mode Active</span>
@@ -349,6 +374,15 @@ export function NehemiahShell() {
         error={agendaError}
         onClose={() => setAgendaOpen(false)}
         onRefresh={refreshAgenda}
+      />
+      <FounderKnowledgePanel
+        data={knowledge}
+        isOpen={knowledgeOpen}
+        loading={knowledgeLoading}
+        error={knowledgeError}
+        onClose={() => setKnowledgeOpen(false)}
+        onSearch={refreshKnowledge}
+        onRefresh={() => refreshKnowledge()}
       />
       <FounderMemoryPanel
         memory={memory}
