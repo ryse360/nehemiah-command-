@@ -517,3 +517,8 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Added bounded health snapshots and redacted operational events.
 - Added authenticated event review and severity summaries.
 - Added production smoke test and incident operations guide.
+
+## 2026-07-20 — v0.24.0 Deployment Rehearsal
+- Added ten-gate fail-closed release rehearsal.
+- Added authenticated deployment-readiness API and rehearsal script.
+- Added production rehearsal and rollback runbooks.

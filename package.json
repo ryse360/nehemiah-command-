@@ -1,6 +1,6 @@
 {
   "name": "nehemiah-command",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,7 +12,8 @@
     "security:check-readiness": "node --import tsx scripts/check-production-readiness.ts",
     "security:verify-backup": "node --import tsx scripts/verify-backup-manifest.ts",
     "quality:performance": "node --import tsx scripts/check-performance-budget.ts",
-    "quality:smoke": "node --import tsx scripts/smoke-production.ts"
+    "quality:smoke": "node --import tsx scripts/smoke-production.ts",
+    "deployment:rehearse": "node --import tsx scripts/rehearse-deployment.ts"
   },
   "dependencies": {
     "next": "16.2.10",
