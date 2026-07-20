@@ -512,3 +512,8 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Added accessibility contract and automated checks.
 - Added skip navigation, visible focus, live state announcement, larger targets, responsive navigation, and reduced-motion behavior.
 - Added production static-asset performance budget.
+
+## 2026-07-20 — v0.23.0 Reliability and Monitoring
+- Added bounded health snapshots and redacted operational events.
+- Added authenticated event review and severity summaries.
+- Added production smoke test and incident operations guide.
