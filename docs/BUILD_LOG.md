@@ -413,3 +413,20 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Migration: `docs/database/003-security-hardening.sql`
 - Incident response: `docs/security/incident-response.md`
 - Backup recovery: `docs/security/backup-recovery.md`
+
+## 2026-07-20 — v0.17.1 Security Exit Gate
+
+### Completed
+- [x] Added PostgreSQL-backed distributed rate limiting for shared production enforcement.
+- [x] Added migration 004 for expiring rate-limit attempts.
+- [x] Added production environment and migration readiness checker.
+- [x] Added backup-manifest and restore-rehearsal verification tooling.
+- [x] Added dependency-advisory handling record.
+- [x] Added and passed 5 new tests; full suite is 83 passing tests.
+- [x] Passed strict TypeScript checking and optimized Next.js production build.
+
+### Operational deployment requirements
+- [ ] Apply migration 004 to the production PostgreSQL database.
+- [ ] Install real production secrets and pass `npm run security:check-readiness`.
+- [ ] Schedule encrypted backups and validate a real restore manifest.
+- [ ] Re-run dependency audit from a functioning production registry endpoint.

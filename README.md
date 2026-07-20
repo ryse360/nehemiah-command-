@@ -77,6 +77,16 @@ Generate `NEHEMIAH_FOUNDER_PASSWORD_HASH` with `npm run security:hash-password -
 Nehemiah separates Founder-private memory, MiP enterprise context, and external integration signals. Authorization is enforced on the server. Run `docs/database/002-authorization-data-boundaries.sql` and configure `NEHEMIAH_INTEGRATION_KEYS` before enabling integrations.
 
 
-## Security hardening (v0.17.0)
+## Security hardening (v0.17.1)
 
 Run `docs/database/003-security-hardening.sql`, configure `NEHEMIAH_AUTH_VERSION`, and use the rotating integration-key format in `.env.example`. See `docs/security/incident-response.md` and `docs/security/backup-recovery.md` before production rollout.
+
+
+## Security exit gate
+
+```bash
+npm run security:check-readiness
+npm run security:verify-backup -- docs/security/backup-manifest.example.json
+```
+
+Production distributed rate limiting requires `DATABASE_URL` and migration `004-security-exit-gate.sql`.

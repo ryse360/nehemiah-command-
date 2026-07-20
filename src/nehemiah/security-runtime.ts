@@ -1,8 +1,7 @@
-import { createSecurityEvent, createSlidingWindowRateLimiter, type SecurityEvent } from './security-hardening';
+import { createSecurityEvent, type SecurityEvent } from './security-hardening';
+import { distributedRateLimitStoreFromEnv } from './distributed-rate-limit';
 import { securityStoreFromEnv } from './security-store';
 
-const loginLimiter = createSlidingWindowRateLimiter({ limit: 5, windowMs: 15 * 60_000 });
-const integrationLimiter = createSlidingWindowRateLimiter({ limit: 120, windowMs: 60_000 });
 
 export function requestFingerprint(request: Request, scope: string): string {
   const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
@@ -10,16 +9,16 @@ export function requestFingerprint(request: Request, scope: string): string {
   return `${scope}:${forwarded || realIp || 'unknown'}`;
 }
 
-export function consumeLoginAttempt(request: Request) {
-  return loginLimiter.consume(requestFingerprint(request, 'login'));
+export async function consumeLoginAttempt(request: Request) {
+  return distributedRateLimitStoreFromEnv().consume(requestFingerprint(request, 'login'), { limit: 5, windowMs: 15 * 60_000 });
 }
 
-export function resetLoginAttempts(request: Request) {
-  loginLimiter.reset(requestFingerprint(request, 'login'));
+export async function resetLoginAttempts(request: Request) {
+  await distributedRateLimitStoreFromEnv().reset(requestFingerprint(request, 'login'));
 }
 
-export function consumeIntegrationAttempt(request: Request, integrationId: string) {
-  return integrationLimiter.consume(requestFingerprint(request, `integration:${integrationId || 'unknown'}`));
+export async function consumeIntegrationAttempt(request: Request, integrationId: string) {
+  return distributedRateLimitStoreFromEnv().consume(requestFingerprint(request, `integration:${integrationId || 'unknown'}`), { limit: 120, windowMs: 60_000 });
 }
 
 export async function recordSecurityEvent(event: SecurityEvent, founderId?: string): Promise<void> {

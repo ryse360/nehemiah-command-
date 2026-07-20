@@ -16,7 +16,7 @@ function store() {
 
 export async function POST(request: NextRequest) {
   const integrationId = request.headers.get('x-nehemiah-integration-id') ?? '';
-  const rate = consumeIntegrationAttempt(request, integrationId);
+  const rate = await consumeIntegrationAttempt(request, integrationId);
   if (!rate.allowed) {
     await recordSecurityEvent(securityEventForRequest(request, {
       actorType: 'integration', actorId: integrationId || 'unknown',

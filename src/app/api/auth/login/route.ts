@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   const config = founderAuthConfigFromEnv();
   if (!config) return NextResponse.json({ error: 'Founder authentication is not configured.' }, { status: 503 });
 
-  const rate = consumeLoginAttempt(request);
+  const rate = await consumeLoginAttempt(request);
   if (!rate.allowed) {
     await recordSecurityEvent(securityEventForRequest(request, {
       actorType: 'anonymous', actorId: 'unknown', eventType: 'auth.login.rate_limited', outcome: 'denied',
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'The credentials could not be verified.' }, { status: 401 });
   }
 
-  resetLoginAttempts(request);
+  await resetLoginAttempts(request);
   const token = createSessionToken(config);
   const response = NextResponse.json({ founderId: config.founderId });
   response.cookies.set(FOUNDER_SESSION_COOKIE, token, {
