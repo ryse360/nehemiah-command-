@@ -252,3 +252,25 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Release tag: `v0.9.0`
 - Tracked files: 57
 - Git metadata: `.git/`
+
+## 2026-07-20 — Founder Decision Gate v0.10.0
+
+### Completed
+- [x] Converted decision readiness into an enforceable governance gate.
+- [x] Added open, conditional, and blocked gate states.
+- [x] Removed unrestricted approval when readiness is conditional.
+- [x] Blocked approval when preparation is not ready.
+- [x] Preserved request-evidence, delay, and reject paths for blocked matters.
+- [x] Added live gate messaging and unresolved requirements to the decision chamber.
+- [x] Added runtime disposition enforcement.
+
+### Verification
+- [x] 39 automated tests passed.
+- [x] TypeScript strict checking passed.
+- [x] Next.js optimized production build passed.
+
+### Evidence
+- Gate engine: `src/nehemiah/founder-decision-gate.ts`
+- Tests: `src/nehemiah/founder-decision-gate.test.ts`
+- Decision chamber: `src/components/decision-field.tsx`
+- Release: `docs/releases/founder-decision-gate-v0.10.0.md`

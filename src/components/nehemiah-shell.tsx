@@ -25,6 +25,7 @@ import { buildConsequenceMap } from '@/nehemiah/strategic-consequence-mapping';
 import { StrategicConsequenceMapCard } from './strategic-consequence-map';
 import { assessDecisionReadiness } from '@/nehemiah/founder-decision-readiness';
 import { FounderDecisionReadinessCard } from './founder-decision-readiness';
+import { buildFounderDecisionGate, dispositionIsAllowed } from '@/nehemiah/founder-decision-gate';
 
 export function NehemiahShell() {
   const [journey, setJourney] = useState(createFounderJourney);
@@ -54,6 +55,10 @@ export function NehemiahShell() {
       : null,
     [consequenceMap, journey.command, journey.lifecycle, strategicRecall],
   );
+  const decisionGate = useMemo(
+    () => decisionReadiness ? buildFounderDecisionGate(decisionReadiness) : null,
+    [decisionReadiness],
+  );
 
   useEffect(() => {
     setMemory(deserializeFounderMemory(window.localStorage.getItem(FOUNDER_MEMORY_KEY)));
@@ -81,6 +86,7 @@ export function NehemiahShell() {
   }
 
   function disposeDecision(disposition: DecisionDisposition) {
+    if (!decisionGate || !dispositionIsAllowed(decisionGate, disposition)) return;
     dispatch({
       type: 'decision-disposed',
       disposition,
@@ -172,7 +178,15 @@ export function NehemiahShell() {
                 {decisionReadiness ? <FounderDecisionReadinessCard readiness={decisionReadiness} /> : null}
                 {strategicRecall ? <StrategicRecallCard recall={strategicRecall} /> : null}
                 {consequenceMap ? <StrategicConsequenceMapCard map={consequenceMap} /> : null}
-                <DecisionField decision={model.decision} isOpen={decisionOpen} onOpen={() => setDecisionOpen(true)} onDisposition={disposeDecision} />
+                {decisionGate ? (
+                  <DecisionField
+                    decision={model.decision}
+                    gate={decisionGate}
+                    isOpen={decisionOpen}
+                    onOpen={() => decisionGate.canOpenDecision && setDecisionOpen(true)}
+                    onDisposition={disposeDecision}
+                  />
+                ) : null}
               </div>
             ) : null}
           </div>

@@ -53,3 +53,7 @@ npm run dev
 ## Founder Memory Intelligence
 
 Decision history is searchable and filterable. Nehemiah preserves lessons, detects repeated decision patterns, and surfaces relevant precedents when a new Founder command resembles a prior situation.
+
+## Current Milestone
+
+Founder Decision Gate now enforces open, conditional, and blocked decision paths based on verified readiness.

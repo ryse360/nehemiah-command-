@@ -307,3 +307,26 @@ body[data-state="proof-created"] .organism-core { box-shadow:0 0 34px 14px rgba(
 .readiness-next { margin-top:12px; padding:12px 14px; border-left:2px solid var(--gold); border-radius:0 14px 14px 0; background:rgba(196,154,77,.08); }
 .readiness-next span { color:var(--gold); font-size:9px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }
 .readiness-next p { margin:5px 0 0; color:var(--navy); font:400 13px/1.45 Georgia,serif; }
+
+/* Founder Decision Gate */
+.decision-gate {
+  margin: 18px 0;
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,.48);
+}
+.decision-gate strong {
+  display: block;
+  color: var(--navy);
+  font: 400 14px/1.45 Georgia, serif;
+}
+.decision-gate > p:last-child {
+  margin: 7px 0 0;
+  color: var(--slate);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.decision-gate.is-open { border-color: rgba(76,122,92,.34); background: rgba(76,122,92,.06); }
+.decision-gate.is-conditional { border-color: rgba(196,154,77,.42); background: rgba(196,154,77,.08); }
+.decision-gate.is-blocked { border-color: rgba(139,74,54,.38); background: rgba(139,74,54,.07); }
