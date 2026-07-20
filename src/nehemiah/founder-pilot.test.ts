@@ -7,12 +7,33 @@ const session = (overrides: Partial<FounderPilotSession> = {}): FounderPilotSess
   command: 'Authorize the restricted platform pilot.', completedJourney: true,
   proofCaptured: true, decisionUseful: true,
   fiveSecondGate: { mattersMost: true, whyFirst: true, founderAuthority: true, visibleAction: true, proofRequired: true },
-  criticalIssues: 0, highIssues: 0, notes: 'Completed without confusion.',
+  criticalIssues: 0, highIssues: 0, acceptedHighIssues: 0, notes: 'Completed without confusion.',
   ...overrides,
 });
 
 test('validates a complete bounded Founder pilot session', () => {
   assert.deepEqual(validatePilotSession(session()), { valid: true, errors: [] });
+});
+
+test('rejects reversed timestamps and incomplete five-second evidence', () => {
+  const reversed = validatePilotSession(session({ endedAt: '2026-07-20T07:59:00.000Z' }));
+  assert.ok(reversed.errors.includes('Pilot end time must be after the start time.'));
+
+  const malformed = validatePilotSession({
+    ...session(),
+    fiveSecondGate: { mattersMost: true } as FounderPilotSession['fiveSecondGate'],
+  });
+  assert.ok(malformed.errors.includes('All five usability-gate answers must be explicit booleans.'));
+});
+
+
+
+test('rejects non-boolean outcome evidence', () => {
+  const malformed = validatePilotSession({
+    ...session(),
+    proofCaptured: 'yes' as unknown as boolean,
+  });
+  assert.ok(malformed.errors.includes('Journey, proof, and usefulness results must be explicit booleans.'));
 });
 
 test('pilot readiness remains blocked without enough successful sessions and approval', () => {
@@ -35,4 +56,14 @@ test('critical issues block release even when session count is met', () => {
   const result = assessFounderPilot(sessions, true);
   assert.equal(result.status, 'blocked');
   assert.ok(result.blockers.some((item) => item.includes('critical')));
+});
+
+test('high issues require explicit acceptance or resolution', () => {
+  const blocked = Array.from({ length: 5 }, (_, index) => session({ id: `pilot-${index + 1}`, highIssues: index === 4 ? 1 : 0 }));
+  assert.equal(assessFounderPilot(blocked, true).status, 'blocked');
+
+  const accepted = blocked.map((item, index) => index === 4 ? { ...item, acceptedHighIssues: 1 } : item);
+  const result = assessFounderPilot(accepted, true);
+  assert.equal(result.status, 'pass');
+  assert.equal(result.unresolvedHighIssues, 0);
 });

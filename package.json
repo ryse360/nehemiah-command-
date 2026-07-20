@@ -1,6 +1,6 @@
 {
   "name": "nehemiah-command",
-  "version": "0.25.0",
+  "version": "1.0.0-rc.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,11 +13,14 @@
     "security:verify-backup": "node --import tsx scripts/verify-backup-manifest.ts",
     "quality:performance": "node --import tsx scripts/check-performance-budget.ts",
     "quality:smoke": "node --import tsx scripts/smoke-production.ts",
-    "deployment:rehearse": "node --import tsx scripts/rehearse-deployment.ts"
+    "deployment:rehearse": "node --import tsx scripts/rehearse-deployment.ts",
+    "release:audit": "node --import tsx scripts/audit-release-candidate.ts",
+    "release:verify-production": "node --import tsx scripts/audit-release-candidate.ts --require-production",
+    "quality:headers": "node --import tsx scripts/check-security-headers.ts"
   },
   "dependencies": {
     "next": "16.2.10",
-    "postgres": "^3.4.7",
+    "postgres": "3.4.9",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
@@ -25,7 +28,7 @@
     "@types/node": "24.3.0",
     "@types/react": "19.1.10",
     "@types/react-dom": "19.1.7",
-    "tsx": "^4.20.5",
+    "tsx": "4.23.1",
     "typescript": "5.9.2"
   },
   "type": "module"

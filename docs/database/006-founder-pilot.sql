@@ -10,7 +10,9 @@ create table if not exists founder_pilot_sessions (
   five_second_gate jsonb not null,
   critical_issues integer not null default 0 check (critical_issues >= 0),
   high_issues integer not null default 0 check (high_issues >= 0),
+  accepted_high_issues integer not null default 0 check (accepted_high_issues >= 0 and accepted_high_issues <= high_issues),
   notes text not null default '',
   created_at timestamptz not null default now(),
-  primary key (founder_id, session_id)
+  primary key (founder_id, session_id),
+  check (ended_at > started_at)
 );

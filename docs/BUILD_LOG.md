@@ -527,3 +527,9 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Added durable Founder pilot session records and migration 006.
 - Added five-session, five-second, proof, issue-severity, and Founder-approval release gate.
 - Added Founder pilot protocol and protected API.
+
+## 2026-07-20 — v1.0.0-rc.1 Production Release Candidate Audit
+- Added fail-closed code and production release audit.
+- Added production external-actions record and v1 release checklist.
+- Updated CI with performance and release-candidate gates.
+- Applied safe patch updates for postgres and tsx.

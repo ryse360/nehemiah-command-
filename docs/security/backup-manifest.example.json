@@ -8,7 +8,8 @@
     "security_audit_events",
     "revoked_founder_sessions",
     "distributed_rate_limit_attempts",
-    "knowledge_sources"
+    "knowledge_sources",
+    "founder_pilot_sessions"
   ],
   "restoreRehearsedAt": "2026-07-20T11:00:00.000Z",
   "checksum": "sha256:replace-with-backup-checksum"

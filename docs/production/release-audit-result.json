@@ -1,0 +1,24 @@
+{
+  "version": "1.0.0-rc.1",
+  "codeReady": true,
+  "productionReady": false,
+  "verifiedCodeGates": [
+    "121 automated tests",
+    "strict TypeScript",
+    "optimized Next.js build",
+    "static-asset performance budget",
+    "runtime smoke test",
+    "security headers",
+    "required migrations 001-006",
+    "release tags v0.21.0-v0.25.0"
+  ],
+  "externalBlockers": [
+    "current dependency audit through a functioning registry",
+    "production secrets validation",
+    "cloud PostgreSQL and migration verification",
+    "encrypted backup and restore rehearsal",
+    "production deployment verification",
+    "five-session Founder pilot",
+    "explicit Founder release approval"
+  ]
+}

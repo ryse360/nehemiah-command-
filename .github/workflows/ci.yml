@@ -2,7 +2,7 @@ name: Nehemiah CI
 
 on:
   push:
-    branches: [main, "feature/**"]
+    branches: [main, "feature/**", "release/**"]
   pull_request:
 
 jobs:
@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
@@ -29,3 +31,30 @@ jobs:
 
       - name: Build production application
         run: npm run build
+
+      - name: Performance budget
+        run: npm run quality:performance
+
+      - name: Runtime smoke and security headers
+        env:
+          PORT: '3000'
+          NEHEMIAH_BASE_URL: http://127.0.0.1:3000
+          NEHEMIAH_FOUNDER_ID: ci-founder
+          NEHEMIAH_FOUNDER_PASSWORD_HASH: scrypt$16384$8$1$00$00
+          NEHEMIAH_SESSION_SECRET: 12345678901234567890123456789012
+          NEHEMIAH_AUTH_VERSION: '1'
+        run: |
+          npm start > /tmp/nehemiah-ci.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          npm run quality:smoke
+          npm run quality:headers
+
+      - name: Release candidate audit
+        env:
+          NEHEMIAH_TESTS_VERIFIED: 'true'
+          NEHEMIAH_TYPECHECK_VERIFIED: 'true'
+          NEHEMIAH_PERFORMANCE_VERIFIED: 'true'
+          NEHEMIAH_SMOKE_VERIFIED: 'true'
+          NEHEMIAH_HEADERS_VERIFIED: 'true'
+        run: npm run release:audit
