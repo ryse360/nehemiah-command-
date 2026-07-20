@@ -507,3 +507,8 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Tests: `src/nehemiah/projects-actions.test.ts`
 - API: `src/app/api/projects-actions/route.ts`
 - UI: `src/components/founder-projects-panel.tsx`
+
+## 2026-07-20 — v0.22.0 Accessibility, Responsive Behavior, and Performance
+- Added accessibility contract and automated checks.
+- Added skip navigation, visible focus, live state announcement, larger targets, responsive navigation, and reduced-motion behavior.
+- Added production static-asset performance budget.

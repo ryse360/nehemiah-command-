@@ -1,6 +1,6 @@
 {
   "name": "nehemiah-command",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "security:hash-password": "node --import tsx scripts/hash-founder-password.ts",
     "security:check-readiness": "node --import tsx scripts/check-production-readiness.ts",
-    "security:verify-backup": "node --import tsx scripts/verify-backup-manifest.ts"
+    "security:verify-backup": "node --import tsx scripts/verify-backup-manifest.ts",
+    "quality:performance": "node --import tsx scripts/check-performance-budget.ts"
   },
   "dependencies": {
     "next": "16.2.10",

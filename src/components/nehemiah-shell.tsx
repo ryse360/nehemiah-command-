@@ -308,7 +308,9 @@ export function NehemiahShell() {
   }
 
   return (
-    <div className="app-shell" data-state={journey.lifecycle}>
+    <>
+      <a className="skip-link" href="#founder-command">Skip to Founder command</a>
+      <div className="app-shell" data-state={journey.lifecycle}>
       <aside className="rail" aria-label="Primary navigation">
         <div className="brand-mark" aria-label="MiP Coaching">M</div>
         <nav>
@@ -444,5 +446,7 @@ export function NehemiahShell() {
         currentCommand={journey.command || command}
       />
     </div>
+      <p className="sr-only" aria-live="polite">Current Nehemiah state: {journey.lifecycle}.</p>
+    </>
   );
 }
