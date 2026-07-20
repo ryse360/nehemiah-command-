@@ -56,4 +56,4 @@ Decision history is searchable and filterable. Nehemiah preserves lessons, detec
 
 ## Current Milestone
 
-Founder Decision Gate now enforces open, conditional, and blocked decision paths based on verified readiness.
+Decision Preparation Workspace now converts blocked or conditional readiness gaps into actionable resolution tasks and recalculates the Founder decision gate as concrete answers are recorded.

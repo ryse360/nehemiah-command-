@@ -26,6 +26,14 @@ import { StrategicConsequenceMapCard } from './strategic-consequence-map';
 import { assessDecisionReadiness } from '@/nehemiah/founder-decision-readiness';
 import { FounderDecisionReadinessCard } from './founder-decision-readiness';
 import { buildFounderDecisionGate, dispositionIsAllowed } from '@/nehemiah/founder-decision-gate';
+import {
+  applyDecisionPreparation,
+  buildDecisionPreparationWorkspace,
+  resolvePreparationItem,
+  type DecisionPreparationWorkspace,
+} from '@/nehemiah/founder-decision-preparation';
+import type { ReadinessDimension } from '@/nehemiah/founder-decision-readiness';
+import { DecisionPreparationWorkspaceCard } from './decision-preparation-workspace';
 
 export function NehemiahShell() {
   const [journey, setJourney] = useState(createFounderJourney);
@@ -36,6 +44,7 @@ export function NehemiahShell() {
   const [memory, setMemory] = useState(createFounderMemory);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [memoryLoaded, setMemoryLoaded] = useState(false);
+  const [preparation, setPreparation] = useState<DecisionPreparationWorkspace | null>(null);
   const model = useMemo(() => buildShellModel(journey.lifecycle), [journey.lifecycle]);
   const strategicRecall = useMemo(
     () => journey.lifecycle === 'decision-required'
@@ -49,11 +58,17 @@ export function NehemiahShell() {
       : null,
     [journey.command, journey.lifecycle, strategicRecall],
   );
-  const decisionReadiness = useMemo(
+  const baseDecisionReadiness = useMemo(
     () => journey.lifecycle === 'decision-required'
       ? assessDecisionReadiness(journey.command, consequenceMap, strategicRecall)
       : null,
     [consequenceMap, journey.command, journey.lifecycle, strategicRecall],
+  );
+  const decisionReadiness = useMemo(
+    () => baseDecisionReadiness && preparation
+      ? applyDecisionPreparation(baseDecisionReadiness, preparation)
+      : baseDecisionReadiness,
+    [baseDecisionReadiness, preparation],
   );
   const decisionGate = useMemo(
     () => decisionReadiness ? buildFounderDecisionGate(decisionReadiness) : null,
@@ -69,6 +84,15 @@ export function NehemiahShell() {
     if (memoryLoaded) window.localStorage.setItem(FOUNDER_MEMORY_KEY, serializeFounderMemory(memory));
   }, [memory, memoryLoaded]);
 
+  useEffect(() => {
+    if (journey.lifecycle === 'decision-required' && baseDecisionReadiness) {
+      setPreparation(buildDecisionPreparationWorkspace(baseDecisionReadiness));
+      return;
+    }
+    setPreparation(null);
+  }, [baseDecisionReadiness, journey.command, journey.lifecycle]);
+
+
   function dispatch(event: Parameters<typeof reduceFounderJourney>[1]) {
     setJourney((current) => reduceFounderJourney(current, event));
   }
@@ -83,6 +107,14 @@ export function NehemiahShell() {
   function advanceJourney() {
     if (journey.lifecycle === 'listening') dispatch({ type: 'focus-identified' });
     if (journey.lifecycle === 'focus-surfaced') dispatch({ type: 'decision-justified' });
+  }
+
+
+  function resolvePreparation(dimension: ReadinessDimension, response: string) {
+    setPreparation((current) => {
+      if (!current) return current;
+      return resolvePreparationItem(current, dimension, response);
+    });
   }
 
   function disposeDecision(disposition: DecisionDisposition) {
@@ -176,6 +208,9 @@ export function NehemiahShell() {
             {model.showDecision && model.decision ? (
               <div className="decision-chamber">
                 {decisionReadiness ? <FounderDecisionReadinessCard readiness={decisionReadiness} /> : null}
+                {preparation && preparation.status !== 'not-needed' ? (
+                  <DecisionPreparationWorkspaceCard workspace={preparation} onResolve={resolvePreparation} />
+                ) : null}
                 {strategicRecall ? <StrategicRecallCard recall={strategicRecall} /> : null}
                 {consequenceMap ? <StrategicConsequenceMapCard map={consequenceMap} /> : null}
                 {decisionGate ? (

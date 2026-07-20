@@ -274,3 +274,26 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Tests: `src/nehemiah/founder-decision-gate.test.ts`
 - Decision chamber: `src/components/decision-field.tsx`
 - Release: `docs/releases/founder-decision-gate-v0.10.0.md`
+
+## 2026-07-20 — Decision Preparation Workspace v0.11.0
+
+### Completed
+- [x] Added an active preparation workspace for conditional and blocked decisions.
+- [x] Generated one actionable resolution task per missing readiness dimension.
+- [x] Added tailored prompts for evidence, ownership, capacity, boundaries, and proof.
+- [x] Rejected vague or insufficient preparation responses.
+- [x] Recorded explicit Founder-supplied resolution detail.
+- [x] Recalculated readiness and the decision gate after each resolved item.
+- [x] Integrated the workspace into the live decision chamber.
+
+### Verification
+- [x] 43 automated tests passed.
+- [x] TypeScript strict checking passed.
+- [x] Next.js optimized production build passed.
+- [x] Root production route returned HTTP 200.
+
+### Evidence
+- Preparation engine: `src/nehemiah/founder-decision-preparation.ts`
+- Tests: `src/nehemiah/founder-decision-preparation.test.ts`
+- Workspace UI: `src/components/decision-preparation-workspace.tsx`
+- Release: `docs/releases/decision-preparation-workspace-v0.11.0.md`
