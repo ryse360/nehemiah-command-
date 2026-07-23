@@ -6,6 +6,7 @@ import { Line, MeshDistortMaterial, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import type { NehemiahState } from '@/nehemiah/state-machine';
 import { organismRenderModel } from '@/nehemiah/organism-render-model';
+import { LuminousCore } from './luminous-core';
 import styles from './organism-lab.module.css';
 
 const states: NehemiahState[] = [
@@ -82,11 +83,12 @@ function LivingScene({
 }) {
   const model = organismRenderModel[state];
   const root = useRef<THREE.Group>(null);
-  const core = useRef<THREE.Mesh>(null);
   const rings = useRef<THREE.Group>(null);
+  const elapsedTime = useRef(0);
 
-  useFrame(({ clock }, delta) => {
-    const elapsed = clock.getElapsedTime();
+  useFrame((_, delta) => {
+    elapsedTime.current += delta;
+    const elapsed = elapsedTime.current;
     const motionScale = reducedMotion ? 0.12 : 1;
 
     if (root.current) {
@@ -94,15 +96,6 @@ function LivingScene({
         delta * model.rotationSpeed * motionScale;
       root.current.rotation.x =
         Math.sin(elapsed * 0.22) * 0.075 * motionScale;
-    }
-
-    if (core.current) {
-      const breath =
-        1 +
-        Math.sin(elapsed * model.breathRate) *
-          model.breathAmplitude *
-          motionScale;
-      core.current.scale.setScalar(breath);
     }
 
     if (rings.current) {
@@ -116,27 +109,29 @@ function LivingScene({
   return (
     <>
       <color attach="background" args={['#f4efe5']} />
-      <ambientLight intensity={1.5} />
-      <directionalLight position={[4, 5, 5]} intensity={2.2} color="#fffaf0" />
-      <pointLight
-        position={[-2.8, 1.2, 2.6]}
-        intensity={12 * model.goldIntensity}
-        distance={8}
-        color="#d2ae5c"
+      <ambientLight intensity={0.62} />
+      <hemisphereLight
+        args={['#fffaf0', '#80662f', 0.82]}
+      />
+      <directionalLight
+        position={[4, 5, 5]}
+        intensity={1.18}
+        color="#fff8e8"
       />
 
       <group ref={root}>
         <mesh>
           <sphereGeometry args={[1.62, 96, 96]} />
           <meshPhysicalMaterial
-            color="#f6ead0"
+            color="#d9c08a"
             transparent
-            opacity={model.shellOpacity}
-            roughness={0.12}
-            metalness={0.04}
-            transmission={0.86}
-            thickness={0.75}
-            ior={1.18}
+            opacity={model.shellOpacity * 0.52}
+            roughness={0.28}
+            metalness={0.02}
+            transmission={0.38}
+            thickness={0.3}
+            ior={1.1}
+            depthWrite={false}
             side={THREE.DoubleSide}
           />
         </mesh>
@@ -144,12 +139,13 @@ function LivingScene({
         <mesh>
           <sphereGeometry args={[1.18, 96, 96]} />
           <MeshDistortMaterial
-            color="#d7b66a"
+            color="#b58b38"
             transparent
-            opacity={0.28}
-            roughness={0.24}
-            metalness={0.08}
-            distort={reducedMotion ? 0.05 : 0.24}
+            opacity={0.13}
+            roughness={0.34}
+            metalness={0.04}
+            depthWrite={false}
+            distort={reducedMotion ? 0.04 : 0.2}
             speed={reducedMotion ? 0 : model.breathRate}
           />
         </mesh>
@@ -157,25 +153,19 @@ function LivingScene({
         <NeuralThreads opacity={model.threadOpacity} />
 
         <Sparkles
-          count={220}
-          scale={4.2}
-          size={2.2}
+          count={160}
+          scale={3.8}
+          size={1.55}
           speed={reducedMotion ? 0.02 : model.particleSpeed}
-          noise={1.15}
-          color="#b8974f"
-          opacity={0.62}
+          noise={1.05}
+          color="#9f7a2d"
+          opacity={0.38}
         />
 
-        <mesh ref={core}>
-          <sphereGeometry args={[0.34, 64, 64]} />
-          <meshStandardMaterial
-            color="#fff7d6"
-            emissive="#d6ac51"
-            emissiveIntensity={model.goldIntensity * 2.1}
-            roughness={0.12}
-            metalness={0.08}
-          />
-        </mesh>
+        <LuminousCore
+          state={state}
+          reducedMotion={reducedMotion}
+        />
 
         <group ref={rings}>
           {[1.92, 2.18, 2.42].map((radius, index) => (
