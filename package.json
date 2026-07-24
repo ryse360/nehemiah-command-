@@ -16,7 +16,9 @@
     "deployment:rehearse": "node --import tsx scripts/rehearse-deployment.ts",
     "release:audit": "node --import tsx scripts/audit-release-candidate.ts",
     "release:verify-production": "node --import tsx scripts/audit-release-candidate.ts --require-production",
-    "quality:headers": "node --import tsx scripts/check-security-headers.ts"
+    "quality:headers": "node --import tsx scripts/check-security-headers.ts",
+    "governance:organism": "node --import tsx scripts/check-founder-compliance.ts",
+    "gate": "npm test && npm run typecheck && npm run governance:organism && npm run build"
   },
   "dependencies": {
     "@react-three/drei": "10.7.7",

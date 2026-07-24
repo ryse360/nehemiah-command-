@@ -29,6 +29,9 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
+      - name: Founder compliance gate
+        run: npm run governance:organism
+
       - name: Build production application
         run: npm run build
 
