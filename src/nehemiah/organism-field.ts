@@ -203,10 +203,13 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
     });
   }
 
+  // Most arcs hug the organism; the last few reach restrained orbits well
+  // beyond it, so the field extends past the shell without shouting.
   const arcs: OrbitalArc[] = [];
   for (let index = 0; index < options.arcCount; index += 1) {
+    const far = index >= options.arcCount - 3;
     arcs.push({
-      radius: 1.25 + rng() * 0.4,
+      radius: far ? 1.6 + rng() * 0.35 : 1.25 + rng() * 0.3,
       tilt: [rng() * Math.PI, rng() * Math.PI, rng() * Math.PI],
       direction: index % 2 === 0 ? 1 : -1,
       periodSeconds: 16 + rng() * 16,

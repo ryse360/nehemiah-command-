@@ -164,8 +164,11 @@ test('arcs and flares follow the motion spec', () => {
   assert.equal(directions.size, 2, 'arcs travel in both directions');
   for (const arc of field.arcs) {
     assert.ok(arc.periodSeconds >= 16 && arc.periodSeconds <= 32);
-    assert.ok(arc.radius >= 1.2 && arc.radius <= 1.7);
+    assert.ok(arc.radius >= 1.2 && arc.radius <= 2.0);
   }
+  // some arcs orbit well beyond the organism, restrained but present
+  assert.ok(field.arcs.some((a) => a.radius > 1.55));
+  assert.ok(field.arcs.filter((a) => a.radius > 1.55).length <= field.arcs.length / 2);
 
   const phases = new Set(field.flares.map((f) => f.phase.toFixed(3)));
   assert.ok(phases.size > 1, 'flares never pulse in unison');

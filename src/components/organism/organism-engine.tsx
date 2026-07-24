@@ -636,6 +636,7 @@ function LivingScene({
   const root = useRef<THREE.Group>(null);
   const rearGroup = useRef<THREE.Group>(null);
   const frontGroup = useRef<THREE.Group>(null);
+  const weaveGroup = useRef<THREE.Group>(null);
   const elapsedTime = useRef(0);
 
   const goldIntensity = parameters.goldIntensity;
@@ -673,6 +674,11 @@ function LivingScene({
       frontGroup.current.rotation.y -= delta * 0.006 * motionScale;
       frontGroup.current.position.y = Math.sin(elapsed * 0.09 + 1.7) * 0.02 * motionScale;
     }
+    if (weaveGroup.current) {
+      // the connective tissue drifts on its own barely-perceptible phase
+      weaveGroup.current.rotation.y += delta * 0.004 * motionScale;
+      weaveGroup.current.rotation.z = Math.sin(elapsed * 0.07 + 0.9) * 0.012 * motionScale;
+    }
   });
 
   const motionScale = resolveMotionScale(reducedMotion, parameters.reducedMotion.motionScale);
@@ -684,15 +690,24 @@ function LivingScene({
       <directionalLight position={[4, 5, 5]} intensity={parameters.lighting.directionalIntensity} color={neoPalette.shellWhite} />
 
       <group ref={root}>
-        {/* 2. distant ambient dust */}
+        {/* 2. distant ambient dust — two depth layers of fine particles */}
         <Sparkles
-          count={Math.round(parameters.particleCount * 1.6)}
+          count={Math.round(parameters.particleCount * 2.2)}
           scale={4.6}
-          size={0.9}
+          size={0.7}
           speed={reducedMotion ? 0.02 : parameters.particleVelocity * 0.5}
           noise={0.8}
           color={neoPalette.goldLight}
-          opacity={0.35 * goldLevel}
+          opacity={0.38 * goldLevel}
+        />
+        <Sparkles
+          count={Math.round(parameters.particleCount * 1.2)}
+          scale={6.2}
+          size={1.3}
+          speed={reducedMotion ? 0.01 : parameters.particleVelocity * 0.3}
+          noise={0.6}
+          color={neoPalette.backgroundLight}
+          opacity={0.2 * goldLevel}
         />
 
         {/* 3. rear orbital arcs */}
@@ -731,12 +746,16 @@ function LivingScene({
           radius={0.92}
         />
 
-        {/* 7-8. inner half of the micro-weave, then middle and front majors */}
-        <MicroWeave
-          goldIntensity={goldIntensity}
-          indigoIntensity={indigoIntensity}
-          half="front"
-        />
+        {/* 7-8. inner micro-weave + constellation drift together, then the
+            middle and front majors */}
+        <group ref={weaveGroup}>
+          <MicroWeave
+            goldIntensity={goldIntensity}
+            indigoIntensity={indigoIntensity}
+            half="front"
+          />
+          <NodeConstellation intensity={goldLevel} />
+        </group>
         <FilamentDepthGroup
           filaments={field.filaments}
           depth="middle"
@@ -754,18 +773,15 @@ function LivingScene({
           />
         </group>
 
-        {/* 9. particle-node constellation */}
-        <NodeConstellation intensity={goldLevel} />
-
-        {/* inner shimmer */}
+        {/* inner shimmer — finer and more numerous */}
         <Sparkles
-          count={Math.round(parameters.particleCount * 0.8)}
+          count={Math.round(parameters.particleCount * 1.3)}
           scale={1.9}
-          size={parameters.particleSize * 0.8}
+          size={parameters.particleSize * 0.6}
           speed={reducedMotion ? 0.02 : parameters.particleVelocity}
           noise={1.05}
           color={neoPalette.goldLight}
-          opacity={0.55 * goldLevel}
+          opacity={0.6 * goldLevel}
         />
         <group scale={1 - 0.45 * parameters.indigoConvergence} position={[0.35, 0, 0]}>
           <Sparkles
