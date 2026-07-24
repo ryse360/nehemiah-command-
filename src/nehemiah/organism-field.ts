@@ -121,7 +121,7 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
       t < 0.64 ? 'inner' : t < 0.9 ? 'membrane' : 'orbital';
 
     const originNode = nodes[Math.floor(rng() * nodes.length)];
-    const originScale = 0.25 + rng() * 0.45;
+    const originScale = 0.3 + rng() * 0.55;
     let origin: Vec3 = [
       originNode.position[0] * originScale,
       originNode.position[1] * originScale,
@@ -139,28 +139,37 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
           ? 1.0 + rng() * 0.12
           : 1.14 + rng() * 0.1;
 
+    // Launch mostly tangentially so strands sweep and arc across the
+    // volume (like the reference weave) instead of shooting straight out.
+    const outward = normalize(origin);
+    const randomAxis = normalize([rng() * 2 - 1, rng() * 2 - 1, rng() * 2 - 1]);
+    const tangential = normalize([
+      outward[1] * randomAxis[2] - outward[2] * randomAxis[1],
+      outward[2] * randomAxis[0] - outward[0] * randomAxis[2],
+      outward[0] * randomAxis[1] - outward[1] * randomAxis[0],
+    ]);
     const heading = normalize([
-      origin[0] + (rng() * 2 - 1) * 0.8,
-      origin[1] + (rng() * 2 - 1) * 0.8,
-      origin[2] + (rng() * 2 - 1) * 0.8,
+      tangential[0] * 0.6 + outward[0] * 0.4 + (rng() * 2 - 1) * 0.15,
+      tangential[1] * 0.6 + outward[1] * 0.4 + (rng() * 2 - 1) * 0.15,
+      tangential[2] * 0.6 + outward[2] * 0.4 + (rng() * 2 - 1) * 0.15,
     ]);
 
-    const pointCount = 5 + Math.floor(rng() * 3);
+    // Smooth organic drift: the heading itself wanders a little each step
+    // (instead of re-randomizing), so strands curve continuously without
+    // kinks — sketch geometry refined toward the reference's flowing weave.
+    const pointCount = 7 + Math.floor(rng() * 3);
     const controlPoints: Vec3[] = [origin];
+    let drift: Vec3 = heading;
     for (let step = 1; step < pointCount; step += 1) {
       const progress = step / (pointCount - 1);
       const radius = length(origin) + (endRadius - length(origin)) * progress;
-      const wander = 0.22 * Math.sin(progress * Math.PI);
-      const direction = normalize([
-        heading[0] + (rng() * 2 - 1) * wander * 2,
-        heading[1] + (rng() * 2 - 1) * wander * 2,
-        heading[2] + (rng() * 2 - 1) * wander * 2,
+      const wander = 0.16 * Math.sin(progress * Math.PI);
+      drift = normalize([
+        drift[0] + (rng() * 2 - 1) * wander,
+        drift[1] + (rng() * 2 - 1) * wander,
+        drift[2] + (rng() * 2 - 1) * wander,
       ]);
-      controlPoints.push([
-        direction[0] * radius + (rng() * 2 - 1) * wander * 0.4,
-        direction[1] * radius + (rng() * 2 - 1) * wander * 0.4,
-        direction[2] * radius + (rng() * 2 - 1) * wander * 0.4,
-      ]);
+      controlPoints.push([drift[0] * radius, drift[1] * radius, drift[2] * radius]);
     }
 
     // pin the endpoint radius so reach classes hold exactly

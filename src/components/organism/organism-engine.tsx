@@ -20,7 +20,7 @@ const FIELD_OPTIONS = {
   seed: 11,
   nodeCount: 120,
   connectionRadius: 0.34,
-  majorFilamentCount: 26,
+  majorFilamentCount: 30,
   arcCount: 8,
   flareCount: 8,
 } as const;
@@ -28,7 +28,7 @@ const FIELD_OPTIONS = {
 const MEMBRANE_RADIUS = 1.02;
 
 // Spec depth treatment: rear 8-22%, middle 18-45%, front 35-75% opacity.
-const DEPTH_BASE = { rear: 0.16, middle: 0.32, front: 0.58 } as const;
+const DEPTH_BASE = { rear: 0.18, middle: 0.36, front: 0.62 } as const;
 
 // Animates the displayed parameters toward the target with the held-breath
 // personality: still (and slightly contracted) through the hold, then a
@@ -108,14 +108,18 @@ function FilamentStrand({
   const coreOpacity = Math.min(0.75, Math.max(0.1, base * (0.4 + filament.brightness * 0.9)));
   const haloOpacity = Math.min(0.2, Math.max(0.04, base * filament.brightness * 0.4));
 
-  // Luminous over the dark body: rear strands recede in deep tones, front
-  // strands carry the light. Only the brightest few reach full brilliance.
+  // Luminous over the dark body: rear strands recede in deep tones; in the
+  // middle and front, faint strands stay delicate-but-luminous in pale
+  // light, most carry the mid gold/lavender, and only the brightest few
+  // reach hot white.
   const coreColor =
     filament.depth === 'rear'
       ? colors.deep
-      : filament.brightness > 0.85
-        ? colors.halo
-        : colors.core;
+      : filament.brightness > 0.9
+        ? neoPalette.shellWhite
+        : filament.brightness > 0.5
+          ? colors.core
+          : colors.halo;
 
   return (
     <>
@@ -124,7 +128,7 @@ function FilamentStrand({
         color={coreColor}
         transparent
         opacity={coreOpacity}
-        lineWidth={0.4 + filament.brightness * 0.8}
+        lineWidth={0.45 + filament.brightness * 0.7}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
         toneMapped={false}
@@ -133,8 +137,8 @@ function FilamentStrand({
         points={points}
         color={colors.halo}
         transparent
-        opacity={haloOpacity}
-        lineWidth={4 + filament.brightness * 3}
+        opacity={haloOpacity * 0.8}
+        lineWidth={3 + filament.brightness * 2}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
         toneMapped={false}
@@ -296,7 +300,7 @@ function NodalFlares({ intensity, motionScale }: { intensity: number; motionScal
 const bodyShader = {
   uniforms: {
     uCenterColor: { value: new THREE.Color(neoPalette.coreUmber) },
-    uEdgeColor: { value: new THREE.Color('#5a4a3e') },
+    uEdgeColor: { value: new THREE.Color('#7a6450') },
     uOpacity: { value: 0.9 },
   },
   vertexShader: /* glsl */ `
@@ -552,6 +556,20 @@ function LivingScene({
             warm umber at the center fading to nothing at the rim, so the
             organism has a dark interior with no hard circular border. */}
         <VolumetricBody opacity={0.62 + parameters.shellOpacity * 0.5} />
+
+        {/* warm interior atmosphere: a faint golden breath inside the body
+            so the darkness reads umber and inhabited, never cold */}
+        <mesh>
+          <sphereGeometry args={[0.9, 48, 48]} />
+          <meshBasicMaterial
+            color={neoPalette.goldDeep}
+            transparent
+            opacity={0.22 * goldLevel}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
 
         {/* 7-8. middle and front neural filaments */}
         <FilamentDepthGroup
