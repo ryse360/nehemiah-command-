@@ -19,7 +19,7 @@ export default function OrganismLaboratoryPage() {
         flexDirection: 'column',
         padding: 'clamp(0.85rem, 2.2vh, 1.75rem) 1.25rem clamp(0.6rem, 1.6vh, 1.25rem)',
         background:
-          'radial-gradient(circle at 50% 28%, #fffdf7 0%, #f6f1e8 48%, #eee7dc 100%)',
+          'radial-gradient(circle at 50% 40%, #FBF2F0 0%, #F4EBE2 55%, #EFE4D8 100%)',
         color: '#403c34',
       }}
     >

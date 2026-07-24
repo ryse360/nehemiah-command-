@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Line, MeshDistortMaterial, Sparkles } from '@react-three/drei';
+import { Line, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrganismParameters } from '@/nehemiah/organism-parameters';
 import {
@@ -11,9 +11,24 @@ import {
   type TransitionPersonality,
 } from '@/nehemiah/organism-transition';
 import { organismFloatOffset, resolveMotionScale } from '@/nehemiah/organism-motion';
-import { radiatingFilaments } from '@/nehemiah/organism-filaments';
+import { organismField, type MajorFilament } from '@/nehemiah/organism-field';
+import { neoPalette } from '@/nehemiah/organism-palette';
 import { LuminousCore } from './luminous-core';
 import styles from './organism-lab.module.css';
+
+const FIELD_OPTIONS = {
+  seed: 11,
+  nodeCount: 120,
+  connectionRadius: 0.34,
+  majorFilamentCount: 26,
+  arcCount: 8,
+  flareCount: 8,
+} as const;
+
+const MEMBRANE_RADIUS = 1.02;
+
+// Spec depth treatment: rear 8-22%, middle 18-45%, front 35-75% opacity.
+const DEPTH_BASE = { rear: 0.16, middle: 0.32, front: 0.58 } as const;
 
 // Animates the displayed parameters toward the target with the held-breath
 // personality: still (and slightly contracted) through the hold, then a
@@ -66,88 +81,379 @@ function useTransitionedParameters(
   return display;
 }
 
-function useFilamentVectors(options: Parameters<typeof radiatingFilaments>[0]) {
-  return useMemo(
-    () =>
-      radiatingFilaments(options).map((filament) =>
-        filament.points.map((point) => new THREE.Vector3(point[0], point[1], point[2])),
-      ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      options.count,
-      options.seed,
-      options.innerRadius,
-      options.outerRadius,
-      options.segments,
-      options.curl,
-      options.hemisphere,
-    ],
+function familyColors(family: 'gold' | 'lavender') {
+  return family === 'gold'
+    ? { core: neoPalette.goldMid, halo: neoPalette.goldLight, deep: neoPalette.goldDeep }
+    : { core: neoPalette.lavenderMid, halo: neoPalette.lavenderLight, deep: neoPalette.lavenderDark };
+}
+
+// Two-pass luminous spline: a fine bright center over a wide, faint additive
+// emission halo — bloom without a postprocessing pass.
+function FilamentStrand({
+  filament,
+  intensity,
+}: {
+  filament: MajorFilament;
+  intensity: number;
+}) {
+  const points = useMemo(() => {
+    const vectors = filament.controlPoints.map(
+      (p) => new THREE.Vector3(p[0], p[1], p[2]),
+    );
+    return new THREE.CatmullRomCurve3(vectors).getPoints(40);
+  }, [filament]);
+
+  const colors = familyColors(filament.family);
+  const base = DEPTH_BASE[filament.depth] * intensity;
+  const coreOpacity = Math.min(0.75, Math.max(0.1, base * (0.4 + filament.brightness * 0.9)));
+  const haloOpacity = Math.min(0.2, Math.max(0.04, base * filament.brightness * 0.4));
+
+  // Luminous over the dark body: rear strands recede in deep tones, front
+  // strands carry the light. Only the brightest few reach full brilliance.
+  const coreColor =
+    filament.depth === 'rear'
+      ? colors.deep
+      : filament.brightness > 0.85
+        ? colors.halo
+        : colors.core;
+
+  return (
+    <>
+      <Line
+        points={points}
+        color={coreColor}
+        transparent
+        opacity={coreOpacity}
+        lineWidth={0.4 + filament.brightness * 0.8}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        toneMapped={false}
+      />
+      <Line
+        points={points}
+        color={colors.halo}
+        transparent
+        opacity={haloOpacity}
+        lineWidth={4 + filament.brightness * 3}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </>
   );
 }
 
-function GoldPathways({ opacity }: { opacity: number }) {
-  const strands = useFilamentVectors({
-    count: 48,
-    seed: 7,
-    innerRadius: 0.1,
-    outerRadius: 1.5,
-    segments: 26,
-    curl: 0.3,
-    hemisphere: 'full',
-  });
+function FilamentDepthGroup({
+  filaments,
+  depth,
+  goldIntensity,
+  indigoIntensity,
+  indigoConvergence,
+}: {
+  filaments: MajorFilament[];
+  depth: 'rear' | 'middle' | 'front';
+  goldIntensity: number;
+  indigoIntensity: number;
+  indigoConvergence: number;
+}) {
+  const members = filaments.filter((f) => f.depth === depth);
 
   return (
     <group>
-      {strands.map((points, index) => (
-        <Line
-          key={index}
-          points={points}
-          color={index % 4 === 0 ? '#c99a3f' : '#f0c264'}
-          transparent
-          opacity={opacity}
-          lineWidth={index % 6 === 0 ? 1.2 : 0.7}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      ))}
+      {members.map((filament, index) => {
+        const intensity =
+          filament.family === 'gold' ? goldIntensity / 0.72 : indigoIntensity / 0.55;
+        const strand = (
+          <FilamentStrand key={index} filament={filament} intensity={intensity} />
+        );
+        if (filament.family === 'lavender') {
+          return (
+            <group key={index} scale={1 - 0.5 * indigoConvergence}>
+              {strand}
+            </group>
+          );
+        }
+        return strand;
+      })}
     </group>
   );
 }
 
-function IndigoPathways({
-  opacity,
-  convergence,
-}: {
-  opacity: number;
-  convergence: number;
-}) {
-  const strands = useFilamentVectors({
-    count: 22,
-    seed: 19,
-    innerRadius: 0.1,
-    outerRadius: 1.42,
-    segments: 24,
-    curl: 0.26,
-    hemisphere: 'right',
-  });
+// Particle-node constellation: tiny points plus proximity edges, kept faint.
+function NodeConstellation({ intensity }: { intensity: number }) {
+  const field = useMemo(() => organismField(FIELD_OPTIONS), []);
 
-  // Convergence retracts the dendrites toward the core — the deliberation
-  // field gathering into a tight knot at the decision.
+  const { nodeGeometry, edgeGeometry } = useMemo(() => {
+    const nodePositions = new Float32Array(field.nodes.length * 3);
+    field.nodes.forEach((node, index) => {
+      nodePositions.set(node.position, index * 3);
+    });
+    const nodeGeo = new THREE.BufferGeometry();
+    nodeGeo.setAttribute('position', new THREE.BufferAttribute(nodePositions, 3));
+
+    const edgePositions = new Float32Array(field.connections.length * 6);
+    field.connections.forEach((edge, index) => {
+      edgePositions.set(field.nodes[edge.a].position, index * 6);
+      edgePositions.set(field.nodes[edge.b].position, index * 6 + 3);
+    });
+    const edgeGeo = new THREE.BufferGeometry();
+    edgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
+
+    return { nodeGeometry: nodeGeo, edgeGeometry: edgeGeo };
+  }, [field]);
+
   return (
-    <group scale={1 - 0.55 * convergence}>
-      {strands.map((points, index) => (
-        <Line
-          key={index}
-          points={points}
-          color={index % 3 === 0 ? '#6a5cff' : '#a598ff'}
+    <group>
+      <lineSegments geometry={edgeGeometry}>
+        <lineBasicMaterial
+          color={neoPalette.goldDeep}
           transparent
-          opacity={opacity}
-          lineWidth={0.7}
+          opacity={Math.min(0.16, 0.13 * intensity)}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
         />
+      </lineSegments>
+      <points geometry={nodeGeometry}>
+        <pointsMaterial
+          color={neoPalette.goldLight}
+          size={0.016}
+          transparent
+          opacity={Math.min(0.6, 0.5 * intensity)}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+          sizeAttenuation
+        />
+      </points>
+    </group>
+  );
+}
+
+// Nodal flares: small emissive beacons with soft halos, each pulsing on its
+// own period and phase — never in unison.
+function NodalFlares({ intensity, motionScale }: { intensity: number; motionScale: number }) {
+  const field = useMemo(() => organismField(FIELD_OPTIONS), []);
+  const groupRef = useRef<THREE.Group>(null);
+  const elapsedRef = useRef(0);
+
+  useFrame((_, delta) => {
+    elapsedRef.current += delta;
+    const group = groupRef.current;
+    if (!group) return;
+    group.children.forEach((child, index) => {
+      const flare = field.flares[index];
+      if (!flare) return;
+      const pulse =
+        0.75 +
+        0.25 *
+          Math.sin(
+            (elapsedRef.current / flare.pulseSeconds) * Math.PI * 2 * motionScale +
+              flare.phase,
+          );
+      child.scale.setScalar(flare.scale * pulse * 28);
+    });
+  });
+
+  return (
+    <group ref={groupRef}>
+      {field.flares.map((flare, index) => {
+        const colors = familyColors(flare.family);
+        return (
+          <group key={index} position={flare.position} scale={flare.scale * 28}>
+            <mesh>
+              <sphereGeometry args={[0.012, 12, 12]} />
+              <meshBasicMaterial
+                color={neoPalette.shellWhite}
+                transparent
+                opacity={Math.min(1, 0.9 * intensity)}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </mesh>
+            <mesh>
+              <sphereGeometry args={[0.035, 12, 12]} />
+              <meshBasicMaterial
+                color={colors.halo}
+                transparent
+                opacity={Math.min(0.4, 0.3 * intensity)}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </mesh>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+// Volumetric internal body: inverse fresnel — opaque warm umber where the
+// view passes through the sphere's center (longest path), fading smoothly to
+// transparent at the silhouette. One mesh, no visible sphere edge.
+const bodyShader = {
+  uniforms: {
+    uCenterColor: { value: new THREE.Color(neoPalette.coreUmber) },
+    uEdgeColor: { value: new THREE.Color('#5a4a3e') },
+    uOpacity: { value: 0.9 },
+  },
+  vertexShader: /* glsl */ `
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      vViewDir = normalize(-mvPosition.xyz);
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  `,
+  fragmentShader: /* glsl */ `
+    uniform vec3 uCenterColor;
+    uniform vec3 uEdgeColor;
+    uniform float uOpacity;
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+    void main() {
+      float facing = abs(dot(normalize(vNormal), normalize(vViewDir)));
+      float density = pow(facing, 1.15);
+      vec3 color = mix(uEdgeColor, uCenterColor, density);
+      gl_FragColor = vec4(color, density * uOpacity);
+    }
+  `,
+};
+
+function VolumetricBody({ opacity }: { opacity: number }) {
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        ...bodyShader,
+        uniforms: THREE.UniformsUtils.clone(bodyShader.uniforms),
+        transparent: true,
+        depthWrite: false,
+        side: THREE.FrontSide,
+      }),
+    [],
+  );
+
+  useEffect(() => {
+    material.uniforms.uOpacity.value = Math.min(1, opacity);
+  }, [material, opacity]);
+
+  return (
+    <mesh material={material}>
+      <sphereGeometry args={[1.0, 96, 96]} />
+    </mesh>
+  );
+}
+
+// Volumetric membrane: fresnel rim shader — luminous at the silhouette,
+// transparent face-on, gold blending to lavender across x. No hard border.
+const membraneShader = {
+  uniforms: {
+    uGoldColor: { value: new THREE.Color(neoPalette.shellWhite) },
+    uLavenderColor: { value: new THREE.Color(neoPalette.lavenderLight) },
+    uStrength: { value: 0.38 },
+  },
+  vertexShader: /* glsl */ `
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+    varying vec3 vLocalPos;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      vViewDir = normalize(-mvPosition.xyz);
+      vLocalPos = position;
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  `,
+  fragmentShader: /* glsl */ `
+    uniform vec3 uGoldColor;
+    uniform vec3 uLavenderColor;
+    uniform float uStrength;
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+    varying vec3 vLocalPos;
+    void main() {
+      float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewDir))), 2.4);
+      float mixAmount = smoothstep(-0.6, 0.9, vLocalPos.x);
+      vec3 color = mix(uGoldColor, uLavenderColor, mixAmount);
+      gl_FragColor = vec4(color, rim * uStrength);
+    }
+  `,
+};
+
+function Membrane({ intensity }: { intensity: number }) {
+  const material = useMemo(() => {
+    const m = new THREE.ShaderMaterial({
+      ...membraneShader,
+      uniforms: THREE.UniformsUtils.clone(membraneShader.uniforms),
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.FrontSide,
+    });
+    return m;
+  }, []);
+
+  useEffect(() => {
+    material.uniforms.uStrength.value = Math.min(0.5, 0.36 * intensity);
+  }, [material, intensity]);
+
+  return (
+    <mesh material={material}>
+      <sphereGeometry args={[MEMBRANE_RADIUS, 96, 96]} />
+    </mesh>
+  );
+}
+
+// Orbital arcs: large tilted elliptical paths, each with its own slow period
+// and direction — the system never rotates as one object.
+function OrbitalArcs({ intensity, motionScale }: { intensity: number; motionScale: number }) {
+  const field = useMemo(() => organismField(FIELD_OPTIONS), []);
+  const refs = useRef<(THREE.Group | null)[]>([]);
+
+  const arcPoints = useMemo(
+    () =>
+      field.arcs.map((arc) => {
+        const curve = new THREE.EllipseCurve(
+          0, 0,
+          arc.radius, arc.radius * (0.82 + 0.14 * Math.sin(arc.tilt[0])),
+          0, Math.PI * 2,
+          false, 0,
+        );
+        return curve.getPoints(120).map((p) => new THREE.Vector3(p.x, p.y, 0));
+      }),
+    [field],
+  );
+
+  useFrame((_, delta) => {
+    field.arcs.forEach((arc, index) => {
+      const group = refs.current[index];
+      if (!group) return;
+      group.rotation.z +=
+        delta * arc.direction * ((Math.PI * 2) / arc.periodSeconds) * motionScale;
+    });
+  });
+
+  return (
+    <group>
+      {field.arcs.map((arc, index) => (
+        <group key={index} rotation={arc.tilt}>
+          <group ref={(el) => { refs.current[index] = el; }}>
+            <Line
+              points={arcPoints[index]}
+              color={index % 3 === 0 ? neoPalette.lavenderDark : neoPalette.goldDeep}
+              transparent
+              opacity={Math.min(0.1, (0.035 + (index % 3) * 0.02) * intensity)}
+              lineWidth={0.4}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </group>
+        </group>
       ))}
     </group>
   );
@@ -162,9 +468,15 @@ function LivingScene({
   reducedMotion: boolean;
   scaleFactor: number;
 }) {
+  const field = useMemo(() => organismField(FIELD_OPTIONS), []);
   const root = useRef<THREE.Group>(null);
-  const rings = useRef<THREE.Group>(null);
+  const rearGroup = useRef<THREE.Group>(null);
+  const frontGroup = useRef<THREE.Group>(null);
   const elapsedTime = useRef(0);
+
+  const goldIntensity = parameters.goldIntensity;
+  const indigoIntensity = parameters.indigoIntensity;
+  const goldLevel = goldIntensity / 0.72;
 
   useFrame((_, delta) => {
     elapsedTime.current += delta;
@@ -172,108 +484,123 @@ function LivingScene({
     const motionScale = resolveMotionScale(reducedMotion, parameters.reducedMotion.motionScale);
 
     if (root.current) {
-      root.current.rotation.y += delta * parameters.rotationDrift * motionScale;
-      root.current.rotation.x = Math.sin(elapsed * 0.22) * 0.075 * motionScale;
+      // Breathing: 1.000 -> ~1.014 over 6.5-8.5s. The organism does NOT
+      // rotate as one object — only sub-layers drift.
+      const period = Math.min(8.5, Math.max(6.5, 9.5 - parameters.breathingSpeed * 2.2));
+      const breath =
+        1 + (0.014 + parameters.breathingAmplitude * 0.1) *
+          (0.5 + 0.5 * Math.sin((elapsed / period) * Math.PI * 2)) * motionScale;
+      root.current.scale.setScalar(parameters.scale * scaleFactor * breath);
 
       const float = organismFloatOffset(
         elapsed,
-        {
-          floatAmplitude: parameters.floatAmplitude,
-          floatSpeed: parameters.floatSpeed,
-        },
+        { floatAmplitude: parameters.floatAmplitude, floatSpeed: parameters.floatSpeed },
         motionScale,
       );
       root.current.position.set(float.x, float.y, 0);
     }
 
-    if (rings.current) {
-      rings.current.rotation.z += delta * parameters.rotationDrift * 0.42 * motionScale;
-      rings.current.rotation.x = 0.48 + Math.sin(elapsed * 0.16) * 0.06 * motionScale;
+    // Counter-drifting depth layers: slow, opposing, never frantic.
+    if (rearGroup.current) {
+      rearGroup.current.rotation.y += delta * 0.008 * motionScale;
+      rearGroup.current.position.x = Math.sin(elapsed * 0.11) * 0.02 * motionScale;
+    }
+    if (frontGroup.current) {
+      frontGroup.current.rotation.y -= delta * 0.006 * motionScale;
+      frontGroup.current.position.y = Math.sin(elapsed * 0.09 + 1.7) * 0.02 * motionScale;
     }
   });
+
+  const motionScale = resolveMotionScale(reducedMotion, parameters.reducedMotion.motionScale);
 
   return (
     <>
       <ambientLight intensity={parameters.lighting.ambientIntensity} />
-      <hemisphereLight args={['#fffaf0', '#80662f', parameters.lighting.hemisphereIntensity]} />
-      <directionalLight position={[4, 5, 5]} intensity={parameters.lighting.directionalIntensity} color="#fff8e8" />
+      <hemisphereLight args={[neoPalette.backgroundLight, neoPalette.goldDeep, parameters.lighting.hemisphereIntensity]} />
+      <directionalLight position={[4, 5, 5]} intensity={parameters.lighting.directionalIntensity} color={neoPalette.shellWhite} />
 
-      <group ref={root} scale={parameters.scale * scaleFactor}>
-        <mesh>
-          <sphereGeometry args={[1.62, 96, 96]} />
-          <meshPhysicalMaterial
-            color="#171209"
-            transparent
-            opacity={0.32 + parameters.shellOpacity * 0.42}
-            roughness={0.32}
-            metalness={0.02}
-            transmission={0.22}
-            thickness={0.6}
-            ior={1.1}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-
-        <mesh>
-          <sphereGeometry args={[1.18, 96, 96]} />
-          <MeshDistortMaterial
-            color="#231a0c"
-            transparent
-            opacity={0.28}
-            roughness={0.4}
-            metalness={0.04}
-            depthWrite={false}
-            distort={reducedMotion ? 0.04 : 0.2}
-            speed={reducedMotion ? 0 : parameters.breathingSpeed}
-          />
-        </mesh>
-
-        <GoldPathways opacity={Math.min(parameters.goldIntensity * 0.85, 1)} />
-        <IndigoPathways
-          opacity={Math.min(parameters.indigoIntensity * 0.85, 1)}
-          convergence={parameters.indigoConvergence}
+      <group ref={root}>
+        {/* 2. distant ambient dust */}
+        <Sparkles
+          count={Math.round(parameters.particleCount * 1.6)}
+          scale={4.6}
+          size={0.9}
+          speed={reducedMotion ? 0.02 : parameters.particleVelocity * 0.5}
+          noise={0.8}
+          color={neoPalette.goldLight}
+          opacity={0.35 * goldLevel}
         />
 
+        {/* 3. rear orbital arcs */}
+        <OrbitalArcs intensity={goldLevel} motionScale={motionScale} />
+
+        {/* 4. translucent outer membrane */}
+        <Membrane intensity={goldLevel} />
+
+        {/* 5. rear neural filaments */}
+        <group ref={rearGroup}>
+          <FilamentDepthGroup
+            filaments={field.filaments}
+            depth="rear"
+            goldIntensity={goldIntensity}
+            indigoIntensity={indigoIntensity}
+            indigoConvergence={parameters.indigoConvergence}
+          />
+        </group>
+
+        {/* 6. dark internal volumetric body — inverse-fresnel ball: dense
+            warm umber at the center fading to nothing at the rim, so the
+            organism has a dark interior with no hard circular border. */}
+        <VolumetricBody opacity={0.62 + parameters.shellOpacity * 0.5} />
+
+        {/* 7-8. middle and front neural filaments */}
+        <FilamentDepthGroup
+          filaments={field.filaments}
+          depth="middle"
+          goldIntensity={goldIntensity}
+          indigoIntensity={indigoIntensity}
+          indigoConvergence={parameters.indigoConvergence}
+        />
+        <group ref={frontGroup}>
+          <FilamentDepthGroup
+            filaments={field.filaments}
+            depth="front"
+            goldIntensity={goldIntensity}
+            indigoIntensity={indigoIntensity}
+            indigoConvergence={parameters.indigoConvergence}
+          />
+        </group>
+
+        {/* 9. particle-node constellation */}
+        <NodeConstellation intensity={goldLevel} />
+
+        {/* inner shimmer */}
         <Sparkles
-          count={parameters.particleCount}
-          scale={3.8}
-          size={parameters.particleSize}
+          count={Math.round(parameters.particleCount * 0.8)}
+          scale={1.9}
+          size={parameters.particleSize * 0.8}
           speed={reducedMotion ? 0.02 : parameters.particleVelocity}
           noise={1.05}
-          color="#f0c264"
-          opacity={0.75}
+          color={neoPalette.goldLight}
+          opacity={0.55 * goldLevel}
         />
-
-        <group
-          position={[0.6 * (1 - parameters.indigoConvergence * 0.6), 0, 0]}
-          scale={1 - 0.45 * parameters.indigoConvergence}
-        >
+        <group scale={1 - 0.45 * parameters.indigoConvergence} position={[0.35, 0, 0]}>
           <Sparkles
-            count={Math.round(parameters.particleCount * 0.4)}
-            scale={2.6}
-            size={parameters.particleSize * 0.85}
+            count={Math.round(parameters.particleCount * 0.35)}
+            scale={1.6}
+            size={parameters.particleSize * 0.7}
             speed={reducedMotion ? 0.02 : parameters.particleVelocity}
             noise={1.05}
-            color="#8a7dff"
-            opacity={Math.min(parameters.indigoIntensity, 1)}
+            color={neoPalette.lavenderMid}
+            opacity={Math.min(0.6, indigoIntensity)}
           />
         </group>
 
-        <LuminousCore parameters={parameters} reducedMotion={reducedMotion} />
+        {/* 10. major nodal flares */}
+        <NodalFlares intensity={goldLevel} motionScale={motionScale} />
 
-        <group ref={rings}>
-          {[1.92, 2.18, 2.42].map((radius, index) => (
-            <mesh key={radius} rotation={[Math.PI / 2 + index * 0.18, index * 0.36, index * 0.24]}>
-              <torusGeometry args={[radius, 0.008 + index * 0.003, 12, 220]} />
-              <meshBasicMaterial
-                color={index === 1 ? '#786f59' : '#c4a45a'}
-                transparent
-                opacity={parameters.goldIntensity * 0.2 - index * 0.035}
-              />
-            </mesh>
-          ))}
-        </group>
+        {/* focal core (gold primary + lavender secondary inside LuminousCore) */}
+        <LuminousCore parameters={parameters} reducedMotion={reducedMotion} />
       </group>
     </>
   );

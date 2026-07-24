@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import type { OrganismParameters } from '@/nehemiah/organism-parameters';
 import { resolveMotionScale } from '@/nehemiah/organism-motion';
 import { organismCoreModel } from '@/nehemiah/organism-core-model';
+import { neoPalette } from '@/nehemiah/organism-palette';
 
 export function LuminousCore({
   parameters,
@@ -15,7 +16,7 @@ export function LuminousCore({
   reducedMotion: boolean;
 }) {
   const shape = organismCoreModel.resting;
-  const CORE_VISUAL_SCALE = 0.78;
+  const CORE_VISUAL_SCALE = 0.62;
   const profile = {
     bodyRadius: shape.bodyRadius * CORE_VISUAL_SCALE,
     haloRadius: shape.haloRadius * CORE_VISUAL_SCALE,
@@ -24,11 +25,13 @@ export function LuminousCore({
     pulseRate: shape.pulseRate,
     emissiveIntensity: parameters.coreIntensity,
     haloOpacity: shape.haloOpacity,
-    pointLightIntensity: parameters.coreIntensity * (shape.pointLightIntensity / shape.emissiveIntensity),
+    pointLightIntensity:
+      parameters.coreIntensity * (shape.pointLightIntensity / shape.emissiveIntensity),
   };
   const root = useRef<THREE.Group>(null);
   const halo = useRef<THREE.Mesh>(null);
   const kernel = useRef<THREE.Mesh>(null);
+  const lavenderNode = useRef<THREE.Group>(null);
   const elapsedTime = useRef(0);
 
   useFrame((_, delta) => {
@@ -44,7 +47,6 @@ export function LuminousCore({
 
     if (root.current) {
       root.current.scale.setScalar(pulse);
-      root.current.rotation.y += delta * 0.06 * motionScale;
     }
 
     if (halo.current) {
@@ -56,7 +58,6 @@ export function LuminousCore({
           motionScale;
 
       halo.current.scale.setScalar(profile.haloRadius * haloPulse);
-      halo.current.rotation.z -= delta * 0.045 * motionScale;
     }
 
     if (kernel.current) {
@@ -66,69 +67,111 @@ export function LuminousCore({
           0.055 *
           motionScale;
 
-      kernel.current.scale.setScalar(
-        profile.kernelRadius * kernelPulse,
-      );
+      kernel.current.scale.setScalar(profile.kernelRadius * kernelPulse);
+    }
+
+    if (lavenderNode.current) {
+      // Secondary beacon breathes on its own slower phase — never in sync
+      // with the gold focal point.
+      const secondaryPulse =
+        1 + Math.sin(elapsed * profile.pulseRate * 0.55 + 2.1) * 0.08 * motionScale;
+      lavenderNode.current.scale.setScalar(secondaryPulse);
     }
   });
 
+  const coreLevel = parameters.coreIntensity / organismCoreModel.resting.emissiveIntensity;
+
   return (
-    <group ref={root}>
-      <pointLight
-        position={[0, 0, 0.28]}
-        intensity={profile.pointLightIntensity}
-        distance={4.6}
-        decay={2}
-        color="#d8aa49"
-      />
-
-      <mesh ref={halo} scale={profile.haloRadius}>
-        <sphereGeometry args={[1, 64, 64]} />
-        <meshBasicMaterial
-          color="#9f6f16"
-          transparent
-          opacity={profile.haloOpacity}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          toneMapped={false}
+    <group>
+      <group ref={root}>
+        <pointLight
+          position={[0, 0, 0.28]}
+          intensity={profile.pointLightIntensity}
+          distance={4.6}
+          decay={2}
+          color={neoPalette.goldMid}
         />
-      </mesh>
 
-      <mesh scale={profile.bodyRadius * 1.22}>
-        <sphereGeometry args={[1, 72, 72]} />
-        <meshBasicMaterial
-          color="#b78328"
-          transparent
-          opacity={profile.haloOpacity * 0.48}
-          blending={THREE.AdditiveBlending}
-          side={THREE.BackSide}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </mesh>
+        <mesh ref={halo} scale={profile.haloRadius}>
+          <sphereGeometry args={[1, 64, 64]} />
+          <meshBasicMaterial
+            color={neoPalette.goldMid}
+            transparent
+            opacity={profile.haloOpacity}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
 
-      <mesh scale={profile.bodyRadius}>
-        <sphereGeometry args={[1, 96, 96]} />
-        <meshPhysicalMaterial
-          color="#e8c46e"
-          emissive="#b8781d"
-          emissiveIntensity={profile.emissiveIntensity}
-          roughness={0.18}
-          metalness={0.06}
-          clearcoat={1}
-          clearcoatRoughness={0.16}
-          transmission={0.1}
-          thickness={0.22}
-        />
-      </mesh>
+        <mesh scale={profile.bodyRadius * 1.3}>
+          <sphereGeometry args={[1, 72, 72]} />
+          <meshBasicMaterial
+            color={neoPalette.goldLight}
+            transparent
+            opacity={profile.haloOpacity * 0.55}
+            blending={THREE.AdditiveBlending}
+            side={THREE.BackSide}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
 
-      <mesh ref={kernel} scale={profile.kernelRadius}>
-        <sphereGeometry args={[1, 56, 56]} />
-        <meshBasicMaterial
-          color="#fff4c4"
-          toneMapped={false}
+        <mesh scale={profile.bodyRadius}>
+          <sphereGeometry args={[1, 96, 96]} />
+          <meshBasicMaterial
+            color={neoPalette.goldMid}
+            transparent
+            opacity={Math.min(0.85, 0.55 * coreLevel)}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+
+        <mesh ref={kernel} scale={profile.kernelRadius}>
+          <sphereGeometry args={[1, 56, 56]} />
+          <meshBasicMaterial
+            color={neoPalette.shellWhite}
+            transparent
+            opacity={Math.min(1, coreLevel)}
+            toneMapped={false}
+          />
+        </mesh>
+      </group>
+
+      {/* Secondary lavender beacon — right side, smaller, cooler, never
+          visually dominant over the gold focal point. */}
+      <group ref={lavenderNode} position={[0.52, 0.1, 0.15]}>
+        <pointLight
+          intensity={profile.pointLightIntensity * 0.28}
+          distance={2.4}
+          decay={2}
+          color={neoPalette.lavenderMid}
         />
-      </mesh>
+        <mesh>
+          <sphereGeometry args={[0.055, 32, 32]} />
+          <meshBasicMaterial
+            color={neoPalette.lavenderLight}
+            transparent
+            opacity={Math.min(0.9, 0.7 * coreLevel)}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+        <mesh>
+          <sphereGeometry args={[0.14, 32, 32]} />
+          <meshBasicMaterial
+            color={neoPalette.lavenderMid}
+            transparent
+            opacity={Math.min(0.35, 0.26 * coreLevel)}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+      </group>
     </group>
   );
 }

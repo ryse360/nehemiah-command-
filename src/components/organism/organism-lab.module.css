@@ -19,7 +19,7 @@
    *   760px ceiling   — stay tasteful on large desktops and ultrawides
    *   18rem floor     — stay a real presence on the smallest screens
    */
-  width: clamp(18rem, min(58vh, 48vw, calc(100dvh - 22rem)), 760px);
+  width: clamp(18rem, min(58vh, 48vw, calc(100dvh - 22rem)), 660px);
   aspect-ratio: 1;
   margin: 0 auto;
   flex-shrink: 0;
@@ -39,30 +39,31 @@
   border-radius: 50%;
   background: radial-gradient(
     circle at 50% 46%,
-    rgba(255, 249, 234, 0.9) 0%,
-    rgba(250, 242, 228, 0.4) 38%,
+    rgba(251, 242, 240, 0.92) 0%,
+    rgba(244, 235, 226, 0.4) 38%,
     transparent 62%
   );
   pointer-events: none;
 }
 
-/* Soft contact shadow so the organism reads as suspended above the surface. */
+/* Contact shadow per spec: 28-38% of orb width, 3-6% height, blur 18-32px,
+   opacity <= 0.18, warm brown-gray — the orb floats lightly above the surface. */
 .stage::after {
   content: '';
   position: absolute;
   left: 50%;
-  bottom: 3%;
+  bottom: 2%;
   z-index: 0;
-  width: 46%;
+  width: 34%;
   height: 5%;
   transform: translateX(-50%);
   border-radius: 50%;
   background: radial-gradient(
     ellipse at center,
-    rgba(78, 66, 42, 0.22),
+    rgba(68, 53, 41, 0.15),
     transparent 72%
   );
-  filter: blur(7px);
+  filter: blur(24px);
   pointer-events: none;
 }
 
