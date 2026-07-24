@@ -58,6 +58,8 @@ Run the whole gate locally: `npm run gate`
 | Leva confined to the lab shell; engine layers clean | ENFORCED | `check-founder-compliance` §3; `organism-architecture.test.ts` |
 | Every governed module carries tests | ENFORCED | `check-founder-compliance` §10 |
 | Tests, typecheck, build green before any push | ENFORCED | CI (`.github/workflows/ci.yml`) on every push and PR |
+| Production JS budget 750KB — lab engine may never bloat Founder-facing routes | ENFORCED | `check-performance-budget.ts` (WebGL-marked chunks budgeted separately; compliance §4 guarantees they are lab-only) |
+| Lab WebGL engine bounded at 1.5MB | ENFORCED | `check-performance-budget.ts` labEngine allowance |
 | Evidence before completion claims | FOUNDER-LOCKED | Superpowers `verification-before-completion`; CI as backstop |
 
 ## Process
