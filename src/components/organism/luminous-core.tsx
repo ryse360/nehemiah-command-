@@ -3,17 +3,28 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { NehemiahState } from '@/nehemiah/state-machine';
+import type { OrganismParameters } from '@/nehemiah/organism-parameters';
+import { resolveMotionScale } from '@/nehemiah/organism-motion';
 import { organismCoreModel } from '@/nehemiah/organism-core-model';
 
 export function LuminousCore({
-  state,
+  parameters,
   reducedMotion,
 }: {
-  state: NehemiahState;
+  parameters: OrganismParameters;
   reducedMotion: boolean;
 }) {
-  const profile = organismCoreModel[state];
+  const shape = organismCoreModel.resting;
+  const profile = {
+    bodyRadius: shape.bodyRadius,
+    haloRadius: shape.haloRadius,
+    kernelRadius: shape.kernelRadius,
+    pulseAmplitude: shape.pulseAmplitude,
+    pulseRate: shape.pulseRate,
+    emissiveIntensity: parameters.coreIntensity,
+    haloOpacity: shape.haloOpacity,
+    pointLightIntensity: parameters.coreIntensity * (shape.pointLightIntensity / shape.emissiveIntensity),
+  };
   const root = useRef<THREE.Group>(null);
   const halo = useRef<THREE.Mesh>(null);
   const kernel = useRef<THREE.Mesh>(null);
@@ -23,7 +34,7 @@ export function LuminousCore({
     elapsedTime.current += delta;
 
     const elapsed = elapsedTime.current;
-    const motionScale = reducedMotion ? 0.12 : 1;
+    const motionScale = resolveMotionScale(reducedMotion, parameters.reducedMotion.motionScale);
     const pulse =
       1 +
       Math.sin(elapsed * profile.pulseRate) *

@@ -37,47 +37,42 @@
   box-shadow: 0 0 16px rgba(184, 150, 78, 0.55);
 }
 
-.controls {
+.commandSurface {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.65rem;
-  padding: 0.75rem 0 0;
-}
-
-.button,
-.activeButton {
-  border: 1px solid rgba(100, 91, 69, 0.18);
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: min(100%, 640px);
+  margin: 0.5rem auto 0;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid rgba(100, 91, 69, 0.14);
   border-radius: 999px;
-  padding: 0.72rem 1rem;
-  background: rgba(255, 253, 247, 0.72);
-  color: #5b5548;
-  font: inherit;
-  cursor: pointer;
-  text-transform: capitalize;
-  transition:
-    transform 160ms ease,
-    border-color 160ms ease,
-    background 160ms ease,
-    box-shadow 160ms ease;
+  background: rgba(255, 253, 247, 0.6);
+  opacity: 0.72;
 }
 
-.button:hover,
-.activeButton:hover {
-  transform: translateY(-1px);
-  border-color: rgba(184, 150, 78, 0.46);
+.commandPlaceholder {
+  color: #8a8272;
+  font-size: 0.92rem;
 }
 
-.activeButton {
-  background: #fffaf0;
-  border-color: rgba(184, 150, 78, 0.58);
-  box-shadow: 0 10px 28px rgba(112, 91, 43, 0.13);
+.commandButton {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 50%;
+  background: rgba(184, 150, 78, 0.16);
+  color: #b8964e;
+  cursor: not-allowed;
 }
 
-.button:focus-visible,
-.activeButton:focus-visible {
-  outline: 3px solid rgba(68, 82, 145, 0.32);
-  outline-offset: 3px;
+.commandHelperText {
+  margin: 0.6rem 0 0;
+  text-align: center;
+  color: #9a927f;
+  font-size: 0.78rem;
 }
 
 .fallback {
@@ -93,20 +88,11 @@
     width: min(92vw, 620px);
   }
 
-  .controls {
-    gap: 0.45rem;
+  .commandSurface {
+    padding: 0.7rem 0.9rem;
   }
 
-  .button,
-  .activeButton {
-    padding: 0.6rem 0.78rem;
+  .commandPlaceholder {
     font-size: 0.82rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .button,
-  .activeButton {
-    transition: none;
   }
 }
