@@ -40,10 +40,13 @@ function GoldPathways({ opacity }: { opacity: number }) {
         <Line
           key={index}
           points={points}
-          color={index % 4 === 0 ? '#8f7a45' : '#c7a65a'}
+          color={index % 4 === 0 ? '#c99a3f' : '#f0c264'}
           transparent
           opacity={opacity}
-          lineWidth={index % 5 === 0 ? 1.25 : 0.7}
+          lineWidth={index % 5 === 0 ? 1.35 : 0.85}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
         />
       ))}
     </group>
@@ -57,15 +60,18 @@ function IndigoPathways({ opacity }: { opacity: number }) {
   );
 
   return (
-    <group>
+    <group position={[0.55, 0, 0]}>
       {threads.map((points, index) => (
         <Line
           key={index}
           points={points}
-          color={index % 3 === 0 ? '#5c53b3' : '#8a80d6'}
+          color={index % 3 === 0 ? '#6a5cff' : '#a598ff'}
           transparent
           opacity={opacity}
-          lineWidth={0.65}
+          lineWidth={0.85}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
         />
       ))}
     </group>
@@ -110,13 +116,13 @@ function LivingScene({
         <mesh>
           <sphereGeometry args={[1.62, 96, 96]} />
           <meshPhysicalMaterial
-            color="#d9c08a"
+            color="#171209"
             transparent
-            opacity={parameters.shellOpacity * 0.52}
-            roughness={0.28}
+            opacity={0.32 + parameters.shellOpacity * 0.42}
+            roughness={0.32}
             metalness={0.02}
-            transmission={0.38}
-            thickness={0.3}
+            transmission={0.22}
+            thickness={0.6}
             ior={1.1}
             depthWrite={false}
             side={THREE.DoubleSide}
@@ -126,10 +132,10 @@ function LivingScene({
         <mesh>
           <sphereGeometry args={[1.18, 96, 96]} />
           <MeshDistortMaterial
-            color="#b58b38"
+            color="#231a0c"
             transparent
-            opacity={0.13}
-            roughness={0.34}
+            opacity={0.28}
+            roughness={0.4}
             metalness={0.04}
             depthWrite={false}
             distort={reducedMotion ? 0.04 : 0.2}
@@ -137,8 +143,8 @@ function LivingScene({
           />
         </mesh>
 
-        <GoldPathways opacity={parameters.goldIntensity * 0.32} />
-        <IndigoPathways opacity={parameters.indigoIntensity * 0.32} />
+        <GoldPathways opacity={Math.min(parameters.goldIntensity * 0.85, 1)} />
+        <IndigoPathways opacity={Math.min(parameters.indigoIntensity * 0.85, 1)} />
 
         <Sparkles
           count={parameters.particleCount}
@@ -146,9 +152,21 @@ function LivingScene({
           size={parameters.particleSize}
           speed={reducedMotion ? 0.02 : parameters.particleVelocity}
           noise={1.05}
-          color="#9f7a2d"
-          opacity={0.38}
+          color="#f0c264"
+          opacity={0.75}
         />
+
+        <group position={[0.6, 0, 0]}>
+          <Sparkles
+            count={Math.round(parameters.particleCount * 0.4)}
+            scale={2.6}
+            size={parameters.particleSize * 0.85}
+            speed={reducedMotion ? 0.02 : parameters.particleVelocity}
+            noise={1.05}
+            color="#8a7dff"
+            opacity={Math.min(parameters.indigoIntensity, 1)}
+          />
+        </group>
 
         <LuminousCore parameters={parameters} reducedMotion={reducedMotion} />
 

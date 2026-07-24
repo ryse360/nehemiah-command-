@@ -15,10 +15,11 @@ export function LuminousCore({
   reducedMotion: boolean;
 }) {
   const shape = organismCoreModel.resting;
+  const CORE_VISUAL_SCALE = 0.78;
   const profile = {
-    bodyRadius: shape.bodyRadius,
-    haloRadius: shape.haloRadius,
-    kernelRadius: shape.kernelRadius,
+    bodyRadius: shape.bodyRadius * CORE_VISUAL_SCALE,
+    haloRadius: shape.haloRadius * CORE_VISUAL_SCALE,
+    kernelRadius: shape.kernelRadius * CORE_VISUAL_SCALE,
     pulseAmplitude: shape.pulseAmplitude,
     pulseRate: shape.pulseRate,
     emissiveIntensity: parameters.coreIntensity,
