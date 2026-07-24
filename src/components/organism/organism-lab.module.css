@@ -11,7 +11,15 @@
 .stage {
   --charge: 0;
   position: relative;
-  width: min(56vh, 50vw, 660px);
+  /*
+   * Intelligent adaptive sizing. The organism aims for a commanding ~58% of
+   * the viewport height, but three guards keep it elegant everywhere:
+   *   48vw            — never overwhelm a narrow window
+   *   100dvh - 22rem  — always leave room for the chrome, so it never scrolls
+   *   760px ceiling   — stay tasteful on large desktops and ultrawides
+   *   18rem floor     — stay a real presence on the smallest screens
+   */
+  width: clamp(18rem, min(58vh, 48vw, calc(100dvh - 22rem)), 760px);
   aspect-ratio: 1;
   margin: 0 auto;
   flex-shrink: 0;
@@ -218,7 +226,8 @@
 
 @media (max-width: 720px) {
   .stage {
-    width: min(42vh, 82vw, 480px);
+    /* Phones/tablets: width leads, height guards, still generous. */
+    width: clamp(15rem, min(84vw, 52vh, calc(100dvh - 20rem)), 460px);
   }
 
   .commandSurface {
