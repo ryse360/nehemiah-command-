@@ -30,6 +30,8 @@ export interface OrganismParameters {
   shellOpacity: number;
   coreIntensity: number;
   rotationDrift: number;
+  floatAmplitude: number;
+  floatSpeed: number;
   camera: OrganismCameraParameters;
   lighting: OrganismLightingParameters;
   reducedMotion: OrganismReducedMotionParameters;
@@ -40,47 +42,64 @@ interface StateAccent {
   indigoConvergence: number;
   ambientIntensity: number;
   directionalIntensity: number;
+  floatAmplitude: number;
+  floatSpeed: number;
 }
 
 // Indigo is the deliberation field: it hums at rest, gathers into a tight
 // knot while the decision is weighed, then disperses as gold takes over.
 // Light rises with the lifecycle so rest reads dim and proof reads lit.
 const stateAccents: Record<NehemiahState, StateAccent> = {
+  // floatAmplitude/floatSpeed: a slow, weightless bob. Rest floats widest and
+  // slowest (drowsy, at ease); as the organism engages it lifts a little
+  // tighter and a little more alert, never agitated.
   resting: {
     indigoIntensity: 0.55,
     indigoConvergence: 0,
     ambientIntensity: 0.62,
     directionalIntensity: 1.18,
+    floatAmplitude: 0.12,
+    floatSpeed: 0.09,
   },
   listening: {
     indigoIntensity: 0.62,
     indigoConvergence: 0.15,
     ambientIntensity: 0.65,
     directionalIntensity: 1.2,
+    floatAmplitude: 0.1,
+    floatSpeed: 0.12,
   },
   'focus-surfaced': {
     indigoIntensity: 0.68,
     indigoConvergence: 0.45,
     ambientIntensity: 0.67,
     directionalIntensity: 1.22,
+    floatAmplitude: 0.085,
+    floatSpeed: 0.13,
   },
   'decision-required': {
     indigoIntensity: 0.85,
     indigoConvergence: 1,
     ambientIntensity: 0.68,
     directionalIntensity: 1.24,
+    floatAmplitude: 0.06,
+    floatSpeed: 0.11,
   },
   'action-underway': {
     indigoIntensity: 0.35,
     indigoConvergence: 0.25,
     ambientIntensity: 0.7,
     directionalIntensity: 1.27,
+    floatAmplitude: 0.09,
+    floatSpeed: 0.16,
   },
   'proof-created': {
     indigoIntensity: 0.15,
     indigoConvergence: 0.05,
     ambientIntensity: 0.73,
     directionalIntensity: 1.32,
+    floatAmplitude: 0.075,
+    floatSpeed: 0.1,
   },
 };
 
@@ -111,6 +130,8 @@ function buildStateParameters(state: NehemiahState): OrganismParameters {
     shellOpacity: render.shellOpacity,
     coreIntensity: core.emissiveIntensity,
     rotationDrift: render.rotationSpeed,
+    floatAmplitude: accent.floatAmplitude,
+    floatSpeed: accent.floatSpeed,
     camera: {
       position: [0, 0, 6.4],
       fieldOfView: 38,

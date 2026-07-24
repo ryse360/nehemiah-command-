@@ -10,7 +10,7 @@ import {
   transitionProgress,
   type TransitionPersonality,
 } from '@/nehemiah/organism-transition';
-import { resolveMotionScale } from '@/nehemiah/organism-motion';
+import { organismFloatOffset, resolveMotionScale } from '@/nehemiah/organism-motion';
 import { LuminousCore } from './luminous-core';
 import styles from './organism-lab.module.css';
 
@@ -164,6 +164,16 @@ function LivingScene({
     if (root.current) {
       root.current.rotation.y += delta * parameters.rotationDrift * motionScale;
       root.current.rotation.x = Math.sin(elapsed * 0.22) * 0.075 * motionScale;
+
+      const float = organismFloatOffset(
+        elapsed,
+        {
+          floatAmplitude: parameters.floatAmplitude,
+          floatSpeed: parameters.floatSpeed,
+        },
+        motionScale,
+      );
+      root.current.position.set(float.x, float.y, 0);
     }
 
     if (rings.current) {
@@ -174,7 +184,6 @@ function LivingScene({
 
   return (
     <>
-      <color attach="background" args={['#f4efe5']} />
       <ambientLight intensity={parameters.lighting.ambientIntensity} />
       <hemisphereLight args={['#fffaf0', '#80662f', parameters.lighting.hemisphereIntensity]} />
       <directionalLight position={[4, 5, 5]} intensity={parameters.lighting.directionalIntensity} color="#fff8e8" />
@@ -277,9 +286,11 @@ export function OrganismEngine({
       dpr={[1, 1.65]}
       gl={{
         antialias: true,
-        alpha: false,
+        alpha: true,
+        premultipliedAlpha: false,
         powerPreference: 'high-performance',
       }}
+      style={{ background: 'transparent' }}
       fallback={<div className={styles.fallback}>Nehemiah visual engine unavailable.</div>}
     >
       <LivingScene

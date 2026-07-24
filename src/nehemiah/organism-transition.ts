@@ -132,6 +132,8 @@ export function blendOrganismParameters(
     shellOpacity: lerp(from.shellOpacity, to.shellOpacity, blend),
     coreIntensity: lerp(from.coreIntensity, to.coreIntensity, blend),
     rotationDrift: lerp(from.rotationDrift, to.rotationDrift, blend),
+    floatAmplitude: lerp(from.floatAmplitude, to.floatAmplitude, blend),
+    floatSpeed: lerp(from.floatSpeed, to.floatSpeed, blend),
     camera: {
       position: [
         lerp(from.camera.position[0], to.camera.position[0], blend),
