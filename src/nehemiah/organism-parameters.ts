@@ -132,8 +132,11 @@ function buildStateParameters(state: NehemiahState): OrganismParameters {
     rotationDrift: render.rotationSpeed,
     floatAmplitude: accent.floatAmplitude,
     floatSpeed: accent.floatSpeed,
+    // Closer camera so the volumetric organism fills the stage with the
+    // approved commanding presence (the old shell reached further out; the
+    // volumetric membrane sits at ~1.02, so the camera compensates).
     camera: {
-      position: [0, 0, 6.4],
+      position: [0, 0, 5.1],
       fieldOfView: 38,
     },
     lighting: {

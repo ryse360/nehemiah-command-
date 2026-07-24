@@ -19,7 +19,7 @@
    *   760px ceiling   — stay tasteful on large desktops and ultrawides
    *   18rem floor     — stay a real presence on the smallest screens
    */
-  width: clamp(18rem, min(58vh, 48vw, calc(100dvh - 22rem)), 660px);
+  width: clamp(18rem, min(58vh, 48vw, calc(100dvh - 22rem)), 760px);
   aspect-ratio: 1;
   margin: 0 auto;
   flex-shrink: 0;
