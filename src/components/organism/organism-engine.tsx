@@ -1,13 +1,69 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Line, MeshDistortMaterial, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrganismParameters } from '@/nehemiah/organism-parameters';
+import {
+  blendOrganismParameters,
+  transitionProgress,
+  type TransitionPersonality,
+} from '@/nehemiah/organism-transition';
 import { resolveMotionScale } from '@/nehemiah/organism-motion';
 import { LuminousCore } from './luminous-core';
 import styles from './organism-lab.module.css';
+
+// Animates the displayed parameters toward the target with the held-breath
+// personality: still (and slightly contracted) through the hold, then a
+// settling ease with overshoot. Re-renders only while a transition runs.
+function useTransitionedParameters(
+  target: OrganismParameters,
+  personality: TransitionPersonality | null,
+) {
+  const [display, setDisplay] = useState({ parameters: target, scaleFactor: 1 });
+  const displayRef = useRef(display);
+  const targetRef = useRef(target);
+  const frameRef = useRef(0);
+
+  displayRef.current = display;
+
+  useEffect(() => {
+    if (target === targetRef.current) {
+      return;
+    }
+
+    targetRef.current = target;
+    cancelAnimationFrame(frameRef.current);
+
+    if (!personality) {
+      setDisplay({ parameters: target, scaleFactor: 1 });
+      return;
+    }
+
+    const from = displayRef.current.parameters;
+    const startedAt = performance.now();
+
+    const tick = () => {
+      const elapsed = (performance.now() - startedAt) / 1000;
+      const progress = transitionProgress(personality, elapsed);
+
+      setDisplay({
+        parameters: blendOrganismParameters(from, target, progress.blend),
+        scaleFactor: progress.scaleFactor,
+      });
+
+      if (progress.phase !== 'complete') {
+        frameRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    frameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameRef.current);
+  }, [target, personality]);
+
+  return display;
+}
 
 function createThreadPoints(index: number, total: number, phaseOffset: number) {
   const phase = (index / total) * Math.PI * 2 + phaseOffset;
@@ -53,14 +109,23 @@ function GoldPathways({ opacity }: { opacity: number }) {
   );
 }
 
-function IndigoPathways({ opacity }: { opacity: number }) {
+function IndigoPathways({
+  opacity,
+  convergence,
+}: {
+  opacity: number;
+  convergence: number;
+}) {
   const threads = useMemo(
     () => Array.from({ length: 10 }, (_, index) => createThreadPoints(index, 10, Math.PI)),
     [],
   );
 
   return (
-    <group position={[0.55, 0, 0]}>
+    <group
+      position={[0.55 * (1 - convergence * 0.6), 0, 0]}
+      scale={1 - 0.5 * convergence}
+    >
       {threads.map((points, index) => (
         <Line
           key={index}
@@ -81,9 +146,11 @@ function IndigoPathways({ opacity }: { opacity: number }) {
 function LivingScene({
   parameters,
   reducedMotion,
+  scaleFactor,
 }: {
   parameters: OrganismParameters;
   reducedMotion: boolean;
+  scaleFactor: number;
 }) {
   const root = useRef<THREE.Group>(null);
   const rings = useRef<THREE.Group>(null);
@@ -112,7 +179,7 @@ function LivingScene({
       <hemisphereLight args={['#fffaf0', '#80662f', parameters.lighting.hemisphereIntensity]} />
       <directionalLight position={[4, 5, 5]} intensity={parameters.lighting.directionalIntensity} color="#fff8e8" />
 
-      <group ref={root} scale={parameters.scale}>
+      <group ref={root} scale={parameters.scale * scaleFactor}>
         <mesh>
           <sphereGeometry args={[1.62, 96, 96]} />
           <meshPhysicalMaterial
@@ -144,7 +211,10 @@ function LivingScene({
         </mesh>
 
         <GoldPathways opacity={Math.min(parameters.goldIntensity * 0.85, 1)} />
-        <IndigoPathways opacity={Math.min(parameters.indigoIntensity * 0.85, 1)} />
+        <IndigoPathways
+          opacity={Math.min(parameters.indigoIntensity * 0.85, 1)}
+          convergence={parameters.indigoConvergence}
+        />
 
         <Sparkles
           count={parameters.particleCount}
@@ -156,7 +226,10 @@ function LivingScene({
           opacity={0.75}
         />
 
-        <group position={[0.6, 0, 0]}>
+        <group
+          position={[0.6 * (1 - parameters.indigoConvergence * 0.6), 0, 0]}
+          scale={1 - 0.45 * parameters.indigoConvergence}
+        >
           <Sparkles
             count={Math.round(parameters.particleCount * 0.4)}
             scale={2.6}
@@ -189,11 +262,15 @@ function LivingScene({
 
 export function OrganismEngine({
   parameters,
+  personality = null,
   reducedMotion,
 }: {
   parameters: OrganismParameters;
+  personality?: TransitionPersonality | null;
   reducedMotion: boolean;
 }) {
+  const display = useTransitionedParameters(parameters, personality);
+
   return (
     <Canvas
       camera={{ position: parameters.camera.position, fov: parameters.camera.fieldOfView }}
@@ -205,7 +282,11 @@ export function OrganismEngine({
       }}
       fallback={<div className={styles.fallback}>Nehemiah visual engine unavailable.</div>}
     >
-      <LivingScene parameters={parameters} reducedMotion={reducedMotion} />
+      <LivingScene
+        parameters={display.parameters}
+        reducedMotion={reducedMotion}
+        scaleFactor={display.scaleFactor}
+      />
     </Canvas>
   );
 }

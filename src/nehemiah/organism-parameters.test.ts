@@ -1,9 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  organismStateParameters,
   restingOrganismParameters,
   resolveOrganismParameters,
+  resolveStateParameters,
 } from './organism-parameters';
+import type { NehemiahState } from './state-machine';
+
+const states: NehemiahState[] = [
+  'resting',
+  'listening',
+  'focus-surfaced',
+  'decision-required',
+  'action-underway',
+  'proof-created',
+];
 
 test('resting parameters stay restrained and alive', () => {
   const resting = restingOrganismParameters;
@@ -52,4 +64,74 @@ test('resolveOrganismParameters merges nested camera overrides', () => {
 
   assert.deepEqual(resolved.camera.position, [0, 0, 8]);
   assert.equal(resolved.lighting.ambientIntensity, restingOrganismParameters.lighting.ambientIntensity);
+});
+
+test('every lifecycle state has centralized parameters', () => {
+  for (const state of states) {
+    const parameters = organismStateParameters[state];
+    assert.ok(parameters.breathingSpeed > 0);
+    assert.ok(parameters.goldIntensity > 0);
+    assert.ok(parameters.indigoIntensity >= 0);
+    assert.ok(parameters.indigoConvergence >= 0 && parameters.indigoConvergence <= 1);
+  }
+});
+
+test('the resting entry is the same object the resting milestone shipped with', () => {
+  assert.deepEqual(organismStateParameters.resting, restingOrganismParameters);
+});
+
+test('gold rises monotonically toward proof', () => {
+  for (let index = 1; index < states.length; index += 1) {
+    assert.ok(
+      organismStateParameters[states[index]].goldIntensity >=
+        organismStateParameters[states[index - 1]].goldIntensity,
+      `gold must not dip between ${states[index - 1]} and ${states[index]}`,
+    );
+  }
+});
+
+test('indigo peaks and converges at the decision, then disperses', () => {
+  const decision = organismStateParameters['decision-required'];
+
+  for (const state of states.filter((s) => s !== 'decision-required')) {
+    assert.ok(
+      decision.indigoIntensity > organismStateParameters[state].indigoIntensity,
+      `indigo at decision must exceed ${state}`,
+    );
+    assert.ok(
+      decision.indigoConvergence > organismStateParameters[state].indigoConvergence,
+      `indigo convergence at decision must exceed ${state}`,
+    );
+  }
+
+  assert.ok(
+    organismStateParameters['proof-created'].indigoIntensity <
+      organismStateParameters.resting.indigoIntensity,
+    'by proof, indigo has receded below its resting hum',
+  );
+});
+
+test('the organism is dimmest at rest and brightest at proof', () => {
+  assert.ok(
+    organismStateParameters.resting.coreIntensity <
+      organismStateParameters['proof-created'].coreIntensity,
+  );
+  assert.ok(
+    organismStateParameters.resting.lighting.ambientIntensity <=
+      organismStateParameters['proof-created'].lighting.ambientIntensity,
+  );
+});
+
+test('resolveStateParameters merges overrides onto the requested state', () => {
+  const resolved = resolveStateParameters('decision-required', { goldIntensity: 2 });
+
+  assert.equal(resolved.goldIntensity, 2);
+  assert.equal(
+    resolved.indigoIntensity,
+    organismStateParameters['decision-required'].indigoIntensity,
+  );
+  assert.deepEqual(
+    resolveStateParameters('listening'),
+    organismStateParameters.listening,
+  );
 });
