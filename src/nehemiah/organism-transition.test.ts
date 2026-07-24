@@ -4,8 +4,10 @@ import {
   blendOrganismParameters,
   requiredDwellSeconds,
   resolveTransitionPersonality,
+  sleepTransitionPersonality,
   stateDistance,
   transitionProgress,
+  wakeTransitionPersonality,
 } from './organism-transition';
 import { organismStateParameters } from './organism-parameters';
 
@@ -82,6 +84,25 @@ test('progress holds still, then settles, then completes', () => {
   assert.equal(done.phase, 'complete');
   assert.equal(done.blend, 1);
   assert.equal(done.scaleFactor, 1);
+});
+
+test('falling asleep is slower and gentler than waking up', () => {
+  const sleep = sleepTransitionPersonality(false);
+  const wake = wakeTransitionPersonality(false);
+
+  assert.ok(sleep.settleSeconds > wake.settleSeconds, 'drifting off takes its time');
+  assert.equal(sleep.overshoot, 0, 'no bounce when settling into sleep');
+  assert.ok(wake.settleSeconds > 0);
+});
+
+test('reduced motion still allows a short, plain sleep and wake', () => {
+  const sleep = sleepTransitionPersonality(true);
+  const wake = wakeTransitionPersonality(true);
+
+  assert.equal(sleep.holdSeconds, 0);
+  assert.equal(sleep.overshoot, 0);
+  assert.ok(sleep.settleSeconds > 0);
+  assert.ok(wake.settleSeconds > 0);
 });
 
 test('blending endpoints reproduce the exact state parameters', () => {

@@ -56,6 +56,22 @@ export function resolveTransitionPersonality(
   };
 }
 
+// Sleep settles slowly, like a long exhale; waking is gentler still but
+// quicker, so a touch brings the organism back without a jolt.
+export function sleepTransitionPersonality(reducedMotion: boolean): TransitionPersonality {
+  if (reducedMotion) {
+    return { holdSeconds: 0, settleSeconds: 0.35, overshoot: 0, contraction: 0 };
+  }
+  return { holdSeconds: 0, settleSeconds: 2.6, overshoot: 0, contraction: 0.02 };
+}
+
+export function wakeTransitionPersonality(reducedMotion: boolean): TransitionPersonality {
+  if (reducedMotion) {
+    return { holdSeconds: 0, settleSeconds: 0.25, overshoot: 0, contraction: 0 };
+  }
+  return { holdSeconds: 0, settleSeconds: 1.1, overshoot: 0.05, contraction: 0 };
+}
+
 // The minimum time the organism must visibly inhabit a state before it can
 // be moved on. Action must be seen to take time — an instantly skipped
 // action-underway would prove no action occurred.

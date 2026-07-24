@@ -13,6 +13,11 @@ export const organismStateLabels: Record<NehemiahState, string> = {
 
 export const ORGANISM_STATUS_LABEL = organismStateLabels.resting;
 
+// Ambient overlay label, shown when the organism has drifted into sleep after
+// a long idle. Not a lifecycle state — it sits on top of whichever state the
+// organism was resting in.
+export const ORGANISM_SLEEP_LABEL = 'DORMANT';
+
 export interface LabCommandSurface {
   active: false;
   presence: 'dormant' | 'attentive';

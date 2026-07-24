@@ -5,6 +5,7 @@ import { Leva, useControls } from 'leva';
 import type { NehemiahState } from '@/nehemiah/state-machine';
 import { resolveStateParameters } from '@/nehemiah/organism-parameters';
 import {
+  ORGANISM_SLEEP_LABEL,
   commandSurfaceByState,
   organismStateLabels,
 } from '@/nehemiah/organism-lab-contract';
@@ -12,8 +13,15 @@ import {
   lifecycleOrder,
   requiredDwellSeconds,
   resolveTransitionPersonality,
+  sleepTransitionPersonality,
+  wakeTransitionPersonality,
   type TransitionPersonality,
 } from '@/nehemiah/organism-transition';
+import {
+  SLEEP_TIMEOUT_MS,
+  resolveIdleTimeoutMs,
+  toSleepParameters,
+} from '@/nehemiah/organism-sleep';
 import { OrganismEngine } from './organism-engine';
 import styles from './organism-lab.module.css';
 
@@ -37,10 +45,19 @@ function useReducedMotionPreference() {
 export function OrganismLab() {
   const reducedMotion = useReducedMotionPreference();
   const [state, setState] = useState<NehemiahState>('resting');
+  const [asleep, setAsleep] = useState(false);
   const [personality, setPersonality] = useState<TransitionPersonality | null>(null);
   const enteredAtRef = useRef(0);
   const chargeFrameRef = useRef(0);
+  const pressStartedAtRef = useRef<number | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+
+  const asleepRef = useRef(false);
+  asleepRef.current = asleep;
+  const reducedMotionRef = useRef(reducedMotion);
+  reducedMotionRef.current = reducedMotion;
+  const idleTimeoutRef = useRef(SLEEP_TIMEOUT_MS);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const defaults = resolveStateParameters('resting');
   const { manualOverride, ...overrides } = useControls('Organism', {
@@ -57,13 +74,64 @@ export function OrganismLab() {
     shellOpacity: { value: defaults.shellOpacity, min: 0, max: 1 },
     coreIntensity: { value: defaults.coreIntensity, min: 0, max: 4 },
     rotationDrift: { value: defaults.rotationDrift, min: 0, max: 0.2 },
+    floatAmplitude: { value: defaults.floatAmplitude, min: 0, max: 0.25 },
+    floatSpeed: { value: defaults.floatSpeed, min: 0, max: 0.4 },
   });
 
-  const parameters = resolveStateParameters(
+  const stateParameters = resolveStateParameters(
     state,
     manualOverride ? overrides : undefined,
   );
+  const parameters = asleep ? toSleepParameters(stateParameters) : stateParameters;
   const surface = commandSurfaceByState[state];
+  const surfacePresence = asleep ? 'dormant' : surface.presence;
+  const statusLabel = asleep ? ORGANISM_SLEEP_LABEL : organismStateLabels[state];
+
+  const goToSleep = useCallback(() => {
+    if (asleepRef.current) {
+      return;
+    }
+    setPersonality(sleepTransitionPersonality(reducedMotionRef.current));
+    setAsleep(true);
+  }, []);
+
+  const armIdleTimer = useCallback(() => {
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+    idleTimerRef.current = setTimeout(goToSleep, idleTimeoutRef.current);
+  }, [goToSleep]);
+
+  // Any activity resets the idle countdown; if the organism had drifted off,
+  // the first touch simply wakes it.
+  const registerActivity = useCallback(() => {
+    if (asleepRef.current) {
+      setPersonality(wakeTransitionPersonality(reducedMotionRef.current));
+      setAsleep(false);
+    }
+    armIdleTimer();
+  }, [armIdleTimer]);
+
+  useEffect(() => {
+    idleTimeoutRef.current = resolveIdleTimeoutMs(
+      new URLSearchParams(window.location.search).get('idleMs'),
+    );
+    armIdleTimer();
+
+    const onActivity = () => registerActivity();
+    window.addEventListener('pointerdown', onActivity);
+    window.addEventListener('pointermove', onActivity);
+    window.addEventListener('keydown', onActivity);
+
+    return () => {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+      window.removeEventListener('pointerdown', onActivity);
+      window.removeEventListener('pointermove', onActivity);
+      window.removeEventListener('keydown', onActivity);
+    };
+  }, [armIdleTimer, registerActivity]);
 
   const moveTo = useCallback(
     (next: NehemiahState) => {
@@ -96,8 +164,6 @@ export function OrganismLab() {
   const setCharge = useCallback((value: number) => {
     stageRef.current?.style.setProperty('--charge', String(value));
   }, []);
-
-  const pressStartedAtRef = useRef<number | null>(null);
 
   const beginCharge = useCallback(() => {
     const startedAt = performance.now();
@@ -145,10 +211,14 @@ export function OrganismLab() {
         ref={stageRef}
         className={styles.stage}
         data-state={state}
+        data-asleep={asleep}
         role="group"
-        aria-label={`Nehemiah living organism, ${organismStateLabels[state].toLowerCase()}. Press and hold to advance, or use arrow keys.`}
+        aria-label={`Nehemiah living organism, ${statusLabel.toLowerCase()}. Press and hold to advance, or use arrow keys.`}
         tabIndex={0}
         onPointerDown={(event) => {
+          if (asleepRef.current) {
+            return;
+          }
           if (event.button === 0) {
             beginCharge();
           }
@@ -157,6 +227,9 @@ export function OrganismLab() {
         onPointerLeave={() => releaseCharge(false)}
         onPointerCancel={() => releaseCharge(false)}
         onKeyDown={(event) => {
+          if (asleepRef.current) {
+            return;
+          }
           if (event.key === 'ArrowRight') {
             event.preventDefault();
             step(1);
@@ -178,8 +251,8 @@ export function OrganismLab() {
       </div>
 
       <div className={styles.statusRow}>
-        <span className={styles.statusDot} data-state={state} aria-hidden="true" />
-        <span aria-live="polite">{organismStateLabels[state]}</span>
+        <span className={styles.statusDot} data-asleep={asleep} aria-hidden="true" />
+        <span aria-live="polite">{statusLabel}</span>
         {reducedMotion ? <span>Reduced motion active</span> : null}
       </div>
 
@@ -192,7 +265,12 @@ export function OrganismLab() {
             data-current={candidate === state}
             aria-label={organismStateLabels[candidate]}
             aria-pressed={candidate === state}
-            onClick={() => moveTo(candidate)}
+            onClick={() => {
+              if (asleepRef.current) {
+                return;
+              }
+              moveTo(candidate);
+            }}
           />
         ))}
       </nav>
@@ -201,7 +279,7 @@ export function OrganismLab() {
         className={styles.commandSurface}
         aria-label="Command surface"
         data-active={surface.active}
-        data-presence={surface.presence}
+        data-presence={surfacePresence}
         style={{ '--surface-glow': parameters.goldIntensity } as React.CSSProperties}
       >
         <span className={styles.commandPlaceholder} aria-disabled="true">

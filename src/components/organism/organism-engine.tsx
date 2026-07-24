@@ -11,6 +11,7 @@ import {
   type TransitionPersonality,
 } from '@/nehemiah/organism-transition';
 import { organismFloatOffset, resolveMotionScale } from '@/nehemiah/organism-motion';
+import { radiatingFilaments } from '@/nehemiah/organism-filaments';
 import { LuminousCore } from './luminous-core';
 import styles from './organism-lab.module.css';
 
@@ -65,41 +66,46 @@ function useTransitionedParameters(
   return display;
 }
 
-function createThreadPoints(index: number, total: number, phaseOffset: number) {
-  const phase = (index / total) * Math.PI * 2 + phaseOffset;
-
-  return Array.from({ length: 54 }, (_, pointIndex) => {
-    const progress = pointIndex / 53;
-    const angle = progress * Math.PI * 2;
-    const radius =
-      1.02 +
-      Math.sin(angle * 3 + phase) * 0.18 +
-      Math.cos(angle * 5 - phase) * 0.07;
-
-    return new THREE.Vector3(
-      Math.cos(angle + phase) * radius,
-      Math.sin(angle * 1.4 + phase) * radius * 0.74,
-      Math.sin(angle + phase * 0.7) * radius,
-    );
-  });
+function useFilamentVectors(options: Parameters<typeof radiatingFilaments>[0]) {
+  return useMemo(
+    () =>
+      radiatingFilaments(options).map((filament) =>
+        filament.points.map((point) => new THREE.Vector3(point[0], point[1], point[2])),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      options.count,
+      options.seed,
+      options.innerRadius,
+      options.outerRadius,
+      options.segments,
+      options.curl,
+      options.hemisphere,
+    ],
+  );
 }
 
 function GoldPathways({ opacity }: { opacity: number }) {
-  const threads = useMemo(
-    () => Array.from({ length: 18 }, (_, index) => createThreadPoints(index, 18, 0)),
-    [],
-  );
+  const strands = useFilamentVectors({
+    count: 48,
+    seed: 7,
+    innerRadius: 0.1,
+    outerRadius: 1.5,
+    segments: 26,
+    curl: 0.3,
+    hemisphere: 'full',
+  });
 
   return (
     <group>
-      {threads.map((points, index) => (
+      {strands.map((points, index) => (
         <Line
           key={index}
           points={points}
           color={index % 4 === 0 ? '#c99a3f' : '#f0c264'}
           transparent
           opacity={opacity}
-          lineWidth={index % 5 === 0 ? 1.35 : 0.85}
+          lineWidth={index % 6 === 0 ? 1.2 : 0.7}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -116,24 +122,28 @@ function IndigoPathways({
   opacity: number;
   convergence: number;
 }) {
-  const threads = useMemo(
-    () => Array.from({ length: 10 }, (_, index) => createThreadPoints(index, 10, Math.PI)),
-    [],
-  );
+  const strands = useFilamentVectors({
+    count: 22,
+    seed: 19,
+    innerRadius: 0.1,
+    outerRadius: 1.42,
+    segments: 24,
+    curl: 0.26,
+    hemisphere: 'right',
+  });
 
+  // Convergence retracts the dendrites toward the core — the deliberation
+  // field gathering into a tight knot at the decision.
   return (
-    <group
-      position={[0.55 * (1 - convergence * 0.6), 0, 0]}
-      scale={1 - 0.5 * convergence}
-    >
-      {threads.map((points, index) => (
+    <group scale={1 - 0.55 * convergence}>
+      {strands.map((points, index) => (
         <Line
           key={index}
           points={points}
           color={index % 3 === 0 ? '#6a5cff' : '#a598ff'}
           transparent
           opacity={opacity}
-          lineWidth={0.85}
+          lineWidth={0.7}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
