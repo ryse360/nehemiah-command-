@@ -197,6 +197,29 @@ check(
 );
 
 // ---------------------------------------------------------------------------
+// 13. Security headers survive config edits. They were silently dropped once
+// when next.config.ts was rewritten for the worktree Turbopack root; this
+// check makes that class of regression impossible to merge.
+const nextConfig = read('next.config.ts');
+const requiredHeaders = [
+  'Content-Security-Policy',
+  'Referrer-Policy',
+  'X-Content-Type-Options',
+  'X-Frame-Options',
+  'Permissions-Policy',
+  'Cross-Origin-Opener-Policy',
+  'Cross-Origin-Resource-Policy',
+];
+const missingHeaders = requiredHeaders.filter((header) => !nextConfig.includes(header));
+check(
+  'security headers declared',
+  missingHeaders.length === 0 && nextConfig.includes('poweredByHeader: false'),
+  missingHeaders.length === 0
+    ? 'all seven security headers present in next.config.ts'
+    : `missing: ${missingHeaders.join(', ')}`,
+);
+
+// ---------------------------------------------------------------------------
 const failed = results.filter((result) => !result.ok);
 
 for (const result of results) {

@@ -60,6 +60,7 @@ Run the whole gate locally: `npm run gate`
 | Tests, typecheck, build green before any push | ENFORCED | CI (`.github/workflows/ci.yml`) on every push and PR |
 | Production JS budget 750KB — lab engine may never bloat Founder-facing routes | ENFORCED | `check-performance-budget.ts` (WebGL-marked chunks budgeted separately; compliance §4 guarantees they are lab-only) |
 | Lab WebGL engine bounded at 1.5MB | ENFORCED | `check-performance-budget.ts` labEngine allowance |
+| Seven security headers survive any `next.config.ts` edit | ENFORCED | `check-founder-compliance` §13; CI `quality:headers` against a running server |
 | Evidence before completion claims | FOUNDER-LOCKED | Superpowers `verification-before-completion`; CI as backstop |
 
 ## Process
