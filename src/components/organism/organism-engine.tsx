@@ -21,6 +21,7 @@ const FIELD_OPTIONS = {
   nodeCount: 120,
   connectionRadius: 0.34,
   majorFilamentCount: 30,
+  microFilamentCount: 170,
   arcCount: 8,
   flareCount: 8,
 } as const;
@@ -183,6 +184,76 @@ function FilamentDepthGroup({
   );
 }
 
+// Secondary micro-weave: 100+ extremely fine, mostly receding strands
+// interlacing the volume beneath the major filaments. Batched into a single
+// LineSegments geometry per half (one draw call each) with per-vertex
+// colors, so density costs almost nothing. Native 1px lines at very low
+// additive opacity — hairlines, never competing with the majors.
+function MicroWeave({
+  goldIntensity,
+  indigoIntensity,
+  half,
+}: {
+  goldIntensity: number;
+  indigoIntensity: number;
+  half: 'rear' | 'front';
+}) {
+  const field = useMemo(() => organismField(FIELD_OPTIONS), []);
+
+  const geometry = useMemo(() => {
+    const members = field.microFilaments.filter((_, index) =>
+      half === 'rear' ? index % 2 === 0 : index % 2 === 1,
+    );
+    const positions: number[] = [];
+    const colors: number[] = [];
+    const goldColor = new THREE.Color(neoPalette.goldMid);
+    const lavenderColor = new THREE.Color(neoPalette.lavenderMid);
+
+    for (const micro of members) {
+      const vectors = micro.controlPoints.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
+      const samples = new THREE.CatmullRomCurve3(vectors).getPoints(8);
+      const tint = (micro.family === 'gold' ? goldColor : lavenderColor)
+        .clone()
+        .multiplyScalar(micro.opacity * 6);
+
+      for (let index = 0; index < samples.length - 1; index += 1) {
+        // taper: strands fade toward both ends
+        const t = index / (samples.length - 1);
+        const taper = Math.sin(t * Math.PI) * 0.75 + 0.25;
+        positions.push(
+          samples[index].x, samples[index].y, samples[index].z,
+          samples[index + 1].x, samples[index + 1].y, samples[index + 1].z,
+        );
+        const segmentTint = tint.clone().multiplyScalar(taper);
+        colors.push(
+          segmentTint.r, segmentTint.g, segmentTint.b,
+          segmentTint.r, segmentTint.g, segmentTint.b,
+        );
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    return geo;
+  }, [field, half]);
+
+  const level = Math.min(1.4, (goldIntensity / 0.72 + indigoIntensity / 0.55) / 2);
+
+  return (
+    <lineSegments geometry={geometry}>
+      <lineBasicMaterial
+        vertexColors
+        transparent
+        opacity={Math.min(0.5, 0.38 * level)}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </lineSegments>
+  );
+}
+
 // Particle-node constellation: tiny points plus proximity edges, kept faint.
 function NodeConstellation({ intensity }: { intensity: number }) {
   const field = useMemo(() => organismField(FIELD_OPTIONS), []);
@@ -208,11 +279,13 @@ function NodeConstellation({ intensity }: { intensity: number }) {
 
   return (
     <group>
+      {/* the connective intelligence beneath the major strands: a warm,
+          clearly luminous web of short node-to-node connections */}
       <lineSegments geometry={edgeGeometry}>
         <lineBasicMaterial
-          color={neoPalette.goldDeep}
+          color={neoPalette.goldMid}
           transparent
-          opacity={Math.min(0.16, 0.13 * intensity)}
+          opacity={Math.min(0.3, 0.24 * intensity)}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -221,9 +294,9 @@ function NodeConstellation({ intensity }: { intensity: number }) {
       <points geometry={nodeGeometry}>
         <pointsMaterial
           color={neoPalette.goldLight}
-          size={0.016}
+          size={0.02}
           transparent
-          opacity={Math.min(0.6, 0.5 * intensity)}
+          opacity={Math.min(0.75, 0.62 * intensity)}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -541,8 +614,13 @@ function LivingScene({
         {/* 4. translucent outer membrane */}
         <Membrane intensity={goldLevel} />
 
-        {/* 5. rear neural filaments */}
+        {/* 5. rear neural filaments + receding half of the micro-weave */}
         <group ref={rearGroup}>
+          <MicroWeave
+            goldIntensity={goldIntensity}
+            indigoIntensity={indigoIntensity}
+            half="rear"
+          />
           <FilamentDepthGroup
             filaments={field.filaments}
             depth="rear"
@@ -571,7 +649,12 @@ function LivingScene({
           />
         </mesh>
 
-        {/* 7-8. middle and front neural filaments */}
+        {/* 7-8. inner half of the micro-weave, then middle and front majors */}
+        <MicroWeave
+          goldIntensity={goldIntensity}
+          indigoIntensity={indigoIntensity}
+          half="front"
+        />
         <FilamentDepthGroup
           filaments={field.filaments}
           depth="middle"

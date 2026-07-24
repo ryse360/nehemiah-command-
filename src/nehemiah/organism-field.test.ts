@@ -7,6 +7,7 @@ const defaults: FieldOptions = {
   nodeCount: 120,
   connectionRadius: 0.34,
   majorFilamentCount: 26,
+  microFilamentCount: 170,
   arcCount: 8,
   flareCount: 8,
 };
@@ -111,6 +112,49 @@ test('lavender leans right while staying interwoven with gold', () => {
   // gold dominates per the 55-65% warm balance
   const goldShare = gold.length / field.nodes.length;
   assert.ok(goldShare >= 0.55 && goldShare <= 0.8, `gold share ${goldShare}`);
+});
+
+test('micro-weave: numerous, fine, volume-filling, receding', () => {
+  const field = organismField(defaults);
+
+  assert.equal(field.microFilaments.length, defaults.microFilamentCount);
+
+  for (const micro of field.microFilaments) {
+    // extremely fine and mostly receding — far fainter than any major strand
+    assert.ok(micro.opacity >= 0.03 && micro.opacity <= 0.18);
+    // stays inside the membrane with natural falloff — never crosses out
+    for (const point of micro.controlPoints) {
+      assert.ok(len(point) <= 0.97, 'micro strands dissolve before the membrane');
+    }
+  }
+
+  // concentrated around the node constellation: every anchor sits near a node
+  for (const micro of field.microFilaments) {
+    const anchor = micro.controlPoints[0];
+    const nearest = Math.min(
+      ...field.nodes.map((node) => dist(node.position, anchor)),
+    );
+    assert.ok(nearest < 0.16, `anchor ${nearest} hugs the constellation`);
+  }
+
+  // falloff near the membrane: only a small share of the weave sits outer
+  const allPoints = field.microFilaments.flatMap((m) => m.controlPoints);
+  const outerShare = allPoints.filter((p) => len(p) > 0.85).length / allPoints.length;
+  assert.ok(outerShare < 0.15, `outer share ${outerShare} thins toward the shell`);
+
+  // woven through the full volume, not one clump
+  const meanRadius = allPoints.reduce((s, p) => s + len(p), 0) / allPoints.length;
+  assert.ok(meanRadius > 0.3 && meanRadius < 0.75);
+});
+
+test('micro-weave leaves the major structure untouched', () => {
+  const withMicro = organismField(defaults);
+  const withoutMicro = organismField({ ...defaults, microFilamentCount: 0 });
+
+  assert.deepEqual(withMicro.filaments, withoutMicro.filaments);
+  assert.deepEqual(withMicro.nodes, withoutMicro.nodes);
+  assert.deepEqual(withMicro.arcs, withoutMicro.arcs);
+  assert.equal(withoutMicro.microFilaments.length, 0);
 });
 
 test('arcs and flares follow the motion spec', () => {

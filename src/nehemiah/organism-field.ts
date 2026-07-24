@@ -33,11 +33,18 @@ export interface NodalFlare {
   phase: number;
 }
 
+export interface MicroFilament {
+  controlPoints: Vec3[];
+  family: 'gold' | 'lavender';
+  opacity: number;
+}
+
 export interface FieldOptions {
   seed: number;
   nodeCount: number;
   connectionRadius: number;
   majorFilamentCount: number;
+  microFilamentCount: number;
   arcCount: number;
   flareCount: number;
 }
@@ -46,6 +53,7 @@ export interface OrganismFieldResult {
   nodes: FieldNode[];
   connections: FieldConnection[];
   filaments: MajorFilament[];
+  microFilaments: MicroFilament[];
   arcs: OrbitalArc[];
   flares: NodalFlare[];
 }
@@ -222,5 +230,64 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
     });
   }
 
-  return { nodes, connections, filaments, arcs, flares };
+  // Secondary micro-weave: numerous, extremely fine, mostly receding strands
+  // that interlace the volume beneath the major filaments. A SEPARATE rng
+  // stream keeps the major structure bit-identical whatever this count is.
+  // Anchored on constellation nodes (concentration where the intelligence
+  // lives), pulled slightly inward, dissolving before the membrane.
+  const microRng = mulberry32(options.seed ^ 0x9e3779b9);
+  const microFilaments: MicroFilament[] = [];
+  for (let index = 0; index < options.microFilamentCount; index += 1) {
+    // Natural falloff toward the membrane: outer nodes host fewer strands.
+    let anchorNode = nodes[Math.floor(microRng() * nodes.length)];
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      if (length(anchorNode.position) <= 0.68 || microRng() < 0.15) {
+        break;
+      }
+      anchorNode = nodes[Math.floor(microRng() * nodes.length)];
+    }
+    const inward = 0.86 + microRng() * 0.12;
+    const anchor: Vec3 = [
+      anchorNode.position[0] * inward,
+      anchorNode.position[1] * inward,
+      anchorNode.position[2] * inward,
+    ];
+
+    const axis = normalize([microRng() * 2 - 1, microRng() * 2 - 1, microRng() * 2 - 1]);
+    const reachLength = 0.18 + microRng() * 0.3;
+    const pointCount = 4 + Math.floor(microRng() * 2);
+
+    const controlPoints: Vec3[] = [anchor];
+    let drift = axis;
+    for (let step = 1; step < pointCount; step += 1) {
+      const progress = step / (pointCount - 1);
+      drift = normalize([
+        drift[0] + (microRng() * 2 - 1) * 0.35,
+        drift[1] + (microRng() * 2 - 1) * 0.35,
+        drift[2] + (microRng() * 2 - 1) * 0.35,
+      ]);
+      const previous = controlPoints[step - 1];
+      let next: Vec3 = [
+        previous[0] + drift[0] * reachLength * progress * 0.6,
+        previous[1] + drift[1] * reachLength * progress * 0.6,
+        previous[2] + drift[2] * reachLength * progress * 0.6,
+      ];
+      // dissolve before the membrane: fold back any point drifting outward
+      const radius = length(next);
+      if (radius > 0.94) {
+        const dir = normalize(next);
+        const folded = 0.94 - (radius - 0.94) * 0.5;
+        next = [dir[0] * folded, dir[1] * folded, dir[2] * folded];
+      }
+      controlPoints.push(next);
+    }
+
+    microFilaments.push({
+      controlPoints,
+      family: anchorNode.family,
+      opacity: 0.04 + microRng() * 0.12,
+    });
+  }
+
+  return { nodes, connections, filaments, microFilaments, arcs, flares };
 }
