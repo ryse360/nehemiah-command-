@@ -394,7 +394,7 @@ const bodyShader = {
     varying vec3 vViewDir;
     void main() {
       float facing = abs(dot(normalize(vNormal), normalize(vViewDir)));
-      float density = pow(facing, 1.15);
+      float density = pow(facing, 1.35);
       vec3 color = mix(uEdgeColor, uCenterColor, density);
       gl_FragColor = vec4(color, density * uOpacity);
     }
@@ -421,6 +421,77 @@ function VolumetricBody({ opacity }: { opacity: number }) {
   return (
     <mesh material={material}>
       <sphereGeometry args={[1.0, 96, 96]} />
+    </mesh>
+  );
+}
+
+// Volumetric additive glow: inverse-fresnel ball of light — densest where
+// the view passes through the center, dissolving to nothing at the
+// silhouette. Replaces flat additive spheres, which read as disks with
+// visible circular edges (the concentric-shell artifact).
+const glowShader = {
+  uniforms: {
+    uColor: { value: new THREE.Color('#ffffff') },
+    uOpacity: { value: 0.2 },
+    uPower: { value: 1.4 },
+  },
+  vertexShader: /* glsl */ `
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      vViewDir = normalize(-mvPosition.xyz);
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  `,
+  fragmentShader: /* glsl */ `
+    uniform vec3 uColor;
+    uniform float uOpacity;
+    uniform float uPower;
+    varying vec3 vNormal;
+    varying vec3 vViewDir;
+    void main() {
+      float facing = abs(dot(normalize(vNormal), normalize(vViewDir)));
+      float density = pow(facing, uPower);
+      gl_FragColor = vec4(uColor, density * uOpacity);
+    }
+  `,
+};
+
+function VolumetricGlow({
+  color,
+  opacity,
+  power = 1.4,
+  radius,
+}: {
+  color: string;
+  opacity: number;
+  power?: number;
+  radius: number;
+}) {
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        ...glowShader,
+        uniforms: THREE.UniformsUtils.clone(glowShader.uniforms),
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.FrontSide,
+      }),
+    [],
+  );
+
+  useEffect(() => {
+    material.uniforms.uColor.value.set(color);
+    material.uniforms.uOpacity.value = opacity;
+    material.uniforms.uPower.value = power;
+  }, [material, color, opacity, power]);
+
+  return (
+    <mesh material={material}>
+      <sphereGeometry args={[radius, 64, 64]} />
     </mesh>
   );
 }
@@ -453,7 +524,7 @@ const membraneShader = {
     varying vec3 vViewDir;
     varying vec3 vLocalPos;
     void main() {
-      float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewDir))), 2.4);
+      float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewDir))), 3.1);
       float mixAmount = smoothstep(-0.6, 0.9, vLocalPos.x);
       vec3 color = mix(uGoldColor, uLavenderColor, mixAmount);
       gl_FragColor = vec4(color, rim * uStrength);
@@ -475,13 +546,29 @@ function Membrane({ intensity }: { intensity: number }) {
   }, []);
 
   useEffect(() => {
-    material.uniforms.uStrength.value = Math.min(0.5, 0.36 * intensity);
+    material.uniforms.uStrength.value = Math.min(0.4, 0.28 * intensity);
   }, [material, intensity]);
 
   return (
-    <mesh material={material}>
-      <sphereGeometry args={[MEMBRANE_RADIUS, 96, 96]} />
-    </mesh>
+    <>
+      <mesh material={material}>
+        <sphereGeometry args={[MEMBRANE_RADIUS, 96, 96]} />
+      </mesh>
+      {/* atmospheric bloom: wider, fainter shells feather the boundary so
+          the membrane dissolves into the ivory instead of ending in a ring */}
+      <VolumetricGlow
+        color={neoPalette.goldLight}
+        opacity={Math.min(0.16, 0.12 * intensity)}
+        power={0.9}
+        radius={MEMBRANE_RADIUS * 1.12}
+      />
+      <VolumetricGlow
+        color={neoPalette.backgroundLight}
+        opacity={Math.min(0.1, 0.07 * intensity)}
+        power={0.6}
+        radius={MEMBRANE_RADIUS * 1.28}
+      />
+    </>
   );
 }
 
@@ -635,19 +722,14 @@ function LivingScene({
             organism has a dark interior with no hard circular border. */}
         <VolumetricBody opacity={0.62 + parameters.shellOpacity * 0.5} />
 
-        {/* warm interior atmosphere: a faint golden breath inside the body
-            so the darkness reads umber and inhabited, never cold */}
-        <mesh>
-          <sphereGeometry args={[0.9, 48, 48]} />
-          <meshBasicMaterial
-            color={neoPalette.goldDeep}
-            transparent
-            opacity={0.22 * goldLevel}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-            toneMapped={false}
-          />
-        </mesh>
+        {/* warm interior atmosphere: a faint golden breath inside the body —
+            volumetric, so it dissolves instead of reading as a disk edge */}
+        <VolumetricGlow
+          color={neoPalette.goldDeep}
+          opacity={0.3 * goldLevel}
+          power={1.6}
+          radius={0.92}
+        />
 
         {/* 7-8. inner half of the micro-weave, then middle and front majors */}
         <MicroWeave
