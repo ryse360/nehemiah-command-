@@ -88,6 +88,10 @@ export function LuminousCore({
   // Normalised against the TOP of the core ramp (2.60 at proof), not resting,
   // so the state ladder is expressible instead of saturating every clamp.
   const coreLevel = parameters.coreIntensity / 2.6;
+  // The secondary beacon belongs to the INDIGO story, not the gold one: it
+  // must peak while the decision is weighed and be nearly gone by proof.
+  // Driving it from coreLevel inverted the narrative entirely.
+  const indigoLevel = parameters.indigoIntensity / 0.85;
 
   return (
     <group>
@@ -148,33 +152,26 @@ export function LuminousCore({
           visually dominant over the gold focal point. */}
       <group ref={lavenderNode} position={[0.52, 0.1, 0.15]}>
         <pointLight
-          intensity={profile.pointLightIntensity * 0.28}
+          intensity={profile.pointLightIntensity * 0.28 * indigoLevel}
           distance={2.4}
           decay={2}
           color={neoPalette.lavenderMid}
         />
-        <mesh>
-          <sphereGeometry args={[0.055, 32, 32]} />
-          <meshBasicMaterial
-            color={neoPalette.lavenderLight}
-            transparent
-            opacity={Math.min(0.95, 1.15 * coreLevel)}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-            toneMapped={false}
-          />
-        </mesh>
-        <mesh>
-          <sphereGeometry args={[0.14, 32, 32]} />
-          <meshBasicMaterial
-            color={neoPalette.lavenderMid}
-            transparent
-            opacity={Math.min(0.45, 0.5 * coreLevel)}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-            toneMapped={false}
-          />
-        </mesh>
+        {/* Graded falloff, never a hard-edged disk. Additive lavenderLight at
+            full strength clips straight to white — which both violates "no
+            hard circular borders" and erases the colour entirely. */}
+        <VolumetricGlow
+          color={neoPalette.lavenderLight}
+          opacity={Math.min(0.72, 0.72 * indigoLevel)}
+          power={3.2}
+          radius={0.062}
+        />
+        <VolumetricGlow
+          color={neoPalette.lavenderMid}
+          opacity={Math.min(0.34, 0.34 * indigoLevel)}
+          power={2.1}
+          radius={0.21}
+        />
       </group>
     </group>
   );

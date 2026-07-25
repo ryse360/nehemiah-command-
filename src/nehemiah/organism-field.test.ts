@@ -108,7 +108,7 @@ test('all three depth groups exist and brightness genuinely varies', () => {
 
   const brightness = field.filaments.map((f) => f.brightness);
   assert.ok(Math.max(...brightness) - Math.min(...brightness) > 0.4);
-  for (const value of brightness) assert.ok(value >= 0.25 && value <= 1);
+  for (const value of brightness) assert.ok(value >= 0.1 && value <= 1);
 });
 
 test('lavender leans right while staying interwoven with gold', () => {
@@ -223,4 +223,61 @@ test('tuning one layer never re-rolls another', () => {
     microFilamentCount: ORGANISM_FIELD_OPTIONS.microFilamentCount + 50,
   });
   assert.deepEqual(moreMicro.filaments, base.filaments, 'majors survive a micro change');
+});
+
+test('the visibility hierarchy keeps most complexity implicit', () => {
+  const field = organismField(defaults);
+  const counts = { hero: 0, support: 0, recessive: 0 };
+  for (const filament of field.filaments) counts[filament.filamentClass] += 1;
+
+  // A handful the eye consciously follows, a supporting field, and a
+  // recessive mass that is sensed more than read.
+  assert.ok(counts.hero >= 8 && counts.hero <= 16, `hero ${counts.hero}`);
+  assert.ok(counts.support >= 25 && counts.support <= 60, `support ${counts.support}`);
+  assert.ok(
+    counts.recessive > counts.hero + counts.support,
+    'the recessive mass must dominate by count',
+  );
+
+  // and be genuinely dimmer, or the hierarchy is nominal only
+  const mean = (c: (typeof field.filaments)[number]['filamentClass']) => {
+    const set = field.filaments.filter((f) => f.filamentClass === c);
+    return set.reduce((s, f) => s + f.brightness, 0) / set.length;
+  };
+  assert.ok(mean('hero') > mean('support'));
+  assert.ok(mean('support') > mean('recessive'));
+});
+
+test('macro loops are few, and every one has a job', () => {
+  const field = organismField(defaults);
+
+  // three to five readable circulation paths — never ten, never twenty
+  assert.ok(field.macroLoops.length >= 3 && field.macroLoops.length <= 5);
+  for (const loop of field.macroLoops) {
+    assert.ok(
+      ['gathering', 'circulating', 'focusing', 'releasing'].includes(loop.job),
+      'a loop with no behavioural job is ornamental noise',
+    );
+    assert.ok(loop.controlPoints.length > 8);
+  }
+});
+
+test('the graph is clustered, not an evenly spread mesh', () => {
+  const field = organismField(defaults);
+  const zones = { core: 0, secondary: 0, peripheral: 0 };
+  for (const node of field.nodes) zones[node.zone] += 1;
+
+  assert.ok(zones.core > 0 && zones.secondary > 0 && zones.peripheral > 0);
+  assert.ok(zones.peripheral > zones.core, 'the periphery is the sparse majority');
+
+  // connectivity must concentrate: the core holds far more edges per node
+  const edgesByZone = { core: 0, secondary: 0, peripheral: 0 };
+  for (const edge of field.connections) edgesByZone[field.nodes[edge.a].zone] += 1;
+
+  const corePerNode = edgesByZone.core / zones.core;
+  const peripheralPerNode = edgesByZone.peripheral / zones.peripheral;
+  assert.ok(
+    corePerNode > peripheralPerNode * 3,
+    `core ${corePerNode.toFixed(2)}/node vs periphery ${peripheralPerNode.toFixed(2)}/node`,
+  );
 });

@@ -16,6 +16,11 @@ import {
   organismField,
   type MajorFilament,
 } from '@/nehemiah/organism-field';
+
+// The field is deterministic and pure, so build it ONCE at module scope.
+// Calling organismField() inside six separate components cost ~8.4ms each,
+// i.e. ~50ms of mount time recomputing an identical result.
+const FIELD = organismField(ORGANISM_FIELD_OPTIONS);
 import { neoPalette } from '@/nehemiah/organism-palette';
 import { VolumetricGlow } from './volumetric-glow';
 import { LuminousCore } from './luminous-core';
@@ -129,21 +134,28 @@ function BatchedFilaments({
       const samples = new THREE.CatmullRomCurve3(vectors).getPoints(36);
 
       const base = DEPTH_BASE[filament.depth] * intensity * colors.boost;
-      // Only the expressive minority earn a halo; the rest stay hair-thin,
-      // which is what separates a woven field from a bundle of cables.
-      if (halo && filament.brightness < 0.62) continue;
+      // Only hero strands earn a halo. Complexity should be enormous while
+      // only a fraction is fully legible, so support strands bind the field
+      // quietly and recessive strands are sensed rather than read.
+      if (halo && filament.filamentClass !== 'hero') continue;
+      const classGain =
+        filament.filamentClass === 'hero'
+          ? 1
+          : filament.filamentClass === 'support'
+            ? 0.5
+            : 0.11;
       const strength = halo
-        ? Math.min(0.16, Math.max(0.03, base * filament.brightness * 0.3)) * 0.8
-        : Math.min(0.62, Math.max(0.07, base * (0.32 + filament.brightness * 0.72)));
+        ? Math.min(0.2, Math.max(0.04, base * filament.brightness * 0.34)) * 0.85
+        : Math.min(0.62, Math.max(0.03, base * (0.3 + filament.brightness * 0.7) * classGain));
 
       const hex =
         halo || filament.depth === 'rear'
           ? colors.halo
-          : family === 'gold' && filament.brightness > 0.9
+          : family === 'gold' && filament.filamentClass === 'hero'
             ? neoPalette.shellWhite
-            : filament.brightness > 0.5
-              ? colors.core
-              : colors.halo;
+            : filament.filamentClass === 'recessive'
+              ? colors.deep
+              : colors.core;
       const full = new THREE.Color(hex);
       const tint = full.clone().multiplyScalar(strength);
 
@@ -268,7 +280,7 @@ function MicroWeave({
   indigoIntensity: number;
   half: 'rear' | 'front';
 }) {
-  const field = useMemo(() => organismField(FIELD_OPTIONS), []);
+  const field = FIELD;
 
   const geometry = useMemo(() => {
     const members = field.microFilaments.filter((_, index) =>
@@ -315,7 +327,7 @@ function MicroWeave({
       <lineBasicMaterial
         vertexColors
         transparent
-        opacity={Math.min(0.5, 0.38 * level)}
+        opacity={Math.min(0.3, 0.2 * level)}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
         toneMapped={false}
@@ -324,25 +336,53 @@ function MicroWeave({
   );
 }
 
-// Particle-node constellation: tiny points plus proximity edges, kept faint.
+// Latent intelligence tissue — NOT a wireframe. Nodes and their short links
+// are coloured by family and weighted by centrality, so the graph reads as
+// clustered connective tissue that dissolves before the eye fully tracks it.
+// Uniform bright linking is what turns this into an exposed polygon cage.
 function NodeConstellation({ intensity }: { intensity: number }) {
-  const field = useMemo(() => organismField(FIELD_OPTIONS), []);
+  const field = FIELD;
 
   const { nodeGeometry, edgeGeometry } = useMemo(() => {
     const nodePositions = new Float32Array(field.nodes.length * 3);
+    const nodeColors = new Float32Array(field.nodes.length * 3);
+    const gold = new THREE.Color(neoPalette.goldLight);
+    const lavender = new THREE.Color(neoPalette.lavenderLight);
+
     field.nodes.forEach((node, index) => {
       nodePositions.set(node.position, index * 3);
+      // central nodes glow; peripheral ones barely register
+      const tint = (node.family === 'gold' ? gold : lavender)
+        .clone()
+        .multiplyScalar(0.25 + 0.75 * node.centrality);
+      nodeColors.set([tint.r, tint.g, tint.b], index * 3);
     });
+
     const nodeGeo = new THREE.BufferGeometry();
     nodeGeo.setAttribute('position', new THREE.BufferAttribute(nodePositions, 3));
+    nodeGeo.setAttribute('color', new THREE.BufferAttribute(nodeColors, 3));
 
     const edgePositions = new Float32Array(field.connections.length * 6);
+    const edgeColors = new Float32Array(field.connections.length * 6);
+    const goldEdge = new THREE.Color(neoPalette.goldDeep);
+    const lavenderEdge = new THREE.Color(neoPalette.lavenderMid);
+
     field.connections.forEach((edge, index) => {
-      edgePositions.set(field.nodes[edge.a].position, index * 6);
-      edgePositions.set(field.nodes[edge.b].position, index * 6 + 3);
+      const a = field.nodes[edge.a];
+      const b = field.nodes[edge.b];
+      edgePositions.set(a.position, index * 6);
+      edgePositions.set(b.position, index * 6 + 3);
+
+      const tint = (a.family === 'gold' ? goldEdge : lavenderEdge)
+        .clone()
+        .multiplyScalar(0.2 + 0.8 * ((a.centrality + b.centrality) / 2));
+      edgeColors.set([tint.r, tint.g, tint.b], index * 6);
+      edgeColors.set([tint.r, tint.g, tint.b], index * 6 + 3);
     });
+
     const edgeGeo = new THREE.BufferGeometry();
     edgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
+    edgeGeo.setAttribute('color', new THREE.BufferAttribute(edgeColors, 3));
 
     return { nodeGeometry: nodeGeo, edgeGeometry: edgeGeo };
   }, [field]);
@@ -353,9 +393,9 @@ function NodeConstellation({ intensity }: { intensity: number }) {
           clearly luminous web of short node-to-node connections */}
       <lineSegments geometry={edgeGeometry}>
         <lineBasicMaterial
-          color={neoPalette.goldMid}
+          vertexColors
           transparent
-          opacity={0.30 * intensity}
+          opacity={0.11 * intensity}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -363,10 +403,10 @@ function NodeConstellation({ intensity }: { intensity: number }) {
       </lineSegments>
       <points geometry={nodeGeometry}>
         <pointsMaterial
-          color={neoPalette.goldLight}
-          size={0.02}
+          vertexColors
+          size={0.016}
           transparent
-          opacity={0.78 * intensity}
+          opacity={0.45 * intensity}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -380,7 +420,7 @@ function NodeConstellation({ intensity }: { intensity: number }) {
 // Nodal flares: small emissive beacons with soft halos, each pulsing on its
 // own period and phase — never in unison.
 function NodalFlares({ intensity, motionScale }: { intensity: number; motionScale: number }) {
-  const field = useMemo(() => organismField(FIELD_OPTIONS), []);
+  const field = FIELD;
   const groupRef = useRef<THREE.Group>(null);
   const elapsedRef = useRef(0);
 
@@ -552,7 +592,7 @@ function ContactShadow({ opacity }: { opacity: number }) {
 // transparent face-on, gold blending to lavender across x. No hard border.
 const membraneShader = {
   uniforms: {
-    uGoldColor: { value: new THREE.Color(neoPalette.shellWhite) },
+    uGoldColor: { value: new THREE.Color(neoPalette.goldLight) },
     uLavenderColor: { value: new THREE.Color(neoPalette.lavenderLight) },
     uStrength: { value: 0.38 },
   },
@@ -577,9 +617,17 @@ const membraneShader = {
     varying vec3 vLocalPos;
     void main() {
       float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewDir))), 4.2);
+      float ang = atan(vLocalPos.y, vLocalPos.x);
+      // Broad overlapping sweeps rather than one closed ring: the boundary is
+      // defined by light accumulation, so some arcs glow and others dissolve
+      // into air. A constant-brightness ring reads as a glass container.
+      float sweep = clamp(
+          0.42 + 0.34 * sin(ang * 2.0 + 0.9)
+               + 0.24 * sin(ang * 3.0 - 2.1 + vLocalPos.z * 1.6),
+          0.12, 1.0);
       float mixAmount = smoothstep(-0.6, 0.9, vLocalPos.x);
       vec3 color = mix(uGoldColor, uLavenderColor, mixAmount);
-      gl_FragColor = vec4(color, rim * uStrength);
+      gl_FragColor = vec4(color, rim * uStrength * sweep);
     }
   `,
 };
@@ -601,7 +649,7 @@ function Membrane({ intensity }: { intensity: number }) {
     // Retuned for the opaque framebuffer: additive light now genuinely adds,
     // so the values that read as a faint veil under broken compositing burn
     // out here. Roughly a third of the former strength.
-    material.uniforms.uStrength.value = 0.085 * intensity;
+    material.uniforms.uStrength.value = 0.115 * intensity;
   }, [material, intensity]);
 
   return (
@@ -613,8 +661,8 @@ function Membrane({ intensity }: { intensity: number }) {
           the membrane dissolves into the ivory instead of ending in a ring */}
       <VolumetricGlow
         color={neoPalette.goldLight}
-        opacity={0.072 * intensity}
-        power={0.75}
+        opacity={0.06 * intensity}
+        power={1.4}
         radius={MEMBRANE_RADIUS * 1.2}
       />
     </>
@@ -624,7 +672,7 @@ function Membrane({ intensity }: { intensity: number }) {
 // Orbital arcs: large tilted elliptical paths, each with its own slow period
 // and direction — the system never rotates as one object.
 function OrbitalArcs({ intensity, motionScale }: { intensity: number; motionScale: number }) {
-  const field = useMemo(() => organismField(FIELD_OPTIONS), []);
+  const field = FIELD;
   const refs = useRef<(THREE.Group | null)[]>([]);
 
   const arcPoints = useMemo(
@@ -681,7 +729,7 @@ function LivingScene({
   reducedMotion: boolean;
   scaleFactor: number;
 }) {
-  const field = useMemo(() => organismField(FIELD_OPTIONS), []);
+  const field = FIELD;
   const root = useRef<THREE.Group>(null);
   const rearGroup = useRef<THREE.Group>(null);
   const frontGroup = useRef<THREE.Group>(null);
