@@ -38,19 +38,19 @@ test('connections only join nearby nodes', () => {
   }
 });
 
-test('filament reach spans radial starburst, inner weave, membrane and orbital', () => {
+test('major filaments now fill the volume; the dendrites own the starburst', () => {
   const field = organismField(defaults);
   const reachCount = { radial: 0, inner: 0, membrane: 0, orbital: 0 };
-  for (const filament of field.filaments) {
-    reachCount[filament.reach] += 1;
-  }
+  for (const filament of field.filaments) reachCount[filament.reach] += 1;
   const total = field.filaments.length;
 
-  assert.ok(reachCount.radial / total >= 0.4 && reachCount.radial / total <= 0.5);
-  assert.ok(reachCount.inner / total >= 0.2 && reachCount.inner / total <= 0.34);
-  assert.ok(reachCount.membrane / total >= 0.14 && reachCount.membrane / total <= 0.24);
+  // The radiating anatomy moved to the dendrite system, which fans properly
+  // instead of scribbling. Major filaments keep only a small radial remnant
+  // and otherwise do the volume-filling flow work.
+  assert.ok(reachCount.radial / total <= 0.14);
+  assert.ok(reachCount.inner / total >= 0.5 && reachCount.inner / total <= 0.65);
+  assert.ok(reachCount.membrane / total >= 0.14 && reachCount.membrane / total <= 0.28);
   assert.ok(reachCount.orbital / total >= 0.06 && reachCount.orbital / total <= 0.14);
-  assert.ok(reachCount.orbital >= 1, 'at least one filament continues outward');
 });
 
 test('radial strands begin at the core and sweep outward', () => {
@@ -280,4 +280,61 @@ test('the graph is clustered, not an evenly spread mesh', () => {
     corePerNode > peripheralPerNode * 3,
     `core ${corePerNode.toFixed(2)}/node vs periphery ${peripheralPerNode.toFixed(2)}/node`,
   );
+});
+
+test('dendrites branch into generations, each finer than its parent', () => {
+  const field = organismField(defaults);
+  const byGeneration = [0, 0, 0];
+  for (const d of field.dendrites) byGeneration[d.generation] += 1;
+
+  assert.equal(byGeneration[0], defaults.dendriteTrunkCount, 'one strand per trunk');
+  assert.ok(byGeneration[1] > byGeneration[0], 'branches outnumber trunks');
+  assert.ok(byGeneration[2] > byGeneration[1], 'twigs outnumber branches');
+
+  const meanBrightness = (generation: number) => {
+    const set = field.dendrites.filter((d) => d.generation === generation);
+    return set.reduce((sum, d) => sum + d.brightness, 0) / set.length;
+  };
+  assert.ok(meanBrightness(0) > meanBrightness(1));
+  assert.ok(meanBrightness(1) > meanBrightness(2));
+});
+
+test('no dendrite ever folds back on itself — this is what stops the scribble', () => {
+  const field = organismField(defaults);
+
+  for (const dendrite of field.dendrites) {
+    let previous = len(dendrite.points[0]);
+    for (let i = 1; i < dendrite.points.length; i += 1) {
+      const radius = len(dendrite.points[i]);
+      assert.ok(
+        radius >= previous - 1e-9,
+        `dendrite reversed direction at step ${i} (${radius} < ${previous})`,
+      );
+      previous = radius;
+    }
+    // and every strand stays inside the membrane
+    assert.ok(previous <= 0.98);
+  }
+});
+
+test('trunks are evenly separated in angle, which is what creates the negative space', () => {
+  const field = organismField(defaults);
+  const trunks = field.dendrites.filter((d) => d.generation === 0);
+
+  const directions = trunks.map((t) => {
+    const tip = t.points[t.points.length - 1];
+    const r = len(tip);
+    return [tip[0] / r, tip[1] / r, tip[2] / r] as [number, number, number];
+  });
+
+  // no two trunks may grow along nearly the same heading, or petals overlap
+  for (let i = 0; i < directions.length; i += 1) {
+    for (let j = i + 1; j < directions.length; j += 1) {
+      const dot =
+        directions[i][0] * directions[j][0] +
+        directions[i][1] * directions[j][1] +
+        directions[i][2] * directions[j][2];
+      assert.ok(dot < 0.96, `trunks ${i} and ${j} grow along the same heading`);
+    }
+  }
 });

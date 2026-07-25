@@ -336,6 +336,91 @@ function MicroWeave({
   );
 }
 
+// The dendrite system — the organism's radiating anatomy, drawn as a fan of
+// branching families rather than independent wandering strands. Each
+// generation is finer and dimmer than its parent, so a trunk reads clearly,
+// its branches support it, and its twigs dissolve. Split into three passes so
+// each generation gets its own line width in a single draw call.
+function Dendrites({
+  generation,
+  lineWidth,
+  goldIntensity,
+  indigoIntensity,
+}: {
+  generation: 0 | 1 | 2;
+  lineWidth: number;
+  goldIntensity: number;
+  indigoIntensity: number;
+}) {
+  const goldLevel = goldIntensity / 1.18;
+  const indigoLevel = indigoIntensity / 0.85;
+
+  const { points, vertexColors } = useMemo(() => {
+    const pts: [number, number, number][] = [];
+    const cols: [number, number, number][] = [];
+
+    const tone = {
+      gold: {
+        0: new THREE.Color(neoPalette.shellWhite),
+        1: new THREE.Color(neoPalette.goldMid),
+        2: new THREE.Color(neoPalette.goldDeep),
+      },
+      lavender: {
+        0: new THREE.Color(neoPalette.lavenderLight),
+        1: new THREE.Color(neoPalette.lavenderMid),
+        2: new THREE.Color(neoPalette.lavenderDark),
+      },
+    } as const;
+
+    // generation gain: trunks carry the light, twigs are barely sensed
+    const gain = generation === 0 ? 0.5 : generation === 1 ? 0.24 : 0.1;
+
+    for (const dendrite of FIELD.dendrites) {
+      if (dendrite.generation !== generation) continue;
+
+      const level = dendrite.family === 'gold' ? goldLevel : indigoLevel;
+      const base = tone[dendrite.family][generation];
+      const vectors = dendrite.points.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
+      const samples = new THREE.CatmullRomCurve3(vectors).getPoints(
+        generation === 0 ? 40 : generation === 1 ? 28 : 18,
+      );
+
+      for (let i = 0; i < samples.length - 1; i += 1) {
+        const t = i / (samples.length - 1);
+        // taper toward the tip so a strand dissolves rather than stopping,
+        // and stays fine where it leaves its parent
+        const taper = Math.pow(Math.sin(Math.min(1, t * 1.15) * Math.PI), 0.55);
+        const c = base
+          .clone()
+          .multiplyScalar(dendrite.brightness * gain * level * taper);
+        pts.push(
+          [samples[i].x, samples[i].y, samples[i].z],
+          [samples[i + 1].x, samples[i + 1].y, samples[i + 1].z],
+        );
+        cols.push([c.r, c.g, c.b], [c.r, c.g, c.b]);
+      }
+    }
+
+    return { points: pts, vertexColors: cols };
+  }, [generation, goldLevel, indigoLevel]);
+
+  if (points.length === 0) return null;
+
+  return (
+    <Line
+      segments
+      points={points}
+      vertexColors={vertexColors}
+      transparent
+      opacity={1}
+      lineWidth={lineWidth}
+      blending={THREE.AdditiveBlending}
+      depthWrite={false}
+      toneMapped={false}
+    />
+  );
+}
+
 // Volumetric ribbons ("caustic wisps") — the reference's signature grace.
 // Broad, smooth light-sheets that sweep through the volume and catch light,
 // built as tapered triangle strips along the macro loops so the ribbons ARE
@@ -950,6 +1035,26 @@ function LivingScene({
 
         {/* volumetric ribbons: the circulation made visible */}
         <VolumetricRibbons intensity={goldLevel} />
+
+        {/* the radiating anatomy: trunks, branches, twigs */}
+        <Dendrites
+          generation={2}
+          lineWidth={0.34}
+          goldIntensity={goldIntensity}
+          indigoIntensity={indigoIntensity}
+        />
+        <Dendrites
+          generation={1}
+          lineWidth={0.5}
+          goldIntensity={goldIntensity}
+          indigoIntensity={indigoIntensity}
+        />
+        <Dendrites
+          generation={0}
+          lineWidth={0.85}
+          goldIntensity={goldIntensity}
+          indigoIntensity={indigoIntensity}
+        />
 
         {/* 7-8. inner micro-weave + constellation drift together, then the
             middle and front majors */}

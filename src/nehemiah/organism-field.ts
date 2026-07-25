@@ -75,6 +75,7 @@ export interface FieldOptions {
   arcCount: number;
   flareCount: number;
   macroLoopCount: number;
+  dendriteTrunkCount: number;
 }
 
 // The single source of truth for the shipped field. The engine imports this
@@ -90,10 +91,12 @@ export const ORGANISM_FIELD_OPTIONS: FieldOptions = {
   arcCount: 8,
   flareCount: 8,
   macroLoopCount: 4,
+  dendriteTrunkCount: 17,
 };
 
 export interface OrganismFieldResult {
   macroLoops: MacroLoop[];
+  dendrites: Dendrite[];
   nodes: FieldNode[];
   connections: FieldConnection[];
   filaments: MajorFilament[];
@@ -183,6 +186,193 @@ function buildMacroLoops(seed: number, count: number): MacroLoop[] {
   return loops;
 }
 
+// A single dendrite segment. Generation 0 is a trunk leaving the core, 1 a
+// branch, 2 a twig — each finer and dimmer than its parent.
+export interface Dendrite {
+  points: Vec3[];
+  generation: 0 | 1 | 2;
+  family: 'gold' | 'lavender';
+  brightness: number;
+}
+
+function cross(a: Vec3, b: Vec3): Vec3 {
+  return [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+}
+
+// Rotate `v` about `axis` by `angle` (Rodrigues). Used to deviate a child
+// branch from its parent by a BOUNDED angle, which is what keeps a trunk's
+// whole family inside one coherent petal instead of scattering.
+function rotateAbout(v: Vec3, axis: Vec3, angle: number): Vec3 {
+  const k = normalize(axis);
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  const kv = cross(k, v);
+  const kdotv = k[0] * v[0] + k[1] * v[1] + k[2] * v[2];
+  return [
+    v[0] * c + kv[0] * s + k[0] * kdotv * (1 - c),
+    v[1] * c + kv[1] * s + k[1] * kdotv * (1 - c),
+    v[2] * c + kv[2] * s + k[2] * kdotv * (1 - c),
+  ];
+}
+
+// Grow one smooth strand outward. Two properties make it read as elegant
+// rather than scribbled:
+//   1. radius increases on EVERY step, so a strand can never fold back and
+//      cross its own family;
+//   2. lateral drift comes from one slowly-rotating vector rather than fresh
+//      randomness per step, so the curve is continuous, not jittery.
+function growStrand(
+  origin: Vec3,
+  direction: Vec3,
+  startRadius: number,
+  endRadius: number,
+  curl: number,
+  steps: number,
+  rng: () => number,
+): Vec3[] {
+  const points: Vec3[] = [origin];
+  const reference: Vec3 = Math.abs(direction[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  let lateral = normalize(cross(direction, reference));
+  const spin = (rng() * 2 - 1) * 0.5;
+
+  for (let step = 1; step <= steps; step += 1) {
+    const t = step / steps;
+    // ease outward so strands open up as they travel, like a fan
+    const radius = startRadius + (endRadius - startRadius) * Math.pow(t, 0.82);
+    lateral = normalize(rotateAbout(lateral, direction, spin));
+    const bow = Math.sin(t * Math.PI) * curl;
+    const heading = normalize([
+      direction[0] + lateral[0] * bow,
+      direction[1] + lateral[1] * bow,
+      direction[2] + lateral[2] * bow,
+    ]);
+    points.push([heading[0] * radius, heading[1] * radius, heading[2] * radius]);
+  }
+
+  return points;
+}
+
+// The dendrite system: the organism's radiating anatomy. Trunks are placed on
+// a Fibonacci sphere so they are evenly separated in ANGLE — that even
+// spacing is what creates the reference's clean negative space between
+// petals. Each trunk sheds branches, each branch sheds twigs, and every child
+// deviates from its parent by a bounded angle so a family stays one petal.
+function buildDendrites(
+  seed: number,
+  trunkCount: number,
+  lavenderPole: Vec3,
+): Dendrite[] {
+  const rng = mulberry32(seed ^ 0x1b873593);
+  const dendrites: Dendrite[] = [];
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+  for (let index = 0; index < trunkCount; index += 1) {
+    const y = trunkCount === 1 ? 0 : 1 - (index / (trunkCount - 1)) * 2;
+    const ring = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = goldenAngle * index;
+    const direction = normalize([
+      Math.cos(theta) * ring,
+      y,
+      Math.sin(theta) * ring,
+    ]);
+
+    // a trunk belongs to whichever pole it grows toward
+    const towardLavender =
+      direction[0] * lavenderPole[0] + direction[1] * lavenderPole[1] > 0.16;
+    const family: Dendrite['family'] = towardLavender ? 'lavender' : 'gold';
+
+    const trunkStart = 0.055 + rng() * 0.03;
+    const trunkEnd = 0.46 + rng() * 0.16;
+    const trunkPoints = growStrand(
+      [direction[0] * trunkStart, direction[1] * trunkStart, direction[2] * trunkStart],
+      direction,
+      trunkStart,
+      trunkEnd,
+      0.1 + rng() * 0.08,
+      14,
+      rng,
+    );
+
+    dendrites.push({
+      points: trunkPoints,
+      generation: 0,
+      family,
+      brightness: 0.78 + rng() * 0.22,
+    });
+
+    // Branches leave the trunk partway along, never at its tip, so the fork
+    // reads as growth rather than a broken line.
+    const branchCount = 2 + Math.floor(rng() * 2);
+    for (let b = 0; b < branchCount; b += 1) {
+      const forkAt = 0.42 + rng() * 0.34;
+      const forkIndex = Math.floor(forkAt * (trunkPoints.length - 1));
+      const forkPoint = trunkPoints[forkIndex];
+      const forkRadius = length(forkPoint);
+
+      const perpendicular = normalize(
+        cross(direction, [rng() * 2 - 1, rng() * 2 - 1, rng() * 2 - 1]),
+      );
+      // bounded deviation: 16-34 degrees keeps the family coherent
+      const deviation = (16 + rng() * 18) * (Math.PI / 180);
+      const branchDir = normalize(rotateAbout(direction, perpendicular, deviation));
+      const branchEnd = forkRadius + 0.24 + rng() * 0.22;
+
+      const branchPoints = growStrand(
+        forkPoint,
+        branchDir,
+        forkRadius,
+        Math.min(0.93, branchEnd),
+        0.14 + rng() * 0.1,
+        11,
+        rng,
+      );
+
+      dendrites.push({
+        points: branchPoints,
+        generation: 1,
+        family,
+        brightness: 0.4 + rng() * 0.24,
+      });
+
+      // Twigs: the finest generation, sensed more than read.
+      const twigCount = 1 + Math.floor(rng() * 3);
+      for (let w = 0; w < twigCount; w += 1) {
+        const twigAt = 0.45 + rng() * 0.4;
+        const twigIndex = Math.floor(twigAt * (branchPoints.length - 1));
+        const twigPoint = branchPoints[twigIndex];
+        const twigRadius = length(twigPoint);
+
+        const twigPerp = normalize(
+          cross(branchDir, [rng() * 2 - 1, rng() * 2 - 1, rng() * 2 - 1]),
+        );
+        const twigDeviation = (14 + rng() * 20) * (Math.PI / 180);
+        const twigDir = normalize(rotateAbout(branchDir, twigPerp, twigDeviation));
+
+        dendrites.push({
+          points: growStrand(
+            twigPoint,
+            twigDir,
+            twigRadius,
+            Math.min(0.96, twigRadius + 0.12 + rng() * 0.16),
+            0.16 + rng() * 0.12,
+            8,
+            rng,
+          ),
+          generation: 2,
+          family,
+          brightness: 0.16 + rng() * 0.16,
+        });
+      }
+    }
+  }
+
+  return dendrites;
+}
+
 // Direction of the nearest macro loop at a point, so filaments align with the
 // organism's circulation instead of being generated independently.
 function nearestLoopFlow(
@@ -232,6 +422,14 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
   // instead of blanketing the volume evenly.
   const GOLD_POLE: Vec3 = [-0.08, 0.02, 0.05];
   const LAVENDER_POLE: Vec3 = [0.52, 0.1, 0.15];
+
+  // The radiating anatomy. This replaces the old 'radial' strands, which
+  // wandered independently and therefore crossed each other into a scribble.
+  const dendrites = buildDendrites(
+    options.seed,
+    options.dendriteTrunkCount,
+    LAVENDER_POLE,
+  );
 
   const nodes: FieldNode[] = [];
   for (let index = 0; index < options.nodeCount; index += 1) {
@@ -331,7 +529,7 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
     // the luminous core and sweep outward. The remaining classes still begin
     // out in the volume, so the organism never reads as a sun with rays.
     const reach: MajorFilament['reach'] =
-      t < 0.45 ? 'radial' : t < 0.72 ? 'inner' : t < 0.9 ? 'membrane' : 'orbital';
+      t < 0.1 ? 'radial' : t < 0.68 ? 'inner' : t < 0.9 ? 'membrane' : 'orbital';
 
     const originNode = nodes[Math.floor(rng() * nodes.length)];
     let origin: Vec3;
@@ -546,5 +744,5 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
     });
   }
 
-  return { macroLoops, nodes, connections, filaments, microFilaments, arcs, flares };
+  return { macroLoops, dendrites, nodes, connections, filaments, microFilaments, arcs, flares };
 }
