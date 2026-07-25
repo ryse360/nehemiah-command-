@@ -122,8 +122,12 @@ export function transitionProgress(
   };
 }
 
+// Overshoot is real motion, not decoration: easeOutBack returns values above
+// 1 mid-settle, and the organism should carry slightly past its target before
+// easing back. Clamping the blend at 1 discarded that entirely. Values stay
+// non-negative so an overshoot can never produce negative light or particles.
 function lerp(from: number, to: number, blend: number): number {
-  return from + (to - from) * blend;
+  return Math.max(0, from + (to - from) * blend);
 }
 
 export function blendOrganismParameters(
@@ -134,7 +138,10 @@ export function blendOrganismParameters(
   if (blend <= 0) {
     return from;
   }
-  if (blend >= 1) {
+  // Note the strict equality: a blend of exactly 1 is the settled target, but
+  // anything above it is the ease overshooting and must be interpolated, not
+  // clamped away.
+  if (blend === 1) {
     return to;
   }
 

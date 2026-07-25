@@ -126,6 +126,45 @@ test('the held breath hands off to the settle without a scale snap', () => {
   }
 });
 
+test('overshoot actually carries the organism past the target before settling', () => {
+  const from = organismStateParameters.resting;
+  const to = organismStateParameters['proof-created'];
+
+  // easeOutBack returns values above 1 mid-settle. If the blend clamps at 1,
+  // that overshoot is silently discarded and every transition personality's
+  // `overshoot` field is decoration.
+  const past = blendOrganismParameters(from, to, 1.08);
+  assert.ok(
+    past.goldIntensity > to.goldIntensity,
+    'a blend past 1 must overshoot the target, not clamp to it',
+  );
+
+  const personality = resolveTransitionPersonality('resting', 'proof-created', false);
+  const total = personality.holdSeconds + personality.settleSeconds;
+  let sawOvershoot = false;
+  for (let elapsed = 0; elapsed <= total; elapsed += 1 / 120) {
+    const progress = transitionProgress(personality, elapsed);
+    const blended = blendOrganismParameters(from, to, progress.blend);
+    if (blended.goldIntensity > to.goldIntensity + 1e-9) {
+      sawOvershoot = true;
+      break;
+    }
+  }
+  assert.ok(sawOvershoot, 'the settle must visibly overshoot at least once');
+});
+
+test('overshoot never drives a parameter below zero', () => {
+  const from = organismStateParameters['proof-created'];
+  const to = organismStateParameters.resting;
+  const past = blendOrganismParameters(from, to, 1.2);
+
+  assert.ok(past.goldIntensity >= 0);
+  assert.ok(past.indigoIntensity >= 0);
+  assert.ok(past.coreIntensity >= 0);
+  assert.ok(past.particleCount >= 0);
+  assert.ok(past.shellOpacity >= 0);
+});
+
 test('blending endpoints reproduce the exact state parameters', () => {
   const from = organismStateParameters.resting;
   const to = organismStateParameters['decision-required'];

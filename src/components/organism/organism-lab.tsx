@@ -50,6 +50,7 @@ export function OrganismLab() {
   const enteredAtRef = useRef(0);
   const chargeFrameRef = useRef(0);
   const pressStartedAtRef = useRef<number | null>(null);
+  const chargeSecondsRef = useRef(CHARGE_SECONDS);
   const stageRef = useRef<HTMLDivElement>(null);
 
   const asleepRef = useRef(false);
@@ -168,10 +169,20 @@ export function OrganismLab() {
   const beginCharge = useCallback(() => {
     const startedAt = performance.now();
     pressStartedAtRef.current = startedAt;
+
+    // The ring is a promise: it may only reach full when releasing will
+    // actually advance the lifecycle. If the state still owes dwell time
+    // (action must be seen to take time), the charge stretches to cover it
+    // rather than completing and then silently doing nothing.
+    const dwellRemaining =
+      requiredDwellSeconds(state) - (startedAt - enteredAtRef.current) / 1000;
+    const chargeSeconds = Math.max(CHARGE_SECONDS, dwellRemaining);
+    chargeSecondsRef.current = chargeSeconds;
+
     const tick = () => {
       const progress = Math.min(
         1,
-        (performance.now() - startedAt) / 1000 / CHARGE_SECONDS,
+        (performance.now() - startedAt) / 1000 / chargeSeconds,
       );
       setCharge(progress);
       if (progress < 1) {
@@ -179,7 +190,7 @@ export function OrganismLab() {
       }
     };
     chargeFrameRef.current = requestAnimationFrame(tick);
-  }, [setCharge]);
+  }, [setCharge, state]);
 
   const releaseCharge = useCallback(
     (advance: boolean) => {
@@ -189,7 +200,7 @@ export function OrganismLab() {
       setCharge(0);
       const heldLongEnough =
         startedAt !== null &&
-        (performance.now() - startedAt) / 1000 >= CHARGE_SECONDS;
+        (performance.now() - startedAt) / 1000 >= chargeSecondsRef.current;
       if (advance && heldLongEnough) {
         step(1);
       }
