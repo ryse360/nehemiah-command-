@@ -336,6 +336,94 @@ function MicroWeave({
   );
 }
 
+// Volumetric ribbons ("caustic wisps") — the reference's signature grace.
+// Broad, smooth light-sheets that sweep through the volume and catch light,
+// built as tapered triangle strips along the macro loops so the ribbons ARE
+// the circulation made visible rather than decoration laid on top. They read
+// as luminous field folds, never as material ribbon sculpture.
+function VolumetricRibbons({ intensity }: { intensity: number }) {
+  const geometry = useMemo(() => {
+    const positions: number[] = [];
+    const colors: number[] = [];
+    const warm = new THREE.Color(neoPalette.goldLight);
+    const cool = new THREE.Color(neoPalette.lavenderLight);
+    const up = new THREE.Vector3(0, 0, 1);
+
+    FIELD.macroLoops.forEach((loop, loopIndex) => {
+      const curve = new THREE.CatmullRomCurve3(
+        loop.controlPoints.map((p) => new THREE.Vector3(p[0], p[1], p[2])),
+        true,
+      );
+      const samples = curve.getPoints(150).map((p) => {
+        // a sheet escaping the shell reads as a separate object, so fold any
+        // stray point back inside the membrane
+        const r = p.length();
+        return r > 0.9 ? p.clone().multiplyScalar(0.9 / r) : p;
+      });
+      const width = 0.12 + loop.weight * 0.16;
+
+      for (let i = 0; i < samples.length - 1; i += 1) {
+        const t = i / (samples.length - 1);
+        // the sheet swells mid-sweep and dissolves at both ends
+        const taper = Math.sin(t * Math.PI) ** 0.7;
+        if (taper < 0.02) continue;
+
+        const build = (index: number, localT: number) => {
+          const point = samples[index];
+          const next = samples[Math.min(index + 1, samples.length - 1)];
+          const tangent = next.clone().sub(point).normalize();
+          let side = tangent.clone().cross(up);
+          if (side.lengthSq() < 1e-6) side = new THREE.Vector3(1, 0, 0);
+          side.normalize().multiplyScalar(
+            width * (Math.sin(localT * Math.PI) ** 0.7),
+          );
+          return {
+            a: point.clone().add(side),
+            b: point.clone().sub(side),
+          };
+        };
+
+        const e0 = build(i, t);
+        const e1 = build(i + 1, (i + 1) / (samples.length - 1));
+
+        positions.push(
+          e0.a.x, e0.a.y, e0.a.z, e0.b.x, e0.b.y, e0.b.z, e1.a.x, e1.a.y, e1.a.z,
+          e1.b.x, e1.b.y, e1.b.z, e1.a.x, e1.a.y, e1.a.z, e0.b.x, e0.b.y, e0.b.z,
+        );
+
+        // warm sheets sweep the left, cooler ones the right
+        const cool01 = Math.min(1, Math.max(0, (samples[i].x + 0.5) / 1.3));
+        const tint = warm.clone().lerp(cool, cool01 * 0.85);
+        const edge = tint.clone().multiplyScalar(taper * 0.004 * intensity);
+        const mid = tint.clone().multiplyScalar(taper * 0.017 * intensity);
+        // bright along the sheet's spine, dissolving at its edges
+        for (const c of [edge, mid, edge, mid, edge, mid]) {
+          colors.push(c.r, c.g, c.b);
+        }
+      }
+    });
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    return geo;
+  }, [intensity]);
+
+  return (
+    <mesh geometry={geometry}>
+      <meshBasicMaterial
+        vertexColors
+        transparent
+        opacity={0.9}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        side={THREE.DoubleSide}
+        toneMapped={false}
+      />
+    </mesh>
+  );
+}
+
 // Latent intelligence tissue — NOT a wireframe. Nodes and their short links
 // are coloured by family and weighted by centrality, so the graph reads as
 // clustered connective tissue that dissolves before the eye fully tracks it.
@@ -485,7 +573,7 @@ function NodalFlares({ intensity, motionScale }: { intensity: number; motionScal
 // transparent at the silhouette. One mesh, no visible sphere edge.
 const bodyShader = {
   uniforms: {
-    uCenterColor: { value: new THREE.Color('#3b2b1d') },
+    uCenterColor: { value: new THREE.Color('#4a3728') },
     uEdgeColor: { value: new THREE.Color('#8a6f52') },
     uOpacity: { value: 0.9 },
   },
@@ -837,7 +925,19 @@ function LivingScene({
         {/* 6. dark internal volumetric body — inverse-fresnel ball: dense
             warm umber at the center fading to nothing at the rim, so the
             organism has a dark interior with no hard circular border. */}
-        <VolumetricBody opacity={0.9 + parameters.shellOpacity * 0.3} />
+        <VolumetricBody opacity={0.82 + parameters.shellOpacity * 0.3} />
+
+        {/* the violet reasoning hemisphere: a genuine cool VOLUME on the
+            right, which is what the reference has and a lone beacon cannot
+            supply */}
+        <group position={[0.34, 0.04, 0.05]}>
+          <VolumetricGlow
+            color={neoPalette.lavenderMid}
+            opacity={Math.min(0.34, 0.3 * (indigoIntensity / 0.85))}
+            power={1.7}
+            radius={0.78}
+          />
+        </group>
 
         {/* warm interior atmosphere: a faint golden breath inside the body —
             volumetric, so it dissolves instead of reading as a disk edge */}
@@ -847,6 +947,9 @@ function LivingScene({
           power={1.9}
           radius={0.9}
         />
+
+        {/* volumetric ribbons: the circulation made visible */}
+        <VolumetricRibbons intensity={goldLevel} />
 
         {/* 7-8. inner micro-weave + constellation drift together, then the
             middle and front majors */}
