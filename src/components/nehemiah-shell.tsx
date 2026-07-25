@@ -18,7 +18,7 @@ import {
 import { DecisionField } from './decision-field';
 import { FounderFocus } from './founder-focus';
 import { NehemiahOrb } from './organism/nehemiah-orb';
-import { computeOrbState } from '@/nehemiah/orb-state';
+import { orbStateFromMemory } from '@/nehemiah/orb-state';
 import { StateController } from './state-controller';
 import { FounderMemoryPanel } from './founder-memory-panel';
 import { buildStrategicRecall } from '@/nehemiah/founder-strategic-recall';
@@ -95,13 +95,14 @@ export function NehemiahShell() {
   const [projectsError, setProjectsError] = useState('');
   const model = useMemo(() => buildShellModel(journey.lifecycle), [journey.lifecycle]);
   const reducedMotion = usePrefersReducedMotion();
-  // The sanitized orb state. Salience is derived here from memory + the
-  // operating state and handed to the orb as an OrbStateDTO of pure numbers —
-  // no decision content ever reaches the visual layer. Recency is coarse (a
-  // 14-day decay), so recomputing only when memory or the state changes is
-  // exact enough; Date.now() is read but is not a reactive dependency.
+  // The sanitized orb state. orbStateFromMemory() runs the two-boundary
+  // pipeline — deriveMemorySignals() strips every record down to numeric ages,
+  // then computeOrbState() does the salience math — so no decision content ever
+  // reaches the visual layer. Recency is coarse (a 14-day decay), so recomputing
+  // only when memory or the state changes is exact enough; Date.now() is read
+  // but is not a reactive dependency.
   const orbState = useMemo(
-    () => computeOrbState(memory, model.organismState, Date.now()),
+    () => orbStateFromMemory(memory, model.organismState, Date.now()),
     [memory, model.organismState],
   );
   const strategicRecall = useMemo(
