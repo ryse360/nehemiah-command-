@@ -71,7 +71,7 @@ export function VolumetricGlow({
 
   return (
     <mesh material={material}>
-      <sphereGeometry args={[radius, 48, 48]} />
+      <sphereGeometry args={[radius, 48, 24]} />
     </mesh>
   );
 }

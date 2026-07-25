@@ -19,10 +19,10 @@ import styles from './organism-lab.module.css';
 
 const FIELD_OPTIONS = {
   seed: 11,
-  nodeCount: 120,
-  connectionRadius: 0.34,
-  majorFilamentCount: 30,
-  microFilamentCount: 170,
+  nodeCount: 420,
+  connectionRadius: 0.155,
+  majorFilamentCount: 190,
+  microFilamentCount: 900,
   arcCount: 8,
   flareCount: 8,
 } as const;
@@ -99,67 +99,89 @@ function useTransitionedParameters(
 function familyColors(family: 'gold' | 'lavender') {
   return family === 'gold'
     ? { core: neoPalette.goldMid, halo: neoPalette.goldLight, deep: neoPalette.goldDeep, boost: 1 }
-    : { core: neoPalette.lavenderLight, halo: neoPalette.lavenderMid, deep: neoPalette.lavenderMid, boost: 1.85 };
+    : { core: neoPalette.lavenderMid, halo: neoPalette.lavenderDark, deep: neoPalette.lavenderDark, boost: 1.15 };
 }
 
-// Two-pass luminous spline: a fine bright center over a wide, faint additive
-// emission halo — bloom without a postprocessing pass.
-function FilamentStrand({
-  filament,
+// Batched filament pass. One <Line segments> draws every strand of a given
+// family in a single call, with each strand's colour x opacity baked into
+// per-vertex colours (additive blending makes opacity a colour multiply).
+// Per-strand <Line> components cost two draw calls EACH, which caps density
+// at a few dozen cables; batching is what makes a genuine hair-thin weave of
+// ~200 strands affordable.
+function BatchedFilaments({
+  filaments,
+  family,
   intensity,
+  lineWidth,
+  halo,
 }: {
-  filament: MajorFilament;
+  filaments: MajorFilament[];
+  family: 'gold' | 'lavender';
   intensity: number;
+  lineWidth: number;
+  halo: boolean;
 }) {
-  const points = useMemo(() => {
-    const vectors = filament.controlPoints.map(
-      (p) => new THREE.Vector3(p[0], p[1], p[2]),
-    );
-    return new THREE.CatmullRomCurve3(vectors).getPoints(40);
-  }, [filament]);
+  const { points, vertexColors } = useMemo(() => {
+    const pts: [number, number, number][] = [];
+    const cols: [number, number, number][] = [];
+    const colors = familyColors(family);
 
-  const colors = familyColors(filament.family);
-  const base = DEPTH_BASE[filament.depth] * intensity * colors.boost;
-  const coreOpacity = Math.min(0.8, Math.max(0.1, base * (0.4 + filament.brightness * 0.9)));
-  const haloOpacity = Math.min(0.24, Math.max(0.04, base * filament.brightness * 0.4));
+    for (const filament of filaments) {
+      const vectors = filament.controlPoints.map(
+        (p) => new THREE.Vector3(p[0], p[1], p[2]),
+      );
+      const samples = new THREE.CatmullRomCurve3(vectors).getPoints(36);
 
-  // Luminous over the dark body: rear strands recede in deep tones; in the
-  // middle and front, faint strands stay delicate-but-luminous in pale
-  // light, most carry the mid gold/lavender, and only the brightest few
-  // reach hot white. Only gold is allowed to blow out to white — lavender
-  // keeps its hue so the two families never converge.
-  const coreColor =
-    filament.depth === 'rear'
-      ? colors.deep
-      : filament.family === 'gold' && filament.brightness > 0.9
-        ? neoPalette.shellWhite
-        : filament.brightness > 0.5
-          ? colors.core
-          : colors.halo;
+      const base = DEPTH_BASE[filament.depth] * intensity * colors.boost;
+      // Only the expressive minority earn a halo; the rest stay hair-thin,
+      // which is what separates a woven field from a bundle of cables.
+      if (halo && filament.brightness < 0.62) continue;
+      const strength = halo
+        ? Math.min(0.16, Math.max(0.03, base * filament.brightness * 0.3)) * 0.8
+        : Math.min(0.62, Math.max(0.07, base * (0.32 + filament.brightness * 0.72)));
+
+      const hex =
+        halo || filament.depth === 'rear'
+          ? colors.halo
+          : family === 'gold' && filament.brightness > 0.9
+            ? neoPalette.shellWhite
+            : filament.brightness > 0.5
+              ? colors.core
+              : colors.halo;
+      const tint = new THREE.Color(hex).multiplyScalar(strength);
+
+      for (let i = 0; i < samples.length - 1; i += 1) {
+        // taper toward both ends so strands dissolve instead of stopping
+        const t = i / (samples.length - 1);
+        const taper = 0.35 + 0.65 * Math.sin(t * Math.PI);
+        const c = tint.clone().multiplyScalar(taper);
+        pts.push(
+          [samples[i].x, samples[i].y, samples[i].z],
+          [samples[i + 1].x, samples[i + 1].y, samples[i + 1].z],
+        );
+        cols.push([c.r, c.g, c.b], [c.r, c.g, c.b]);
+      }
+    }
+
+    return { points: pts, vertexColors: cols };
+  }, [filaments, family, intensity, halo]);
+
+  if (points.length === 0) {
+    return null;
+  }
 
   return (
-    <>
-      <Line
-        points={points}
-        color={coreColor}
-        transparent
-        opacity={coreOpacity}
-        lineWidth={0.45 + filament.brightness * 0.7}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-        toneMapped={false}
-      />
-      <Line
-        points={points}
-        color={colors.halo}
-        transparent
-        opacity={haloOpacity * 0.8}
-        lineWidth={3 + filament.brightness * 2}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-        toneMapped={false}
-      />
-    </>
+    <Line
+      segments
+      points={points}
+      vertexColors={vertexColors}
+      transparent
+      opacity={1}
+      lineWidth={lineWidth}
+      blending={THREE.AdditiveBlending}
+      depthWrite={false}
+      toneMapped={false}
+    />
   );
 }
 
@@ -176,25 +198,52 @@ function FilamentDepthGroup({
   indigoIntensity: number;
   indigoConvergence: number;
 }) {
-  const members = filaments.filter((f) => f.depth === depth);
+  const members = useMemo(
+    () => filaments.filter((f) => f.depth === depth),
+    [filaments, depth],
+  );
+  const gold = useMemo(() => members.filter((f) => f.family === 'gold'), [members]);
+  const lavender = useMemo(
+    () => members.filter((f) => f.family === 'lavender'),
+    [members],
+  );
+
+  const goldLevel = goldIntensity / 1.18;
+  const lavenderLevel = indigoIntensity / 0.85;
 
   return (
     <group>
-      {members.map((filament, index) => {
-        const intensity =
-          filament.family === 'gold' ? goldIntensity / 0.72 : indigoIntensity / 0.55;
-        const strand = (
-          <FilamentStrand key={index} filament={filament} intensity={intensity} />
-        );
-        if (filament.family === 'lavender') {
-          return (
-            <group key={index} scale={1 - 0.5 * indigoConvergence}>
-              {strand}
-            </group>
-          );
-        }
-        return strand;
-      })}
+      <BatchedFilaments
+        filaments={gold}
+        family="gold"
+        intensity={goldLevel}
+        lineWidth={0.42}
+        halo={false}
+      />
+      <BatchedFilaments
+        filaments={gold}
+        family="gold"
+        intensity={goldLevel}
+        lineWidth={1.5}
+        halo
+      />
+      {/* the deliberation field retracts toward the core at the decision */}
+      <group scale={1 - 0.5 * indigoConvergence}>
+        <BatchedFilaments
+          filaments={lavender}
+          family="lavender"
+          intensity={lavenderLevel}
+          lineWidth={0.42}
+          halo={false}
+        />
+        <BatchedFilaments
+          filaments={lavender}
+          family="lavender"
+          intensity={lavenderLevel}
+          lineWidth={1.5}
+          halo
+        />
+      </group>
     </group>
   );
 }
@@ -300,7 +349,7 @@ function NodeConstellation({ intensity }: { intensity: number }) {
         <lineBasicMaterial
           color={neoPalette.goldMid}
           transparent
-          opacity={Math.min(0.3, 0.24 * intensity)}
+          opacity={0.30 * intensity}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -311,7 +360,7 @@ function NodeConstellation({ intensity }: { intensity: number }) {
           color={neoPalette.goldLight}
           size={0.02}
           transparent
-          opacity={Math.min(0.75, 0.62 * intensity)}
+          opacity={0.78 * intensity}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -336,12 +385,15 @@ function NodalFlares({ intensity, motionScale }: { intensity: number; motionScal
     group.children.forEach((child, index) => {
       const flare = field.flares[index];
       if (!flare) return;
+      // Reduced motion damps how far a flare swings, not how fast it swings.
+      // Scaling the frequency left them travelling the full 2x range.
+      const amplitude = 0.25 * motionScale;
       const pulse =
-        0.75 +
-        0.25 *
+        1 -
+        amplitude +
+        amplitude *
           Math.sin(
-            (elapsedRef.current / flare.pulseSeconds) * Math.PI * 2 * motionScale +
-              flare.phase,
+            (elapsedRef.current / flare.pulseSeconds) * Math.PI * 2 + flare.phase,
           );
       child.scale.setScalar(flare.scale * pulse * 28);
     });
@@ -435,7 +487,7 @@ function VolumetricBody({ opacity }: { opacity: number }) {
 
   return (
     <mesh material={material}>
-      <sphereGeometry args={[1.0, 96, 96]} />
+      <sphereGeometry args={[1.0, 48, 32]} />
     </mesh>
   );
 }
@@ -543,25 +595,25 @@ function Membrane({ intensity }: { intensity: number }) {
     // Retuned for the opaque framebuffer: additive light now genuinely adds,
     // so the values that read as a faint veil under broken compositing burn
     // out here. Roughly a third of the former strength.
-    material.uniforms.uStrength.value = Math.min(0.075, 0.05 * intensity);
+    material.uniforms.uStrength.value = 0.085 * intensity;
   }, [material, intensity]);
 
   return (
     <>
       <mesh material={material}>
-        <sphereGeometry args={[MEMBRANE_RADIUS, 96, 96]} />
+        <sphereGeometry args={[MEMBRANE_RADIUS, 64, 32]} />
       </mesh>
       {/* atmospheric bloom: wider, fainter shells feather the boundary so
           the membrane dissolves into the ivory instead of ending in a ring */}
       <VolumetricGlow
         color={neoPalette.goldLight}
-        opacity={Math.min(0.05, 0.038 * intensity)}
+        opacity={0.058 * intensity}
         power={0.9}
         radius={MEMBRANE_RADIUS * 1.12}
       />
       <VolumetricGlow
         color={neoPalette.goldLight}
-        opacity={Math.min(0.028, 0.02 * intensity)}
+        opacity={0.032 * intensity}
         power={0.6}
         radius={MEMBRANE_RADIUS * 1.3}
       />
@@ -638,7 +690,10 @@ function LivingScene({
 
   const goldIntensity = parameters.goldIntensity;
   const indigoIntensity = parameters.indigoIntensity;
-  const goldLevel = goldIntensity / 0.72;
+  // Normalised against the TOP of the gold ramp (1.18), not the bottom.
+  // Dividing by resting pinned every clamp from `listening` onward, which is
+  // why the six states measured as visually identical.
+  const goldLevel = goldIntensity / 1.18;
 
   useFrame((_, delta) => {
     elapsedTime.current += delta;

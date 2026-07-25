@@ -106,8 +106,8 @@
 .jumpDots {
   display: flex;
   justify-content: center;
-  gap: 0.85rem;
-  min-height: 0.8rem;
+  gap: 0.15rem;
+  min-height: 1.5rem;
   flex-shrink: 0;
   opacity: 0;
   transition: opacity 320ms ease;
@@ -119,22 +119,33 @@
 }
 
 .jumpDot {
-  width: 0.42rem;
-  height: 0.42rem;
+  /* WCAG 2.5.8 needs a 24px target; the visual dot stays 0.42rem and the
+     hit area grows around it. */
+  width: 1.5rem;
+  height: 1.5rem;
   padding: 0;
   border: none;
+  background: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.jumpDot::before {
+  content: '';
+  width: 0.42rem;
+  height: 0.42rem;
   border-radius: 50%;
   background: rgba(100, 91, 69, 0.22);
-  cursor: pointer;
   transition: background 200ms ease, transform 200ms ease;
 }
 
-.jumpDot:hover {
+.jumpDot:hover::before {
   background: rgba(184, 150, 78, 0.6);
   transform: scale(1.35);
 }
 
-.jumpDot[data-current='true'] {
+.jumpDot[data-current='true']::before {
   background: #b8964e;
   box-shadow: 0 0 10px rgba(184, 150, 78, 0.5);
 }
@@ -152,10 +163,10 @@
   width: min(100%, 560px);
   margin: 0 auto;
   padding: 0.65rem 1rem;
-  border: 1px solid rgba(100, 91, 69, 0.14);
+  border: 1px solid rgba(100, 91, 69, 0.10);
   border-radius: 999px;
-  background: rgba(255, 253, 247, 0.6);
-  opacity: 0.72;
+  background: rgba(255, 253, 247, 0.45);
+  opacity: 1;
   flex-shrink: 0;
   transition: opacity 600ms ease, border-color 600ms ease, box-shadow 600ms ease;
 }
@@ -164,8 +175,8 @@
    heartBeat recipe — a glow that swells and releases, no scale punch,
    no hover response. The surface looks awake, never interactive. */
 .commandSurface[data-presence='attentive'] {
-  opacity: 0.92;
   border-color: rgba(184, 150, 78, 0.32);
+  background: rgba(255, 253, 247, 0.7);
   animation: surfaceBreath calc(4.4s / max(var(--surface-glow, 1), 0.5)) ease-in-out infinite;
 }
 
@@ -180,7 +191,7 @@
 }
 
 .commandPlaceholder {
-  color: #8a8272;
+  color: #605A4C;
   font-size: 0.92rem;
 }
 
@@ -199,7 +210,7 @@
 .commandHelperText {
   margin: 0;
   text-align: center;
-  color: #9a927f;
+  color: #6A6354;
   font-size: 0.74rem;
   flex-shrink: 0;
 }
@@ -234,7 +245,7 @@
   }
 
   .jumpDots,
-  .jumpDot,
+  .jumpDot::before,
   .commandSurface {
     transition: none;
   }

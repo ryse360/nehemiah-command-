@@ -206,7 +206,8 @@ export function OrganismLab() {
         className={styles.stage}
         data-state={state}
         data-asleep={asleep}
-        role="group"
+        role="button"
+        aria-keyshortcuts="ArrowRight ArrowLeft Home"
         aria-label={`Nehemiah living organism, ${statusLabel.toLowerCase()}. Press and hold to advance, or use arrow keys.`}
         tabIndex={0}
         onPointerDown={(event) => {
@@ -224,7 +225,10 @@ export function OrganismLab() {
           if (asleepRef.current) {
             return;
           }
-          if (event.key === 'ArrowRight') {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            step(1);
+          } else if (event.key === 'ArrowRight') {
             event.preventDefault();
             step(1);
           } else if (event.key === 'ArrowLeft') {
@@ -282,9 +286,8 @@ export function OrganismLab() {
         <button
           type="button"
           className={styles.commandButton}
+          aria-label="Send — not yet available"
           disabled
-          aria-disabled="true"
-          tabIndex={-1}
         >
           <span aria-hidden="true">●</span>
         </button>

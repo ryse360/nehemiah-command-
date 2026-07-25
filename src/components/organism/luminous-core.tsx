@@ -80,7 +80,9 @@ export function LuminousCore({
     }
   });
 
-  const coreLevel = parameters.coreIntensity / organismCoreModel.resting.emissiveIntensity;
+  // Normalised against the TOP of the core ramp (2.60 at proof), not resting,
+  // so the state ladder is expressible instead of saturating every clamp.
+  const coreLevel = parameters.coreIntensity / 2.6;
 
   return (
     <group>
@@ -105,21 +107,21 @@ export function LuminousCore({
 
         <VolumetricGlow
           color={neoPalette.goldLight}
-          opacity={Math.min(0.34, 0.15 * coreLevel)}
+          opacity={0.36 * coreLevel}
           power={1.3}
           radius={profile.haloRadius * 0.95}
         />
 
         <VolumetricGlow
           color={neoPalette.goldMid}
-          opacity={Math.min(0.62, 0.3 * coreLevel)}
+          opacity={0.66 * coreLevel}
           power={2.4}
           radius={profile.bodyRadius * 1.5}
         />
 
         <VolumetricGlow
           color={neoPalette.shellWhite}
-          opacity={Math.min(0.9, 0.42 * coreLevel)}
+          opacity={0.92 * coreLevel}
           power={3.4}
           radius={profile.bodyRadius * 0.75}
         />
@@ -129,7 +131,7 @@ export function LuminousCore({
           <meshBasicMaterial
             color={neoPalette.shellWhite}
             transparent
-            opacity={Math.min(0.95, 0.45 * coreLevel)}
+            opacity={0.95 * coreLevel}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
             toneMapped={false}
@@ -151,7 +153,7 @@ export function LuminousCore({
           <meshBasicMaterial
             color={neoPalette.lavenderLight}
             transparent
-            opacity={Math.min(0.9, 0.7 * coreLevel)}
+            opacity={Math.min(0.95, 1.15 * coreLevel)}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
             toneMapped={false}
@@ -162,7 +164,7 @@ export function LuminousCore({
           <meshBasicMaterial
             color={neoPalette.lavenderMid}
             transparent
-            opacity={Math.min(0.35, 0.26 * coreLevel)}
+            opacity={Math.min(0.45, 0.5 * coreLevel)}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
             toneMapped={false}
