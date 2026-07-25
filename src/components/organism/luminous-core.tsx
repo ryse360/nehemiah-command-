@@ -7,6 +7,7 @@ import type { OrganismParameters } from '@/nehemiah/organism-parameters';
 import { resolveMotionScale } from '@/nehemiah/organism-motion';
 import { organismCoreModel } from '@/nehemiah/organism-core-model';
 import { neoPalette } from '@/nehemiah/organism-palette';
+import { VolumetricGlow } from './volumetric-glow';
 
 export function LuminousCore({
   parameters,
@@ -16,7 +17,7 @@ export function LuminousCore({
   reducedMotion: boolean;
 }) {
   const shape = organismCoreModel.resting;
-  const CORE_VISUAL_SCALE = 0.62;
+  const CORE_VISUAL_SCALE = 0.52;
   const profile = {
     bodyRadius: shape.bodyRadius * CORE_VISUAL_SCALE,
     haloRadius: shape.haloRadius * CORE_VISUAL_SCALE,
@@ -92,49 +93,45 @@ export function LuminousCore({
           color={neoPalette.goldMid}
         />
 
+        {/* Focal point as a graded starburst, not stacked pancakes. Three
+            inverse-fresnel shells: a tight hot centre, a gold mid-falloff,
+            and a wide soft bloom. Opacities are scaled so the full coreLevel
+            range spans a visible band instead of saturating its clamp at
+            every state past resting. */}
         <mesh ref={halo} scale={profile.haloRadius}>
-          <sphereGeometry args={[1, 64, 64]} />
-          <meshBasicMaterial
-            color={neoPalette.goldMid}
-            transparent
-            opacity={profile.haloOpacity}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-            toneMapped={false}
-          />
+          <sphereGeometry args={[1, 8, 8]} />
+          <meshBasicMaterial visible={false} />
         </mesh>
 
-        <mesh scale={profile.bodyRadius * 1.3}>
-          <sphereGeometry args={[1, 72, 72]} />
-          <meshBasicMaterial
-            color={neoPalette.goldLight}
-            transparent
-            opacity={profile.haloOpacity * 0.55}
-            blending={THREE.AdditiveBlending}
-            side={THREE.BackSide}
-            depthWrite={false}
-            toneMapped={false}
-          />
-        </mesh>
+        <VolumetricGlow
+          color={neoPalette.goldLight}
+          opacity={Math.min(0.34, 0.15 * coreLevel)}
+          power={1.3}
+          radius={profile.haloRadius * 0.95}
+        />
 
-        <mesh scale={profile.bodyRadius}>
-          <sphereGeometry args={[1, 96, 96]} />
-          <meshBasicMaterial
-            color={neoPalette.goldMid}
-            transparent
-            opacity={Math.min(0.85, 0.55 * coreLevel)}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-            toneMapped={false}
-          />
-        </mesh>
+        <VolumetricGlow
+          color={neoPalette.goldMid}
+          opacity={Math.min(0.62, 0.3 * coreLevel)}
+          power={2.4}
+          radius={profile.bodyRadius * 1.5}
+        />
+
+        <VolumetricGlow
+          color={neoPalette.shellWhite}
+          opacity={Math.min(0.9, 0.42 * coreLevel)}
+          power={3.4}
+          radius={profile.bodyRadius * 0.75}
+        />
 
         <mesh ref={kernel} scale={profile.kernelRadius}>
-          <sphereGeometry args={[1, 56, 56]} />
+          <sphereGeometry args={[1, 40, 40]} />
           <meshBasicMaterial
             color={neoPalette.shellWhite}
             transparent
-            opacity={Math.min(1, coreLevel)}
+            opacity={Math.min(0.95, 0.45 * coreLevel)}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
             toneMapped={false}
           />
         </mesh>

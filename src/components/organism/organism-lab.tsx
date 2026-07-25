@@ -201,12 +201,6 @@ export function OrganismLab() {
 
   return (
     <section className={styles.labShell} aria-label="Nehemiah organism laboratory">
-      <Leva
-        hidden={process.env.NODE_ENV === 'production'}
-        collapsed
-        titleBar={{ title: 'Organism controls' }}
-      />
-
       <div
         ref={stageRef}
         className={styles.stage}
@@ -296,6 +290,15 @@ export function OrganismLab() {
         </button>
       </div>
       <p className={styles.commandHelperText}>{surface.helperText}</p>
+
+      {/* Leva is position:fixed, so its DOM position is purely a tab-order
+          concern. Mounted last, the organism becomes the first tab stop
+          instead of the seventeenth. */}
+      <Leva
+        hidden={process.env.NODE_ENV === 'production'}
+        collapsed
+        titleBar={{ title: 'Organism controls' }}
+      />
     </section>
   );
 }

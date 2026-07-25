@@ -30,40 +30,16 @@
   isolation: isolate;
 }
 
-/* Warm halo the orb floats within — luminous on ivory, no hard dish edge. */
+/* The canvas is opaque now, so anything painted behind it is invisible. The
+   warm halo and the contact shadow both moved in-scene, where additive light
+   and soft falloff actually work. ::before is kept only as the focus ring
+   carrier. */
 .stage::before {
   content: '';
   position: absolute;
   inset: -6%;
   z-index: 0;
   border-radius: 50%;
-  background: radial-gradient(
-    circle at 50% 46%,
-    rgba(251, 242, 240, 0.92) 0%,
-    rgba(244, 235, 226, 0.4) 38%,
-    transparent 62%
-  );
-  pointer-events: none;
-}
-
-/* Contact shadow per spec: 28-38% of orb width, 3-6% height, blur 18-32px,
-   opacity <= 0.18, warm brown-gray — the orb floats lightly above the surface. */
-.stage::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: 2%;
-  z-index: 0;
-  width: 34%;
-  height: 5%;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(68, 53, 41, 0.15),
-    transparent 72%
-  );
-  filter: blur(24px);
   pointer-events: none;
 }
 
@@ -72,12 +48,23 @@
   z-index: 1;
 }
 
+/* Focus indicator must clear WCAG 1.4.11 / 2.4.11. The old 0.32-alpha ring
+   measured 1.63:1 against the ivory; full-strength Threshold Indigo measures
+   6.36:1. The transparent outline preserves a visible ring in forced-colors
+   mode, where box-shadow is dropped. */
 .stage:focus-visible {
-  outline: none;
+  outline: 3px solid transparent;
+  outline-offset: 3px;
 }
 
 .stage:focus-visible::before {
-  box-shadow: 0 0 0 3px rgba(68, 82, 145, 0.32);
+  box-shadow: 0 0 0 3px rgb(68, 82, 145);
+}
+
+@media (forced-colors: active) {
+  .stage:focus-visible {
+    outline-color: Highlight;
+  }
 }
 
 .chargeRing {

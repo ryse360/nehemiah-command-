@@ -15,7 +15,7 @@ export interface MajorFilament {
   depth: 'rear' | 'middle' | 'front';
   family: 'gold' | 'lavender';
   brightness: number;
-  reach: 'inner' | 'membrane' | 'orbital';
+  reach: 'radial' | 'inner' | 'membrane' | 'orbital';
 }
 
 export interface OrbitalArc {
@@ -125,27 +125,40 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
   ];
   for (let index = 0; index < options.majorFilamentCount; index += 1) {
     const t = index / options.majorFilamentCount;
+    // 'radial' strands are the reference's signature starburst: they begin AT
+    // the luminous core and sweep outward. The remaining classes still begin
+    // out in the volume, so the organism never reads as a sun with rays.
     const reach: MajorFilament['reach'] =
-      t < 0.64 ? 'inner' : t < 0.9 ? 'membrane' : 'orbital';
+      t < 0.45 ? 'radial' : t < 0.72 ? 'inner' : t < 0.9 ? 'membrane' : 'orbital';
 
     const originNode = nodes[Math.floor(rng() * nodes.length)];
-    const originScale = 0.3 + rng() * 0.55;
-    let origin: Vec3 = [
-      originNode.position[0] * originScale,
-      originNode.position[1] * originScale,
-      originNode.position[2] * originScale,
-    ];
-    if (length(origin) < 0.14) {
+    let origin: Vec3;
+
+    if (reach === 'radial') {
       const dir = normalize([rng() * 2 - 1, rng() * 2 - 1, rng() * 2 - 1]);
-      origin = [dir[0] * 0.18, dir[1] * 0.18, dir[2] * 0.18];
+      const coreRadius = 0.06 + rng() * 0.04;
+      origin = [dir[0] * coreRadius, dir[1] * coreRadius, dir[2] * coreRadius];
+    } else {
+      const originScale = 0.3 + rng() * 0.55;
+      origin = [
+        originNode.position[0] * originScale,
+        originNode.position[1] * originScale,
+        originNode.position[2] * originScale,
+      ];
+      if (length(origin) < 0.14) {
+        const dir = normalize([rng() * 2 - 1, rng() * 2 - 1, rng() * 2 - 1]);
+        origin = [dir[0] * 0.18, dir[1] * 0.18, dir[2] * 0.18];
+      }
     }
 
     const endRadius =
-      reach === 'inner'
-        ? 0.6 + rng() * 0.35
-        : reach === 'membrane'
-          ? 1.0 + rng() * 0.12
-          : 1.14 + rng() * 0.1;
+      reach === 'radial'
+        ? 0.72 + rng() * 0.26
+        : reach === 'inner'
+          ? 0.6 + rng() * 0.35
+          : reach === 'membrane'
+            ? 1.0 + rng() * 0.12
+            : 1.14 + rng() * 0.1;
 
     // Launch mostly tangentially so strands sweep and arc across the
     // volume (like the reference weave) instead of shooting straight out.
@@ -156,10 +169,15 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
       outward[2] * randomAxis[0] - outward[0] * randomAxis[2],
       outward[0] * randomAxis[1] - outward[1] * randomAxis[0],
     ]);
+    // Radial strands drive almost straight out from the core (a starburst);
+    // the rest keep the tangential sweep that fills the volume.
+    const outwardWeight = reach === 'radial' ? 0.92 : 0.4;
+    const tangentialWeight = reach === 'radial' ? 0.12 : 0.6;
+    const jitter = reach === 'radial' ? 0.05 : 0.15;
     const heading = normalize([
-      tangential[0] * 0.6 + outward[0] * 0.4 + (rng() * 2 - 1) * 0.15,
-      tangential[1] * 0.6 + outward[1] * 0.4 + (rng() * 2 - 1) * 0.15,
-      tangential[2] * 0.6 + outward[2] * 0.4 + (rng() * 2 - 1) * 0.15,
+      tangential[0] * tangentialWeight + outward[0] * outwardWeight + (rng() * 2 - 1) * jitter,
+      tangential[1] * tangentialWeight + outward[1] * outwardWeight + (rng() * 2 - 1) * jitter,
+      tangential[2] * tangentialWeight + outward[2] * outwardWeight + (rng() * 2 - 1) * jitter,
     ]);
 
     // Smooth organic drift: the heading itself wanders a little each step
@@ -171,7 +189,8 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
     for (let step = 1; step < pointCount; step += 1) {
       const progress = step / (pointCount - 1);
       const radius = length(origin) + (endRadius - length(origin)) * progress;
-      const wander = 0.16 * Math.sin(progress * Math.PI);
+      const wander =
+        (reach === 'radial' ? 0.07 : 0.16) * Math.sin(progress * Math.PI);
       drift = normalize([
         drift[0] + (rng() * 2 - 1) * wander,
         drift[1] + (rng() * 2 - 1) * wander,

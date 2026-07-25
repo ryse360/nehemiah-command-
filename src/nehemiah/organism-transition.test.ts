@@ -105,6 +105,27 @@ test('reduced motion still allows a short, plain sleep and wake', () => {
   assert.ok(wake.settleSeconds > 0);
 });
 
+test('the held breath hands off to the settle without a scale snap', () => {
+  const personalities = [
+    resolveTransitionPersonality('resting', 'listening', false),
+    resolveTransitionPersonality('decision-required', 'action-underway', false),
+  ];
+
+  for (const personality of personalities) {
+    const total = personality.holdSeconds + personality.settleSeconds;
+    let previous = transitionProgress(personality, 0).scaleFactor;
+
+    for (let elapsed = 1 / 120; elapsed <= total; elapsed += 1 / 120) {
+      const current = transitionProgress(personality, elapsed).scaleFactor;
+      assert.ok(
+        Math.abs(current - previous) < 0.004,
+        `scale jumped ${Math.abs(current - previous).toFixed(4)} at t=${elapsed.toFixed(3)}`,
+      );
+      previous = current;
+    }
+  }
+});
+
 test('blending endpoints reproduce the exact state parameters', () => {
   const from = organismStateParameters.resting;
   const to = organismStateParameters['decision-required'];

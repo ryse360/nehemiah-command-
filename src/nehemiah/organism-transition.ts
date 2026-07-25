@@ -99,7 +99,10 @@ export function transitionProgress(
 
   if (elapsedSeconds < holdSeconds) {
     const holdProgress = holdSeconds === 0 ? 0 : elapsedSeconds / holdSeconds;
-    const dip = Math.sin(Math.PI * holdProgress);
+    // Quarter-sine so the contraction ramps monotonically 0 -> 1 and joins the
+    // settle phase (which starts at full releaseDip) continuously. A half-sine
+    // returned to 1.0 at the boundary and snapped back down by `contraction`.
+    const dip = Math.sin((Math.PI / 2) * holdProgress);
 
     return {
       phase: 'hold',

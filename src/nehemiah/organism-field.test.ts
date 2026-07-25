@@ -43,18 +43,33 @@ test('connections only join nearby nodes', () => {
   }
 });
 
-test('filament reach follows the 60-70 / 20-30 / 8-12 distribution', () => {
+test('filament reach spans radial starburst, inner weave, membrane and orbital', () => {
   const field = organismField(defaults);
-  const reachCount = { inner: 0, membrane: 0, orbital: 0 };
+  const reachCount = { radial: 0, inner: 0, membrane: 0, orbital: 0 };
   for (const filament of field.filaments) {
     reachCount[filament.reach] += 1;
   }
   const total = field.filaments.length;
 
-  assert.ok(reachCount.inner / total >= 0.55 && reachCount.inner / total <= 0.75);
-  assert.ok(reachCount.membrane / total >= 0.18 && reachCount.membrane / total <= 0.34);
+  assert.ok(reachCount.radial / total >= 0.4 && reachCount.radial / total <= 0.5);
+  assert.ok(reachCount.inner / total >= 0.2 && reachCount.inner / total <= 0.34);
+  assert.ok(reachCount.membrane / total >= 0.14 && reachCount.membrane / total <= 0.24);
   assert.ok(reachCount.orbital / total >= 0.06 && reachCount.orbital / total <= 0.14);
   assert.ok(reachCount.orbital >= 1, 'at least one filament continues outward');
+});
+
+test('radial strands begin at the core and sweep outward', () => {
+  const field = organismField(defaults);
+  const radial = field.filaments.filter((f) => f.reach === 'radial');
+
+  assert.ok(radial.length > 0);
+  for (const filament of radial) {
+    const origin = filament.controlPoints[0];
+    const end = filament.controlPoints[filament.controlPoints.length - 1];
+
+    assert.ok(len(origin) <= 0.11, 'radial strands start at the luminous core');
+    assert.ok(len(end) >= 0.7, 'and reach well out into the volume');
+  }
 });
 
 test('orbital filaments genuinely extend beyond the membrane', () => {
@@ -70,13 +85,20 @@ test('orbital filaments genuinely extend beyond the membrane', () => {
   }
 });
 
-test('filaments never all originate from the center', () => {
+test('filaments never ALL originate from the center', () => {
   const field = organismField(defaults);
   const origins = field.filaments.map((f) => f.controlPoints[0]);
 
-  for (const origin of origins) {
-    assert.ok(len(origin) > 0.12, 'no strand starts at the exact center');
-  }
+  // The radial class deliberately starts at the core (that is the reference's
+  // starburst). The acceptance criterion is that not every strand does — a
+  // healthy majority must still begin out in the volume, or the organism
+  // reads as a sun with rays.
+  const fromCore = origins.filter((o) => len(o) <= 0.12).length;
+  assert.ok(fromCore > 0, 'some strands radiate from the core');
+  assert.ok(
+    fromCore / origins.length <= 0.55,
+    'but most strands still begin out in the volume',
+  );
 
   let maxSpread = 0;
   for (const a of origins) for (const b of origins) maxSpread = Math.max(maxSpread, dist(a, b));

@@ -13,6 +13,7 @@ import {
 import { organismFloatOffset, resolveMotionScale } from '@/nehemiah/organism-motion';
 import { organismField, type MajorFilament } from '@/nehemiah/organism-field';
 import { neoPalette } from '@/nehemiah/organism-palette';
+import { VolumetricGlow } from './volumetric-glow';
 import { LuminousCore } from './luminous-core';
 import styles from './organism-lab.module.css';
 
@@ -41,6 +42,7 @@ function useTransitionedParameters(
   const [display, setDisplay] = useState({ parameters: target, scaleFactor: 1 });
   const displayRef = useRef(display);
   const targetRef = useRef(target);
+  const personalityRef = useRef(personality);
   const frameRef = useRef(0);
 
   displayRef.current = display;
@@ -50,10 +52,17 @@ function useTransitionedParameters(
       return;
     }
 
+    // A personality describes ONE intent (a state change, sleep, or wake). It
+    // stays mounted afterwards, so without this guard every later parameter
+    // edit — a Leva slider drag — replays that stale held breath and the
+    // control feels dead. Only a genuinely new intent animates.
+    const isNewIntent = personality !== personalityRef.current;
+    personalityRef.current = personality;
+
     targetRef.current = target;
     cancelAnimationFrame(frameRef.current);
 
-    if (!personality) {
+    if (!personality || !isNewIntent) {
       setDisplay({ parameters: target, scaleFactor: 1 });
       return;
     }
@@ -82,10 +91,15 @@ function useTransitionedParameters(
   return display;
 }
 
+// Lavender carries far less luminance than gold, so at matched opacity it
+// disappears against the warm interior. Its halo stays at mid-tone (rather
+// than the near-white light tint) and its strands run hotter, so the
+// deliberation field is actually legible — the WEIGHING convergence depends
+// on it being visible.
 function familyColors(family: 'gold' | 'lavender') {
   return family === 'gold'
-    ? { core: neoPalette.goldMid, halo: neoPalette.goldLight, deep: neoPalette.goldDeep }
-    : { core: neoPalette.lavenderMid, halo: neoPalette.lavenderLight, deep: neoPalette.lavenderDark };
+    ? { core: neoPalette.goldMid, halo: neoPalette.goldLight, deep: neoPalette.goldDeep, boost: 1 }
+    : { core: neoPalette.lavenderLight, halo: neoPalette.lavenderMid, deep: neoPalette.lavenderMid, boost: 1.85 };
 }
 
 // Two-pass luminous spline: a fine bright center over a wide, faint additive
@@ -105,18 +119,19 @@ function FilamentStrand({
   }, [filament]);
 
   const colors = familyColors(filament.family);
-  const base = DEPTH_BASE[filament.depth] * intensity;
-  const coreOpacity = Math.min(0.75, Math.max(0.1, base * (0.4 + filament.brightness * 0.9)));
-  const haloOpacity = Math.min(0.2, Math.max(0.04, base * filament.brightness * 0.4));
+  const base = DEPTH_BASE[filament.depth] * intensity * colors.boost;
+  const coreOpacity = Math.min(0.8, Math.max(0.1, base * (0.4 + filament.brightness * 0.9)));
+  const haloOpacity = Math.min(0.24, Math.max(0.04, base * filament.brightness * 0.4));
 
   // Luminous over the dark body: rear strands recede in deep tones; in the
   // middle and front, faint strands stay delicate-but-luminous in pale
   // light, most carry the mid gold/lavender, and only the brightest few
-  // reach hot white.
+  // reach hot white. Only gold is allowed to blow out to white — lavender
+  // keeps its hue so the two families never converge.
   const coreColor =
     filament.depth === 'rear'
       ? colors.deep
-      : filament.brightness > 0.9
+      : filament.family === 'gold' && filament.brightness > 0.9
         ? neoPalette.shellWhite
         : filament.brightness > 0.5
           ? colors.core
@@ -214,7 +229,7 @@ function MicroWeave({
       const samples = new THREE.CatmullRomCurve3(vectors).getPoints(8);
       const tint = (micro.family === 'gold' ? goldColor : lavenderColor)
         .clone()
-        .multiplyScalar(micro.opacity * 6);
+        .multiplyScalar(micro.opacity * (micro.family === 'lavender' ? 11 : 6));
 
       for (let index = 0; index < samples.length - 1; index += 1) {
         // taper: strands fade toward both ends
@@ -372,8 +387,8 @@ function NodalFlares({ intensity, motionScale }: { intensity: number; motionScal
 // transparent at the silhouette. One mesh, no visible sphere edge.
 const bodyShader = {
   uniforms: {
-    uCenterColor: { value: new THREE.Color(neoPalette.coreUmber) },
-    uEdgeColor: { value: new THREE.Color('#7a6450') },
+    uCenterColor: { value: new THREE.Color('#3b2b1d') },
+    uEdgeColor: { value: new THREE.Color('#8a6f52') },
     uOpacity: { value: 0.9 },
   },
   vertexShader: /* glsl */ `
@@ -425,73 +440,52 @@ function VolumetricBody({ opacity }: { opacity: number }) {
   );
 }
 
-// Volumetric additive glow: inverse-fresnel ball of light — densest where
-// the view passes through the center, dissolving to nothing at the
-// silhouette. Replaces flat additive spheres, which read as disks with
-// visible circular edges (the concentric-shell artifact).
-const glowShader = {
+// Soft elliptical contact shadow, rendered in-scene because the opaque canvas
+// now covers the CSS layer that used to carry it. Warm brown-grey, never
+// black, so the organism reads as lightly suspended above the surface.
+const shadowShader = {
   uniforms: {
-    uColor: { value: new THREE.Color('#ffffff') },
-    uOpacity: { value: 0.2 },
-    uPower: { value: 1.4 },
+    uColor: { value: new THREE.Color('#443529') },
+    uOpacity: { value: 0.15 },
   },
   vertexShader: /* glsl */ `
-    varying vec3 vNormal;
-    varying vec3 vViewDir;
+    varying vec2 vUv;
     void main() {
-      vNormal = normalize(normalMatrix * normal);
-      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-      vViewDir = normalize(-mvPosition.xyz);
-      gl_Position = projectionMatrix * mvPosition;
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `,
   fragmentShader: /* glsl */ `
     uniform vec3 uColor;
     uniform float uOpacity;
-    uniform float uPower;
-    varying vec3 vNormal;
-    varying vec3 vViewDir;
+    varying vec2 vUv;
     void main() {
-      float facing = abs(dot(normalize(vNormal), normalize(vViewDir)));
-      float density = pow(facing, uPower);
-      gl_FragColor = vec4(uColor, density * uOpacity);
+      float d = distance(vUv, vec2(0.5));
+      float falloff = 1.0 - smoothstep(0.0, 0.5, d);
+      gl_FragColor = vec4(uColor, falloff * falloff * uOpacity);
     }
   `,
 };
 
-function VolumetricGlow({
-  color,
-  opacity,
-  power = 1.4,
-  radius,
-}: {
-  color: string;
-  opacity: number;
-  power?: number;
-  radius: number;
-}) {
+function ContactShadow({ opacity }: { opacity: number }) {
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
-        ...glowShader,
-        uniforms: THREE.UniformsUtils.clone(glowShader.uniforms),
+        ...shadowShader,
+        uniforms: THREE.UniformsUtils.clone(shadowShader.uniforms),
         transparent: true,
-        blending: THREE.AdditiveBlending,
         depthWrite: false,
-        side: THREE.FrontSide,
       }),
     [],
   );
 
   useEffect(() => {
-    material.uniforms.uColor.value.set(color);
     material.uniforms.uOpacity.value = opacity;
-    material.uniforms.uPower.value = power;
-  }, [material, color, opacity, power]);
+  }, [material, opacity]);
 
   return (
-    <mesh material={material}>
-      <sphereGeometry args={[radius, 64, 64]} />
+    <mesh material={material} position={[0, -1.62, -0.35]} scale={[1.5, 0.26, 1]}>
+      <planeGeometry args={[1, 1]} />
     </mesh>
   );
 }
@@ -524,7 +518,7 @@ const membraneShader = {
     varying vec3 vViewDir;
     varying vec3 vLocalPos;
     void main() {
-      float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewDir))), 3.1);
+      float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewDir))), 4.2);
       float mixAmount = smoothstep(-0.6, 0.9, vLocalPos.x);
       vec3 color = mix(uGoldColor, uLavenderColor, mixAmount);
       gl_FragColor = vec4(color, rim * uStrength);
@@ -546,7 +540,10 @@ function Membrane({ intensity }: { intensity: number }) {
   }, []);
 
   useEffect(() => {
-    material.uniforms.uStrength.value = Math.min(0.4, 0.28 * intensity);
+    // Retuned for the opaque framebuffer: additive light now genuinely adds,
+    // so the values that read as a faint veil under broken compositing burn
+    // out here. Roughly a third of the former strength.
+    material.uniforms.uStrength.value = Math.min(0.075, 0.05 * intensity);
   }, [material, intensity]);
 
   return (
@@ -558,15 +555,15 @@ function Membrane({ intensity }: { intensity: number }) {
           the membrane dissolves into the ivory instead of ending in a ring */}
       <VolumetricGlow
         color={neoPalette.goldLight}
-        opacity={Math.min(0.16, 0.12 * intensity)}
+        opacity={Math.min(0.05, 0.038 * intensity)}
         power={0.9}
         radius={MEMBRANE_RADIUS * 1.12}
       />
       <VolumetricGlow
-        color={neoPalette.backgroundLight}
-        opacity={Math.min(0.1, 0.07 * intensity)}
+        color={neoPalette.goldLight}
+        opacity={Math.min(0.028, 0.02 * intensity)}
         power={0.6}
-        radius={MEMBRANE_RADIUS * 1.28}
+        radius={MEMBRANE_RADIUS * 1.3}
       />
     </>
   );
@@ -685,6 +682,8 @@ function LivingScene({
 
   return (
     <>
+      <color attach="background" args={[neoPalette.background]} />
+      <ContactShadow opacity={0.15} />
       <ambientLight intensity={parameters.lighting.ambientIntensity} />
       <hemisphereLight args={[neoPalette.backgroundLight, neoPalette.goldDeep, parameters.lighting.hemisphereIntensity]} />
       <directionalLight position={[4, 5, 5]} intensity={parameters.lighting.directionalIntensity} color={neoPalette.shellWhite} />
@@ -735,15 +734,15 @@ function LivingScene({
         {/* 6. dark internal volumetric body — inverse-fresnel ball: dense
             warm umber at the center fading to nothing at the rim, so the
             organism has a dark interior with no hard circular border. */}
-        <VolumetricBody opacity={0.62 + parameters.shellOpacity * 0.5} />
+        <VolumetricBody opacity={0.9 + parameters.shellOpacity * 0.3} />
 
         {/* warm interior atmosphere: a faint golden breath inside the body —
             volumetric, so it dissolves instead of reading as a disk edge */}
         <VolumetricGlow
-          color={neoPalette.goldDeep}
-          opacity={0.3 * goldLevel}
-          power={1.6}
-          radius={0.92}
+          color={neoPalette.goldMid}
+          opacity={0.085 * goldLevel}
+          power={1.9}
+          radius={0.9}
         />
 
         {/* 7-8. inner micro-weave + constellation drift together, then the
@@ -791,7 +790,7 @@ function LivingScene({
             speed={reducedMotion ? 0.02 : parameters.particleVelocity}
             noise={1.05}
             color={neoPalette.lavenderMid}
-            opacity={Math.min(0.6, indigoIntensity)}
+            opacity={Math.min(0.85, indigoIntensity * 1.4)}
           />
         </group>
 
@@ -820,13 +819,15 @@ export function OrganismEngine({
     <Canvas
       camera={{ position: parameters.camera.position, fov: parameters.camera.fieldOfView }}
       dpr={[1, 1.65]}
+      // Opaque framebuffer. With alpha:true, every additive pass accumulated
+      // alpha and composited over the ivory page as a grey veil — the glow
+      // layers were DARKENING the background instead of adding light. An
+      // opaque canvas gives additive blending real light to add to.
       gl={{
         antialias: true,
-        alpha: true,
-        premultipliedAlpha: false,
+        alpha: false,
         powerPreference: 'high-performance',
       }}
-      style={{ background: 'transparent' }}
       fallback={<div className={styles.fallback}>Nehemiah visual engine unavailable.</div>}
     >
       <LivingScene

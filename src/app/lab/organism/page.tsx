@@ -18,8 +18,10 @@ export default function OrganismLaboratoryPage() {
         display: 'flex',
         flexDirection: 'column',
         padding: 'clamp(0.85rem, 2.2vh, 1.75rem) 1.25rem clamp(0.6rem, 1.6vh, 1.25rem)',
-        background:
-          'radial-gradient(circle at 50% 40%, #FBF2F0 0%, #F4EBE2 55%, #EFE4D8 100%)',
+        // Flat ivory, matching the opaque canvas exactly so the square canvas
+        // edge is invisible. Atmosphere now lives in-scene, where additive
+        // light genuinely adds instead of veiling.
+        background: '#F4EBE2',
         color: '#403c34',
       }}
     >
