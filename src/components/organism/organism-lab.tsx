@@ -260,7 +260,16 @@ export function OrganismLab() {
       </div>
 
       <div className={styles.statusRow}>
-        <span className={styles.statusDot} data-asleep={asleep} aria-hidden="true" />
+        <span
+          className={styles.statusDot}
+          data-asleep={asleep}
+          aria-hidden="true"
+          style={
+            {
+              '--pulse-seconds': `${(2 * Math.PI) / parameters.corePulseRate}s`,
+            } as React.CSSProperties
+          }
+        />
         <span aria-live="polite">{statusLabel}</span>
         {reducedMotion ? <span>Reduced motion active</span> : null}
       </div>

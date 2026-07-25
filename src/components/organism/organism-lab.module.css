@@ -101,6 +101,27 @@
   border-radius: 50%;
   background: #b8964e;
   box-shadow: 0 0 16px rgba(184, 150, 78, 0.55);
+  /* Synced to the organism's own live corePulseRate via --pulse-seconds (set
+     from JS, same pattern as --surface-glow below) so this reads as the
+     organism's pulse surfacing here, not an indicator doing its own thing. */
+  animation: statusPulse var(--pulse-seconds, 8s) ease-in-out infinite;
+}
+
+.statusDot[data-asleep='true'] {
+  animation: none;
+  box-shadow: 0 0 6px rgba(184, 150, 78, 0.22);
+}
+
+@keyframes statusPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(184, 150, 78, 0.4);
+    transform: scale(0.92);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(184, 150, 78, 0.7);
+    transform: scale(1.08);
+  }
 }
 
 .jumpDots {
@@ -248,5 +269,10 @@
   .jumpDot::before,
   .commandSurface {
     transition: none;
+  }
+
+  .statusDot {
+    animation: none;
+    box-shadow: 0 0 12px rgba(184, 150, 78, 0.45);
   }
 }
