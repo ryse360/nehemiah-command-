@@ -11,21 +11,17 @@ import {
   type TransitionPersonality,
 } from '@/nehemiah/organism-transition';
 import { organismFloatOffset, resolveMotionScale } from '@/nehemiah/organism-motion';
-import { organismField, type MajorFilament } from '@/nehemiah/organism-field';
+import {
+  ORGANISM_FIELD_OPTIONS,
+  organismField,
+  type MajorFilament,
+} from '@/nehemiah/organism-field';
 import { neoPalette } from '@/nehemiah/organism-palette';
 import { VolumetricGlow } from './volumetric-glow';
 import { LuminousCore } from './luminous-core';
 import styles from './organism-lab.module.css';
 
-const FIELD_OPTIONS = {
-  seed: 11,
-  nodeCount: 420,
-  connectionRadius: 0.155,
-  majorFilamentCount: 190,
-  microFilamentCount: 900,
-  arcCount: 8,
-  flareCount: 8,
-} as const;
+const FIELD_OPTIONS = ORGANISM_FIELD_OPTIONS;
 
 const MEMBRANE_RADIUS = 1.02;
 
@@ -123,7 +119,7 @@ function BatchedFilaments({
 }) {
   const { points, vertexColors } = useMemo(() => {
     const pts: [number, number, number][] = [];
-    const cols: [number, number, number][] = [];
+    const cols: ([number, number, number] | [number, number, number, number])[] = [];
     const colors = familyColors(family);
 
     for (const filament of filaments) {
@@ -148,12 +144,22 @@ function BatchedFilaments({
             : filament.brightness > 0.5
               ? colors.core
               : colors.halo;
-      const tint = new THREE.Color(hex).multiplyScalar(strength);
+      const full = new THREE.Color(hex);
+      const tint = full.clone().multiplyScalar(strength);
 
       for (let i = 0; i < samples.length - 1; i += 1) {
         // taper toward both ends so strands dissolve instead of stopping
         const t = i / (samples.length - 1);
         const taper = 0.35 + 0.65 * Math.sin(t * Math.PI);
+        if (family === 'lavender') {
+          const a = Math.min(0.72, strength * taper * 1.25);
+          pts.push(
+            [samples[i].x, samples[i].y, samples[i].z],
+            [samples[i + 1].x, samples[i + 1].y, samples[i + 1].z],
+          );
+          cols.push([full.r, full.g, full.b, a], [full.r, full.g, full.b, a]);
+          continue;
+        }
         const c = tint.clone().multiplyScalar(taper);
         pts.push(
           [samples[i].x, samples[i].y, samples[i].z],
@@ -178,7 +184,7 @@ function BatchedFilaments({
       transparent
       opacity={1}
       lineWidth={lineWidth}
-      blending={THREE.AdditiveBlending}
+      blending={family === 'lavender' ? THREE.NormalBlending : THREE.AdditiveBlending}
       depthWrite={false}
       toneMapped={false}
     />

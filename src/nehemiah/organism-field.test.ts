@@ -1,17 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { organismField, type FieldOptions } from './organism-field';
+import {
+  ORGANISM_FIELD_OPTIONS,
+  organismField,
+  type FieldOptions,
+} from './organism-field';
 
-const defaults: FieldOptions = {
-  seed: 11,
-  nodeCount: 120,
-  connectionRadius: 0.34,
-  majorFilamentCount: 26,
-  microFilamentCount: 170,
-  arcCount: 8,
-  flareCount: 8,
-};
-
+const defaults: FieldOptions = ORGANISM_FIELD_OPTIONS;
 const dist = (a: [number, number, number], b: [number, number, number]) =>
   Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 const len = (p: [number, number, number]) => Math.hypot(p[0], p[1], p[2]);
@@ -198,4 +193,34 @@ test('arcs and flares follow the motion spec', () => {
     assert.ok(flare.pulseSeconds >= 1.8 && flare.pulseSeconds <= 4.8);
     assert.ok(flare.scale >= 0.03 && flare.scale <= 0.07);
   }
+});
+
+test('the specs above are exercised against the field that actually ships', () => {
+  // A divergent copy of these options in the engine meant every reach, depth
+  // and brightness rule was being proven against a field nobody ever saw.
+  assert.equal(defaults, ORGANISM_FIELD_OPTIONS);
+  assert.ok(ORGANISM_FIELD_OPTIONS.majorFilamentCount >= 120, 'a genuine weave, not a few cables');
+  assert.ok(ORGANISM_FIELD_OPTIONS.microFilamentCount >= 400);
+});
+
+test('tuning one layer never re-rolls another', () => {
+  const base = organismField(ORGANISM_FIELD_OPTIONS);
+
+  const moreFilaments = organismField({
+    ...ORGANISM_FIELD_OPTIONS,
+    majorFilamentCount: ORGANISM_FIELD_OPTIONS.majorFilamentCount + 1,
+  });
+  assert.deepEqual(moreFilaments.arcs, base.arcs, 'arcs survive a filament change');
+
+  const moreArcs = organismField({
+    ...ORGANISM_FIELD_OPTIONS,
+    arcCount: ORGANISM_FIELD_OPTIONS.arcCount + 1,
+  });
+  assert.deepEqual(moreArcs.flares, base.flares, 'flares survive an arc change');
+
+  const moreMicro = organismField({
+    ...ORGANISM_FIELD_OPTIONS,
+    microFilamentCount: ORGANISM_FIELD_OPTIONS.microFilamentCount + 50,
+  });
+  assert.deepEqual(moreMicro.filaments, base.filaments, 'majors survive a micro change');
 });

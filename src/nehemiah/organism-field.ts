@@ -49,6 +49,20 @@ export interface FieldOptions {
   flareCount: number;
 }
 
+// The single source of truth for the shipped field. The engine imports this
+// rather than declaring its own copy, so the specs below are exercised
+// against exactly what renders — a divergent copy meant the reach, depth and
+// brightness rules were being proven against a field nobody ever saw.
+export const ORGANISM_FIELD_OPTIONS: FieldOptions = {
+  seed: 11,
+  nodeCount: 420,
+  connectionRadius: 0.145,
+  majorFilamentCount: 190,
+  microFilamentCount: 900,
+  arcCount: 8,
+  flareCount: 8,
+};
+
 export interface OrganismFieldResult {
   nodes: FieldNode[];
   connections: FieldConnection[];
@@ -224,18 +238,22 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
 
   // Most arcs hug the organism; the last few reach restrained orbits well
   // beyond it, so the field extends past the shell without shouting.
+  // Own RNG stream: tuning filament counts must never re-roll the arcs.
+  const arcRng = mulberry32(options.seed ^ 0x85ebca6b);
   const arcs: OrbitalArc[] = [];
   for (let index = 0; index < options.arcCount; index += 1) {
     const far = index >= options.arcCount - 3;
     arcs.push({
-      radius: far ? 1.6 + rng() * 0.35 : 1.25 + rng() * 0.3,
-      tilt: [rng() * Math.PI, rng() * Math.PI, rng() * Math.PI],
+      radius: far ? 1.6 + arcRng() * 0.35 : 1.25 + arcRng() * 0.3,
+      tilt: [arcRng() * Math.PI, arcRng() * Math.PI, arcRng() * Math.PI],
       direction: index % 2 === 0 ? 1 : -1,
-      periodSeconds: 16 + rng() * 16,
+      periodSeconds: 16 + arcRng() * 16,
     });
   }
 
   const brightestFirst = [...filaments].sort((a, b) => b.brightness - a.brightness);
+  // Own RNG stream, for the same reason as the arcs.
+  const flareRng = mulberry32(options.seed ^ 0xc2b2ae35);
   const flares: NodalFlare[] = [];
   for (let index = 0; index < options.flareCount; index += 1) {
     const filament = brightestFirst[index % brightestFirst.length];
@@ -246,9 +264,9 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
     flares.push({
       position: anchor,
       family: filament.family,
-      scale: 0.03 + rng() * 0.04,
-      pulseSeconds: 1.8 + rng() * 3,
-      phase: rng() * Math.PI * 2,
+      scale: 0.03 + flareRng() * 0.04,
+      pulseSeconds: 1.8 + flareRng() * 3,
+      phase: flareRng() * Math.PI * 2,
     });
   }
 
