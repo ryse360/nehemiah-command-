@@ -114,6 +114,7 @@ Recorded rather than hidden, so nobody mistakes silence for completion.
 | Real-hardware frame rate | UNVERIFIED | This build environment has no GPU. All FPS figures describe a CPU software rasterizer and overweight vertex cost. Needs measuring on real hardware. |
 | Violet volume / ribbon strength balance | VISUAL-REVIEW | Landed and measured, but the final call on how cool the reasoning region should read at `decision-required` is the Founder's, not a number a test can settle. |
 | Tier 3 audit findings | PLANNED | ~38 medium / 10 low severity items from the six-lens audit remain unimplemented. |
+| Real AI path — cost governance (step 2) | 2a DONE / 2b PLANNED | Reconciled: the cost boundary now wraps the REAL provider as `GovernedProvider` (via `aiProviderFromEnv`) adding caching + a hard per-call ceiling + telemetry — the real path had none. **2a** (per-operation ceiling, cache, telemetry, warm-process daily ledger) is landed + tested. **2b** (durable Postgres-backed ledger for a true cross-request daily ceiling, and capturing the provider's token `usage` for billed rather than estimated cost) is the remaining completion. Complexity routing is deferred until more than one model tier is configured. |
 
 ## Process
 

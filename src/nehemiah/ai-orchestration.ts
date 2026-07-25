@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { governedProviderFromEnv } from './ai-governed-provider';
 
 const ALLOWED_TOOLS = new Set(['search-founder-memory', 'read-enterprise-context']);
 const REQUIRED_STRING_FIELDS = [
@@ -270,5 +271,10 @@ export function aiProviderFromEnv(): AIModelProvider {
   const apiKey = process.env.NEHEMIAH_AI_API_KEY;
   const model = process.env.NEHEMIAH_AI_MODEL;
   if (!apiKey || !model) throw new AIOrchestrationError('not_configured', 'AI orchestration is not configured.');
-  return new OpenAICompatibleResponsesProvider({ apiKey, model, baseUrl: process.env.NEHEMIAH_AI_BASE_URL });
+  const provider = new OpenAICompatibleResponsesProvider({ apiKey, model, baseUrl: process.env.NEHEMIAH_AI_BASE_URL });
+  // Govern the real provider: caching + a hard per-call spend ceiling +
+  // telemetry sit in front of every real AI call (see ai-governed-provider).
+  // Deferred import keeps ai-orchestration free of the cost modules at the type
+  // layer; this is the only production wiring point.
+  return governedProviderFromEnv(provider, model);
 }
