@@ -138,12 +138,15 @@ function BatchedFilaments({
       // only a fraction is fully legible, so support strands bind the field
       // quietly and recessive strands are sensed rather than read.
       if (halo && filament.filamentClass !== 'hero') continue;
+      // Recessive mass pulled well back: the reference's texture is a point-
+      // graph punctuated by a few legible strands, not a ball of thread. The
+      // hero/support hierarchy stays; the fog around it thins.
       const classGain =
         filament.filamentClass === 'hero'
           ? 1
           : filament.filamentClass === 'support'
-            ? 0.5
-            : 0.11;
+            ? 0.42
+            : 0.06;
       const strength = halo
         ? Math.min(0.2, Math.max(0.04, base * filament.brightness * 0.34)) * 0.85
         : Math.min(0.62, Math.max(0.03, base * (0.3 + filament.brightness * 0.7) * classGain));
@@ -294,9 +297,12 @@ function MicroWeave({
     for (const micro of members) {
       const vectors = micro.controlPoints.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
       const samples = new THREE.CatmullRomCurve3(vectors).getPoints(8);
+      // Roughly half its former weight. This layer is latent tissue; at the
+      // old gains it accumulated into the "hairball" that buried the crisp
+      // point-graph the reference is actually built from.
       const tint = (micro.family === 'gold' ? goldColor : lavenderColor)
         .clone()
-        .multiplyScalar(micro.opacity * (micro.family === 'lavender' ? 11 : 6));
+        .multiplyScalar(micro.opacity * (micro.family === 'lavender' ? 6.2 : 3.2));
 
       for (let index = 0; index < samples.length - 1; index += 1) {
         // taper: strands fade toward both ends
@@ -418,6 +424,87 @@ function Dendrites({
       depthWrite={false}
       toneMapped={false}
     />
+  );
+}
+
+// Beads: tiny bright nodes seated ON the strand paths themselves. This is
+// the reference's defining texture — its filaments are not drawn lines but
+// strings of discrete luminous points, wiring with solder joints. Sampling
+// the dendrite geometry directly guarantees every bead sits exactly on a
+// strand, so the two layers can never drift apart, and the whole pass is a
+// single draw call. Seeded stride-jitter keeps the spacing organic without
+// touching any field RNG stream.
+function StrandBeads({
+  goldIntensity,
+  indigoIntensity,
+}: {
+  goldIntensity: number;
+  indigoIntensity: number;
+}) {
+  const goldLevel = goldIntensity / 1.18;
+  const indigoLevel = indigoIntensity / 0.85;
+
+  const geometry = useMemo(() => {
+    const positions: number[] = [];
+    const colors: number[] = [];
+    const gold = new THREE.Color(neoPalette.goldLight);
+    const hot = new THREE.Color(neoPalette.shellWhite);
+    // lavenderMid boosted: lavenderLight is nearly white, and white beads on
+    // the right read as grey dust — the reference's right side is saturated
+    // amethyst, so the beads must carry real chroma
+    const lavender = new THREE.Color(neoPalette.lavenderMid).multiplyScalar(1.45);
+
+    let jitterState = 7;
+    const jitter = () => {
+      // tiny deterministic LCG — display-only spacing, no field stream touched
+      jitterState = (jitterState * 48271) % 2147483647;
+      return jitterState / 2147483647;
+    };
+
+    for (const dendrite of FIELD.dendrites) {
+      if (dendrite.generation > 1) continue;
+      const level = dendrite.family === 'gold' ? goldLevel : indigoLevel;
+      const genGain = dendrite.generation === 0 ? 1 : 0.55;
+      const stride = dendrite.generation === 0 ? 2 : 3;
+      for (let i = 1; i < dendrite.points.length - 1; i += stride) {
+        if (jitter() < 0.25) continue;
+        const p = dendrite.points[i];
+        positions.push(p[0], p[1], p[2]);
+        const t = i / (dendrite.points.length - 1);
+        // beads brighten toward the strand's outer reach, then the last few
+        // fade — the strand dissolves into points at its tip
+        const along = Math.sin(Math.min(1, t * 1.15) * Math.PI);
+        const base = dendrite.family === 'gold'
+          ? (jitter() < 0.3 ? hot : gold)
+          : lavender;
+        const c = base
+          .clone()
+          .multiplyScalar(
+            (0.5 + 0.85 * along) * dendrite.brightness * genGain * level,
+          );
+        colors.push(c.r, c.g, c.b);
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    return geo;
+  }, [goldLevel, indigoLevel]);
+
+  return (
+    <points geometry={geometry}>
+      <pointsMaterial
+        vertexColors
+        size={0.03}
+        transparent
+        opacity={0.95}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        toneMapped={false}
+        sizeAttenuation
+      />
+    </points>
   );
 }
 
@@ -577,7 +664,7 @@ function VolumetricRibbons({ intensity }: { intensity: number }) {
         // sheet read as a lit edge. Three vertices across — dark, bright, dark —
         // let the strength go up while both borders still dissolve.
         const edge = tint.clone().multiplyScalar(taper * 0.0016 * intensity);
-        const mid = tint.clone().multiplyScalar(taper * 0.052 * intensity);
+        const mid = tint.clone().multiplyScalar(taper * 0.04 * intensity);
 
         const f0 = frames[i];
         const f1 = frames[i + 1];
@@ -610,35 +697,59 @@ function VolumetricRibbons({ intensity }: { intensity: number }) {
   );
 }
 
-// Latent intelligence tissue — NOT a wireframe. Nodes and their short links
-// are coloured by family and weighted by centrality, so the graph reads as
-// clustered connective tissue that dissolves before the eye fully tracks it.
-// Uniform bright linking is what turns this into an exposed polygon cage.
+// The point-graph — the layer the reference is actually made of. Discrete
+// bright nodes joined by clean thin edges, jewel-like, almost engineered.
+// Two node passes: the full constellation as fine specks, and the high-
+// centrality hubs as distinctly larger, near-white points — the reference's
+// texture is exactly this separation, many faint points punctuated by a
+// scatter of unmistakable ones. Uniform bright linking is still the enemy:
+// edges stay thin and centrality-weighted so the graph never becomes a cage.
 function NodeConstellation({ intensity }: { intensity: number }) {
   const field = FIELD;
 
-  const { nodeGeometry, edgeGeometry } = useMemo(() => {
-    const nodePositions = new Float32Array(field.nodes.length * 3);
-    const nodeColors = new Float32Array(field.nodes.length * 3);
+  const { nodeGeometry, hubGeometry, edgeGeometry } = useMemo(() => {
     const gold = new THREE.Color(neoPalette.goldLight);
-    const lavender = new THREE.Color(neoPalette.lavenderLight);
+    const lavender = new THREE.Color(neoPalette.lavenderMid).multiplyScalar(1.35);
+    const hotGold = new THREE.Color(neoPalette.shellWhite);
+    const hotLavender = new THREE.Color(neoPalette.lavenderLight);
 
-    field.nodes.forEach((node, index) => {
-      nodePositions.set(node.position, index * 3);
-      // central nodes glow; peripheral ones barely register
-      const tint = (node.family === 'gold' ? gold : lavender)
+    const HUB_CENTRALITY = 0.68;
+    const hubs = field.nodes.filter((n) => n.centrality >= HUB_CENTRALITY);
+    const rest = field.nodes.filter((n) => n.centrality < HUB_CENTRALITY);
+
+    const build = (
+      nodes: typeof field.nodes,
+      tintFor: (node: (typeof field.nodes)[number]) => THREE.Color,
+    ) => {
+      const positions = new Float32Array(nodes.length * 3);
+      const colors = new Float32Array(nodes.length * 3);
+      nodes.forEach((node, index) => {
+        positions.set(node.position, index * 3);
+        const tint = tintFor(node);
+        colors.set([tint.r, tint.g, tint.b], index * 3);
+      });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      return geo;
+    };
+
+    const nodeGeo = build(rest, (node) =>
+      (node.family === 'gold' ? gold : lavender)
         .clone()
-        .multiplyScalar(0.25 + 0.75 * node.centrality);
-      nodeColors.set([tint.r, tint.g, tint.b], index * 3);
-    });
+        .multiplyScalar(0.3 + 0.7 * node.centrality),
+    );
 
-    const nodeGeo = new THREE.BufferGeometry();
-    nodeGeo.setAttribute('position', new THREE.BufferAttribute(nodePositions, 3));
-    nodeGeo.setAttribute('color', new THREE.BufferAttribute(nodeColors, 3));
+    // Hubs burn close to white-hot: these are the discrete jewels.
+    const hubGeo = build(hubs, (node) =>
+      (node.family === 'gold' ? hotGold : hotLavender)
+        .clone()
+        .multiplyScalar(0.75 + 0.25 * node.centrality),
+    );
 
     const edgePositions = new Float32Array(field.connections.length * 6);
     const edgeColors = new Float32Array(field.connections.length * 6);
-    const goldEdge = new THREE.Color(neoPalette.goldDeep);
+    const goldEdge = new THREE.Color(neoPalette.goldMid);
     const lavenderEdge = new THREE.Color(neoPalette.lavenderMid);
 
     field.connections.forEach((edge, index) => {
@@ -658,18 +769,17 @@ function NodeConstellation({ intensity }: { intensity: number }) {
     edgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
     edgeGeo.setAttribute('color', new THREE.BufferAttribute(edgeColors, 3));
 
-    return { nodeGeometry: nodeGeo, edgeGeometry: edgeGeo };
+    return { nodeGeometry: nodeGeo, hubGeometry: hubGeo, edgeGeometry: edgeGeo };
   }, [field]);
 
   return (
     <group>
-      {/* the connective intelligence beneath the major strands: a warm,
-          clearly luminous web of short node-to-node connections */}
+      {/* clean thin edges between discrete points — the graph's wiring */}
       <lineSegments geometry={edgeGeometry}>
         <lineBasicMaterial
           vertexColors
           transparent
-          opacity={0.11 * intensity}
+          opacity={0.22 * intensity}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -678,9 +788,21 @@ function NodeConstellation({ intensity }: { intensity: number }) {
       <points geometry={nodeGeometry}>
         <pointsMaterial
           vertexColors
-          size={0.016}
+          size={0.015}
           transparent
-          opacity={0.45 * intensity}
+          opacity={0.6 * intensity}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+          sizeAttenuation
+        />
+      </points>
+      <points geometry={hubGeometry}>
+        <pointsMaterial
+          vertexColors
+          size={0.038}
+          transparent
+          opacity={0.95 * intensity}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -759,31 +881,51 @@ function NodalFlares({ intensity, motionScale }: { intensity: number; motionScal
 // transparent at the silhouette. One mesh, no visible sphere edge.
 const bodyShader = {
   uniforms: {
-    uCenterColor: { value: new THREE.Color('#4a3728') },
+    // Near-black at the deepest pockets. The reference's gold and violet only
+    // punch because the gaps between its lobes are genuinely dark; a warm
+    // mid-umber center (the old #4a3728) lifted the whole interior to a
+    // midtone and every glow layer lost half its contrast before it started.
+    uCenterColor: { value: new THREE.Color('#181008') },
+    uMidColor: { value: new THREE.Color('#4a3728') },
     uEdgeColor: { value: new THREE.Color('#8a6f52') },
     uOpacity: { value: 0.9 },
   },
   vertexShader: /* glsl */ `
     varying vec3 vNormal;
     varying vec3 vViewDir;
+    varying vec3 vLocalPos;
     void main() {
       vNormal = normalize(normalMatrix * normal);
       vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
       vViewDir = normalize(-mvPosition.xyz);
+      vLocalPos = position;
       gl_Position = projectionMatrix * mvPosition;
     }
   `,
   fragmentShader: /* glsl */ `
     uniform vec3 uCenterColor;
+    uniform vec3 uMidColor;
     uniform vec3 uEdgeColor;
     uniform float uOpacity;
     varying vec3 vNormal;
     varying vec3 vViewDir;
+    varying vec3 vLocalPos;
     void main() {
       float facing = abs(dot(normalize(vNormal), normalize(vViewDir)));
-      float density = pow(facing, 1.35);
-      vec3 color = mix(uEdgeColor, uCenterColor, density);
-      gl_FragColor = vec4(color, density * uOpacity);
+      float density = pow(facing, 1.18);
+      // Lobed darkness: the deep tone gathers in petal-shaped pockets rather
+      // than one uniform vignette, so the interior reads as segmented volume
+      // (the reference's mandala structure) instead of amorphous haze. Two
+      // angular frequencies, offset by depth, keep the petals asymmetric.
+      float ang = atan(vLocalPos.y, vLocalPos.x);
+      float lobe = 0.5
+        + 0.32 * sin(ang * 5.0 + vLocalPos.z * 2.1 + 0.7)
+        + 0.18 * sin(ang * 3.0 - vLocalPos.z * 1.4 - 1.9);
+      float pocket = smoothstep(0.25, 0.85, lobe);
+      vec3 deep = mix(uMidColor, uCenterColor, pocket);
+      vec3 color = mix(uEdgeColor, deep, density);
+      float alpha = density * uOpacity * mix(0.82, 1.2, pocket);
+      gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
     }
   `,
 };
@@ -890,7 +1032,8 @@ const membraneShader = {
     varying vec3 vViewDir;
     varying vec3 vLocalPos;
     void main() {
-      float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewDir))), 4.2);
+      float facing = abs(dot(normalize(vNormal), normalize(vViewDir)));
+      float rim = pow(1.0 - facing, 4.2);
       float ang = atan(vLocalPos.y, vLocalPos.x);
       // Broad overlapping sweeps rather than one closed ring: the boundary is
       // defined by light accumulation, so some arcs glow and others dissolve
@@ -899,9 +1042,14 @@ const membraneShader = {
           0.42 + 0.34 * sin(ang * 2.0 + 0.9)
                + 0.24 * sin(ang * 3.0 - 2.1 + vLocalPos.z * 1.6),
           0.12, 1.0);
+      // Refractive glass edge: a second, far tighter fresnel that hugs the
+      // silhouette. It is what separates "glass sphere" from "soft halo" —
+      // still a gradient (no stroked circle), but steep enough to read as a
+      // surface. Modulated gently so it brightens where the sweeps do.
+      float glass = pow(1.0 - facing, 11.0) * (0.55 + 0.45 * sweep) * 2.6;
       float mixAmount = smoothstep(-0.6, 0.9, vLocalPos.x);
       vec3 color = mix(uGoldColor, uLavenderColor, mixAmount);
-      gl_FragColor = vec4(color, rim * uStrength * sweep);
+      gl_FragColor = vec4(color, (rim * sweep + glass) * uStrength);
     }
   `,
 };
@@ -935,7 +1083,7 @@ function Membrane({ intensity }: { intensity: number }) {
           the membrane dissolves into the ivory instead of ending in a ring */}
       <VolumetricGlow
         color={neoPalette.goldLight}
-        opacity={0.06 * intensity}
+        opacity={0.045 * intensity}
         power={1.4}
         radius={MEMBRANE_RADIUS * 1.2}
       />
@@ -1125,33 +1273,35 @@ function LivingScene({
               rather than an edge */}
           <VolumetricGlow
             color={neoPalette.lavenderMid}
-            opacity={Math.min(0.22, 0.2 * (indigoIntensity / 0.85))}
-            power={1.55}
-            radius={0.95}
+            opacity={Math.min(0.17, 0.15 * (indigoIntensity / 0.85))}
+            power={1.7}
+            radius={0.8}
           />
           {/* body of the volume: this is the layer that gives the hemisphere
               actual presence against the warm field */}
           <VolumetricGlow
             color={neoPalette.lavenderMid}
             opacity={Math.min(0.34, 0.3 * (indigoIntensity / 0.85))}
-            power={2.0}
-            radius={0.7}
+            power={2.2}
+            radius={0.55}
           />
           {/* saturated heart: lavenderDark keeps the volume violet instead of
               washing to white as additive layers accumulate */}
           <VolumetricGlow
             color={neoPalette.lavenderDark}
-            opacity={Math.min(0.3, 0.26 * (indigoIntensity / 0.85))}
-            power={2.6}
-            radius={0.46}
+            opacity={Math.min(0.36, 0.32 * (indigoIntensity / 0.85))}
+            power={2.8}
+            radius={0.4}
           />
         </group>
 
         {/* warm interior atmosphere: a faint golden breath inside the body —
-            volumetric, so it dissolves instead of reading as a disk edge */}
+            volumetric, so it dissolves instead of reading as a disk edge.
+            Deliberately quiet: this wash sits on top of the dark pockets, and
+            every unit of it here is a unit of chiaroscuro lost. */}
         <VolumetricGlow
           color={neoPalette.goldMid}
-          opacity={0.085 * goldLevel}
+          opacity={0.045 * goldLevel}
           power={1.9}
           radius={0.9}
         />
@@ -1175,6 +1325,11 @@ function LivingScene({
         <Dendrites
           generation={0}
           lineWidth={0.85}
+          goldIntensity={goldIntensity}
+          indigoIntensity={indigoIntensity}
+        />
+        {/* the beads that turn drawn lines into strings of luminous points */}
+        <StrandBeads
           goldIntensity={goldIntensity}
           indigoIntensity={indigoIntensity}
         />
