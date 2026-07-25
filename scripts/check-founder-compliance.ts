@@ -28,14 +28,21 @@ function read(relative: string): string {
 
 // ---------------------------------------------------------------------------
 // 1. Dependency freeze — no unapproved rendering/animation dependencies.
+//
+// The freeze was deliberately reopened by Founder decision (2026-07-25) to
+// adopt a force-directed graph rendering stack for the node-graph artifact.
+// Sanctioned additions, with the trade-offs stated to the Founder before
+// install: 3d-force-graph, r3f-forcegraph (force-graph engine + R3F wrapper),
+// @react-three/postprocessing + postprocessing (emissive bloom — previously
+// banned by name, override accepted), react-glass-ui (glassmorphic cards).
+// The denylist below still catches OTHER unsanctioned animation libraries so
+// the freeze remains meaningful for everything the Founder did NOT approve.
 const pkg = JSON.parse(read('package.json')) as {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
 };
 const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
 const forbiddenDeps = [
-  '@react-three/postprocessing',
-  'postprocessing',
   '@theatre/core',
   '@theatre/studio',
   'theatre',
@@ -48,7 +55,7 @@ check(
   'dependency freeze holds',
   foundForbidden.length === 0,
   foundForbidden.length === 0
-    ? 'no unapproved rendering/animation dependencies'
+    ? 'no unapproved rendering/animation dependencies (force-graph + bloom + glass sanctioned 2026-07-25)'
     : `forbidden: ${foundForbidden.join(', ')}`,
 );
 

@@ -67,7 +67,7 @@ Run the whole gate locally: `npm run gate`
 
 | Detail | Status | Enforcement |
 |---|---|---|
-| Dependency freeze (no postprocessing/Theatre/animation libs) | FOUNDER-LOCKED + ENFORCED | `check-founder-compliance` §1 |
+| Dependency freeze — **reopened by Founder decision 2026-07-25** to adopt a force-graph rendering stack | FOUNDER-DECISION + ENFORCED | `check-founder-compliance` §1. Sanctioned with trade-offs stated before install: `3d-force-graph` + `r3f-forcegraph` (force-graph engine/wrapper), `@react-three/postprocessing` + `postprocessing` (bloom — previously banned by name, override accepted), `react-glass-ui` (glass cards, touches the dashboard surface). Denylist still catches all other animation libs. |
 | Leva confined to the lab shell; engine layers clean | ENFORCED | `check-founder-compliance` §3; `organism-architecture.test.ts` |
 | Every governed module carries tests | ENFORCED | `check-founder-compliance` §10 |
 | Tests, typecheck, build green before any push | ENFORCED | CI (`.github/workflows/ci.yml`) on every push and PR |

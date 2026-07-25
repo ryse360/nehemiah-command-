@@ -23,11 +23,15 @@
   "dependencies": {
     "@react-three/drei": "10.7.7",
     "@react-three/fiber": "9.6.1",
+    "@react-three/postprocessing": "^3.0.4",
+    "3d-force-graph": "^1.80.0",
     "leva": "^0.10.1",
     "next": "16.2.10",
     "postgres": "3.4.9",
+    "r3f-forcegraph": "^1.1.1",
     "react": "19.1.1",
     "react-dom": "19.1.1",
+    "react-glass-ui": "^1.2.2",
     "three": "0.185.1"
   },
   "devDependencies": {
