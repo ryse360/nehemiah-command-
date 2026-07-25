@@ -153,6 +153,12 @@ export function blendOrganismParameters(
     rotationDrift: lerp(from.rotationDrift, to.rotationDrift, blend),
     floatAmplitude: lerp(from.floatAmplitude, to.floatAmplitude, blend),
     floatSpeed: lerp(from.floatSpeed, to.floatSpeed, blend),
+    coreBodyRadius: lerp(from.coreBodyRadius, to.coreBodyRadius, blend),
+    coreHaloRadius: lerp(from.coreHaloRadius, to.coreHaloRadius, blend),
+    coreKernelRadius: lerp(from.coreKernelRadius, to.coreKernelRadius, blend),
+    coreHaloOpacity: lerp(from.coreHaloOpacity, to.coreHaloOpacity, blend),
+    corePulseRate: lerp(from.corePulseRate, to.corePulseRate, blend),
+    corePulseAmplitude: lerp(from.corePulseAmplitude, to.corePulseAmplitude, blend),
     camera: {
       position: [
         lerp(from.camera.position[0], to.camera.position[0], blend),

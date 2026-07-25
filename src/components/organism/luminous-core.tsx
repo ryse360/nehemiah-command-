@@ -16,18 +16,23 @@ export function LuminousCore({
   parameters: OrganismParameters;
   reducedMotion: boolean;
 }) {
-  const shape = organismCoreModel.resting;
+  // Read the LIVE per-state parameters. These were previously pinned to
+  // organismCoreModel.resting, which silently discarded five of the eight
+  // per-state core values — the focal point never changed shape or pulse
+  // across the lifecycle, and never cross-faded during a transition.
   const CORE_VISUAL_SCALE = 0.52;
+  const restingShape = organismCoreModel.resting;
   const profile = {
-    bodyRadius: shape.bodyRadius * CORE_VISUAL_SCALE,
-    haloRadius: shape.haloRadius * CORE_VISUAL_SCALE,
-    kernelRadius: shape.kernelRadius * CORE_VISUAL_SCALE,
-    pulseAmplitude: shape.pulseAmplitude,
-    pulseRate: shape.pulseRate,
+    bodyRadius: parameters.coreBodyRadius * CORE_VISUAL_SCALE,
+    haloRadius: parameters.coreHaloRadius * CORE_VISUAL_SCALE,
+    kernelRadius: parameters.coreKernelRadius * CORE_VISUAL_SCALE,
+    pulseAmplitude: parameters.corePulseAmplitude,
+    pulseRate: parameters.corePulseRate,
     emissiveIntensity: parameters.coreIntensity,
-    haloOpacity: shape.haloOpacity,
+    haloOpacity: parameters.coreHaloOpacity,
     pointLightIntensity:
-      parameters.coreIntensity * (shape.pointLightIntensity / shape.emissiveIntensity),
+      parameters.coreIntensity *
+      (restingShape.pointLightIntensity / restingShape.emissiveIntensity),
   };
   const root = useRef<THREE.Group>(null);
   const halo = useRef<THREE.Mesh>(null);

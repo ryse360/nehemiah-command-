@@ -32,6 +32,14 @@ export interface OrganismParameters {
   rotationDrift: number;
   floatAmplitude: number;
   floatSpeed: number;
+  // Core shape and pulse, carried per state so the focal point changes with
+  // the lifecycle instead of being frozen at its resting geometry.
+  coreBodyRadius: number;
+  coreHaloRadius: number;
+  coreKernelRadius: number;
+  coreHaloOpacity: number;
+  corePulseRate: number;
+  corePulseAmplitude: number;
   camera: OrganismCameraParameters;
   lighting: OrganismLightingParameters;
   reducedMotion: OrganismReducedMotionParameters;
@@ -132,6 +140,12 @@ function buildStateParameters(state: NehemiahState): OrganismParameters {
     rotationDrift: render.rotationSpeed,
     floatAmplitude: accent.floatAmplitude,
     floatSpeed: accent.floatSpeed,
+    coreBodyRadius: core.bodyRadius,
+    coreHaloRadius: core.haloRadius,
+    coreKernelRadius: core.kernelRadius,
+    coreHaloOpacity: core.haloOpacity,
+    corePulseRate: core.pulseRate,
+    corePulseAmplitude: core.pulseAmplitude,
     // Closer camera so the volumetric organism fills the stage with the
     // approved commanding presence (the old shell reached further out; the
     // volumetric membrane sits at ~1.02, so the camera compensates).

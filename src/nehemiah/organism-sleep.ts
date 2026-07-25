@@ -15,6 +15,8 @@ export function toSleepParameters(parameters: OrganismParameters): OrganismParam
     indigoConvergence: parameters.indigoConvergence * 0.4,
     coreIntensity: parameters.coreIntensity * 0.32,
     rotationDrift: parameters.rotationDrift * 0.5,
+    coreHaloOpacity: parameters.coreHaloOpacity * 0.4,
+    corePulseRate: parameters.corePulseRate * 0.55,
     floatAmplitude: parameters.floatAmplitude * 0.55,
     floatSpeed: parameters.floatSpeed * 0.5,
     camera: { ...parameters.camera },

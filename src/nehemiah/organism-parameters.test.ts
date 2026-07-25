@@ -122,6 +122,36 @@ test('the organism is dimmest at rest and brightest at proof', () => {
   );
 });
 
+test('per-state core shape and pulse reach the parameter model', () => {
+  // These were read from organismCoreModel.resting inside the renderer, so
+  // five of the eight per-state core values never affected anything. They
+  // must differ across the lifecycle or the focal point is frozen again.
+  const distinct = (pick: (p: (typeof organismStateParameters)['resting']) => number) =>
+    new Set(states.map((state) => pick(organismStateParameters[state]))).size;
+
+  assert.ok(distinct((p) => p.coreBodyRadius) > 1, 'core body radius varies by state');
+  assert.ok(distinct((p) => p.coreHaloRadius) > 1, 'core halo radius varies by state');
+  assert.ok(distinct((p) => p.corePulseRate) > 1, 'core pulse rate varies by state');
+  assert.ok(
+    distinct((p) => p.corePulseAmplitude) > 1,
+    'core pulse amplitude varies by state',
+  );
+
+  for (const state of states) {
+    const parameters = organismStateParameters[state];
+    assert.ok(parameters.coreBodyRadius > 0);
+    assert.ok(parameters.coreKernelRadius > 0);
+    assert.ok(parameters.coreHaloOpacity > 0);
+  }
+});
+
+test('the decision holds its breath while action quickens it', () => {
+  assert.ok(
+    organismStateParameters['decision-required'].corePulseRate <
+      organismStateParameters['action-underway'].corePulseRate,
+  );
+});
+
 test('resolveStateParameters merges overrides onto the requested state', () => {
   const resolved = resolveStateParameters('decision-required', { goldIntensity: 2 });
 
