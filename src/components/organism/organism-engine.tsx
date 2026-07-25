@@ -688,7 +688,9 @@ function AmbientStarfield({ intensity }: { intensity: number }) {
         // arithmetically the same fade.
         const tint = background
           .clone()
-          .lerp(star.family === 'gold' ? warm : cool, Math.min(0.8, star.opacity * 1.25));
+          // stronger tint so the stars read as intentional specks against the
+          // ivory rather than paper texture (was *1.25, too faint to register)
+          .lerp(star.family === 'gold' ? warm : cool, Math.min(0.92, star.opacity * 1.9));
         colors.set([tint.r, tint.g, tint.b], index * 3);
       });
       const geometry = new THREE.BufferGeometry();
@@ -1343,6 +1345,12 @@ const bodyShader = {
       vec3 deep = mix(uMidColor, uCenterColor, pocket);
       vec3 color = mix(uEdgeColor, deep, density);
       float alpha = density * uOpacity * mix(0.82, 1.2, pocket);
+      // A thin, high-frequency refractive rim right at the silhouette — this
+      // is what reads as a defined glass shell rather than a fuzzy halo. Warm,
+      // narrow (pow 16), and it fades with uLobe so sleep stays soft.
+      float rim = pow(1.0 - facing, 16.0);
+      color += vec3(0.62, 0.5, 0.34) * rim * (0.5 + 0.5 * uLobe);
+      alpha = max(alpha, rim * 0.85 * uOpacity);
       gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
     }
   `,

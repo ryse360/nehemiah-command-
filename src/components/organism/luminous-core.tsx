@@ -114,25 +114,30 @@ export function LuminousCore({
           <meshBasicMaterial visible={false} />
         </mesh>
 
+        {/* Contained round glow with a CAPPED radius. The wide bloom (was
+            radius ×1.5, opacity 0.66) washed the geodesic net to invisibility
+            at mid-rotation; the reference core is a tight warm kernel that
+            leaves the constellation legible at every angle. Narrower + dimmer
+            outer falloff, steeper power so it stays round and doesn't bleed. */}
         <VolumetricGlow
           color={neoPalette.goldLight}
-          opacity={0.36 * coreLevel}
-          power={1.3}
-          radius={profile.haloRadius * 0.95}
+          opacity={0.24 * coreLevel}
+          power={1.9}
+          radius={profile.haloRadius * 0.7}
         />
 
         <VolumetricGlow
           color={neoPalette.goldMid}
-          opacity={0.66 * coreLevel}
-          power={2.4}
-          radius={profile.bodyRadius * 1.5}
+          opacity={0.44 * coreLevel}
+          power={3.0}
+          radius={profile.bodyRadius * 1.05}
         />
 
         <VolumetricGlow
           color={neoPalette.shellWhite}
-          opacity={0.92 * coreLevel}
-          power={3.4}
-          radius={profile.bodyRadius * 0.75}
+          opacity={0.9 * coreLevel}
+          power={3.6}
+          radius={profile.bodyRadius * 0.62}
         />
 
         <mesh ref={kernel} scale={profile.kernelRadius}>
