@@ -724,25 +724,71 @@ function AmbientStarfield({ intensity }: { intensity: number }) {
 // edges. Three node passes (fine / mid / hub) because a points material
 // carries one size per draw call, and the hubs must read as distinct jewels
 // over the fine field. Round soft sprites, not the default hard squares.
+// Pure mappers for the network globe render layer. Extracted from the
+// component so they can be unit-tested, and so ONE size-class comparator is
+// shared by the pixel bucket, the colour, and the priority — an earlier split
+// (bucket used `< max`, colour/priority used `> 0.75`) disagreed at exactly
+// size===0.75. GLOBE_HUB / GLOBE_MID are the single source of truth.
+export const GLOBE_HUB = 0.75;
+export const GLOBE_MID = 0.4;
+
+export const GLOBE_BUCKETS = [
+  { min: 0, max: GLOBE_MID, px: 7 },
+  { min: GLOBE_MID, max: GLOBE_HUB, px: 12 },
+  { min: GLOBE_HUB, max: Infinity, px: 19 },
+] as const;
+
+export function globeNodePriority(size: number): number {
+  return size >= GLOBE_HUB ? 1 : size >= GLOBE_MID ? 0.35 : 0;
+}
+
+export function globeTwinklePhase(position: readonly [number, number, number]): number {
+  // deterministic per-node phase from position — no RNG stream, always [0,1)
+  return (Math.sin(position[0] * 91.7 + position[1] * 47.3) + 1) / 2;
+}
+
+export function globeNodeColor(
+  node: { size: number; family: 'gold' | 'lavender' },
+  palette: { gold: THREE.Color; goldMidTone: THREE.Color; goldHot: THREE.Color; lavender: THREE.Color },
+): THREE.Color {
+  if (node.family === 'lavender') return palette.lavender;
+  if (node.size >= GLOBE_HUB) return palette.goldHot;
+  if (node.size >= GLOBE_MID) return palette.goldMidTone;
+  return palette.gold;
+}
+
 const GLOBE_POINT_VERT = /* glsl */ `
   attribute vec3 color;
   attribute float aSize;
   attribute float aPhase;
   attribute float aPriority;
+  attribute float aLavender;
   uniform float uScale;
   uniform float uTime;
   uniform float uMotion;
+  uniform float uPulse;      // state pulse rate — twinkle tempo (damped in sleep)
+  uniform float uIndigo;     // indigoIntensity — the reasoning side lights up
+  uniform float uConvergence;// weighing's "gather to a knot" gesture
   varying vec3 vColor;
   varying float vTwinkle;
   void main() {
-    vColor = color;
+    // The reasoning axis: lavender nodes brighten with indigoIntensity and
+    // intensify further as the field converges — so WEIGHING (indigo peak,
+    // convergence high) reads distinctly cool-and-charged, while ENACTING
+    // (warm, dispersed) does not. Gold nodes are untouched.
+    float lavBoost = 1.0 + aLavender * (0.9 * uIndigo + 0.6 * uConvergence);
+    vColor = color * lavBoost;
     // each node breathes on its own phase — a field of stars, never a
-    // synchronized blink. Priority nodes pulse a touch harder (they surface).
+    // synchronized blink. Tempo follows the state's pulse rate, so arousal
+    // quickens the shimmer and sleep (damped uPulse) stills it. Priority
+    // nodes pulse a touch harder (they surface).
     float amp = 0.16 + 0.24 * aPriority;
-    vTwinkle = 1.0 - amp * uMotion * (0.5 + 0.5 * sin(uTime * (0.8 + aPhase) + aPhase * 6.28));
+    float tempo = 0.5 + 1.1 * uPulse + aPhase;
+    vTwinkle = 1.0 - amp * uMotion * (0.5 + 0.5 * sin(uTime * tempo + aPhase * 6.28));
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    // priority nodes read slightly larger, so what matters pulls forward
-    gl_PointSize = aSize * (1.0 + 0.5 * aPriority) * (uScale / -mv.z);
+    // priority nodes read larger; converged lavender hubs swell a touch more
+    float sizeMul = 1.0 + 0.5 * aPriority + aLavender * 0.35 * uConvergence;
+    gl_PointSize = aSize * sizeMul * (uScale / -mv.z);
     gl_Position = projectionMatrix * mv;
   }
 `;
@@ -752,7 +798,8 @@ const GLOBE_POINT_FRAG = /* glsl */ `
   uniform float uOpacity;
   void main() {
     float d = distance(gl_PointCoord, vec2(0.5));
-    float soft = smoothstep(0.5, 0.05, d);
+    // tighter falloff → smaller, sharper nodes (denser constellation read)
+    float soft = smoothstep(0.5, 0.12, d);
     gl_FragColor = vec4(vColor * vTwinkle, soft * uOpacity);
   }
 `;
@@ -760,53 +807,45 @@ const GLOBE_POINT_FRAG = /* glsl */ `
 function NetworkGlobe({
   intensity,
   motionScale,
+  indigoIntensity,
+  indigoConvergence,
+  rotationDrift,
+  pulseRate,
 }: {
   intensity: number;
   motionScale: number;
+  indigoIntensity: number;
+  indigoConvergence: number;
+  rotationDrift: number;
+  pulseRate: number;
 }) {
   const spinRef = useRef<THREE.Group>(null);
-  const { nodePasses, edgeGeometry } = useMemo(() => {
+  const { nodePasses, goldEdgeGeometry, lavenderEdgeGeometry } = useMemo(() => {
     const gold = new THREE.Color(neoPalette.goldMid);
     const goldMidTone = new THREE.Color(neoPalette.goldLight);
     const goldHot = new THREE.Color(neoPalette.shellWhite);
-    const lavender = new THREE.Color(neoPalette.lavenderMid).multiplyScalar(1.3);
+    const lavenderCol = new THREE.Color(neoPalette.lavenderMid).multiplyScalar(1.3);
     const globe = FIELD.globe;
 
-    // three size buckets: [maxSize, pixelSize]
-    const buckets: Array<{ max: number; px: number; nodes: number[] }> = [
-      { max: 0.4, px: 9, nodes: [] },
-      { max: 0.75, px: 15, nodes: [] },
-      { max: 1.01, px: 23, nodes: [] },
-    ];
-    globe.nodes.forEach((node, i) => {
-      (buckets.find((b) => node.size < b.max) ?? buckets[2]).nodes.push(i);
-    });
-
-    const nodePasses = buckets.map(({ px, nodes }) => {
-      const positions = new Float32Array(nodes.length * 3);
-      const colors = new Float32Array(nodes.length * 3);
-      const sizes = new Float32Array(nodes.length);
-      const phases = new Float32Array(nodes.length);
-      const priorities = new Float32Array(nodes.length);
-      nodes.forEach((nodeIndex, k) => {
-        const node = globe.nodes[nodeIndex];
+    const nodePasses = GLOBE_BUCKETS.map(({ max, min, px }) => {
+      const indices = globe.nodes
+        .map((node, i) => ({ node, i }))
+        .filter(({ node }) => node.size >= min && node.size < max);
+      const positions = new Float32Array(indices.length * 3);
+      const colors = new Float32Array(indices.length * 3);
+      const sizes = new Float32Array(indices.length);
+      const phases = new Float32Array(indices.length);
+      const priorities = new Float32Array(indices.length);
+      const lavenderFlags = new Float32Array(indices.length);
+      indices.forEach(({ node }, k) => {
         positions.set(node.position, k * 3);
-        const base =
-          node.family === 'lavender'
-            ? lavender
-            : node.size > 0.75
-              ? goldHot
-              : node.size > 0.4
-                ? goldMidTone
-                : gold;
+        const base = globeNodeColor(node, { gold, goldMidTone, goldHot, lavender: lavenderCol });
         const c = base.clone().multiplyScalar(0.65 + 0.5 * node.size);
         colors.set([c.r, c.g, c.b], k * 3);
         sizes[k] = px;
-        // deterministic per-node twinkle phase from position — no RNG stream.
-        phases[k] = (Math.sin(node.position[0] * 91.7 + node.position[1] * 47.3) + 1) / 2;
-        // priority: the hubs are what "matters" and surface harder. A real
-        // Founder-salience signal replaces this in the personalization slice.
-        priorities[k] = node.size > 0.75 ? 1 : node.size > 0.4 ? 0.35 : 0;
+        phases[k] = globeTwinklePhase(node.position);
+        priorities[k] = globeNodePriority(node.size);
+        lavenderFlags[k] = node.family === 'lavender' ? 1 : 0;
       });
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -814,28 +853,42 @@ function NetworkGlobe({
       geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
       geo.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
       geo.setAttribute('aPriority', new THREE.BufferAttribute(priorities, 1));
+      geo.setAttribute('aLavender', new THREE.BufferAttribute(lavenderFlags, 1));
       return geo;
     });
 
-    // thin geodesic edges, centrality-free but family-tinted and dim
-    const goldEdge = new THREE.Color(neoPalette.goldMid).multiplyScalar(0.5);
-    const lavenderEdge = new THREE.Color(neoPalette.lavenderMid).multiplyScalar(0.5);
-    const ep = new Float32Array(globe.edges.length * 6);
-    const ec = new Float32Array(globe.edges.length * 6);
-    globe.edges.forEach((edge, i) => {
-      const a = globe.nodes[edge.a];
-      const b = globe.nodes[edge.b];
-      ep.set(a.position, i * 6);
-      ep.set(b.position, i * 6 + 3);
-      const tint = a.family === 'lavender' || b.family === 'lavender' ? lavenderEdge : goldEdge;
-      ec.set([tint.r, tint.g, tint.b], i * 6);
-      ec.set([tint.r, tint.g, tint.b], i * 6 + 3);
-    });
-    const edgeGeometry = new THREE.BufferGeometry();
-    edgeGeometry.setAttribute('position', new THREE.BufferAttribute(ep, 3));
-    edgeGeometry.setAttribute('color', new THREE.BufferAttribute(ec, 3));
+    // Edges split by family into two geometries, so the lavender net can
+    // brighten with indigoIntensity independently while the gold net follows
+    // the warm channel. Both are warm/cool gold-family tints — one net, never
+    // a cold generic wireframe.
+    const goldEdgeTint = new THREE.Color(neoPalette.goldMid);
+    const lavenderEdgeTint = new THREE.Color(neoPalette.lavenderMid).multiplyScalar(0.85);
+    const buildEdgeGeo = (isLavenderNet: boolean, tint: THREE.Color) => {
+      const edges = globe.edges.filter((edge) => {
+        const lav =
+          globe.nodes[edge.a].family === 'lavender' ||
+          globe.nodes[edge.b].family === 'lavender';
+        return lav === isLavenderNet;
+      });
+      const ep = new Float32Array(edges.length * 6);
+      const ec = new Float32Array(edges.length * 6);
+      edges.forEach((edge, i) => {
+        ep.set(globe.nodes[edge.a].position, i * 6);
+        ep.set(globe.nodes[edge.b].position, i * 6 + 3);
+        ec.set([tint.r, tint.g, tint.b], i * 6);
+        ec.set([tint.r, tint.g, tint.b], i * 6 + 3);
+      });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(ep, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(ec, 3));
+      return geo;
+    };
 
-    return { nodePasses, edgeGeometry };
+    return {
+      nodePasses,
+      goldEdgeGeometry: buildEdgeGeo(false, goldEdgeTint),
+      lavenderEdgeGeometry: buildEdgeGeo(true, lavenderEdgeTint),
+    };
   }, []);
 
   const pointMaterials = useMemo(
@@ -848,6 +901,9 @@ function NetworkGlobe({
               uOpacity: { value: 1 },
               uTime: { value: 0 },
               uMotion: { value: 1 },
+              uPulse: { value: 0.8 },
+              uIndigo: { value: 0 },
+              uConvergence: { value: 0 },
             },
             vertexShader: GLOBE_POINT_VERT,
             fragmentShader: GLOBE_POINT_FRAG,
@@ -860,39 +916,67 @@ function NetworkGlobe({
   );
 
   const elapsed = useRef(0);
+  const goldLevel = Math.min(1, intensity);
+  const indigoLevel = indigoIntensity / 0.85;
+  // Wakefulness: the globe self-quiets as it dims. goldLevel sits ~0.6-1.0
+  // across the awake states but collapses to ~0.2 in DORMANT sleep, so this
+  // smoothstep is ~1 awake and ~0 asleep — the lever that actually STILLS the
+  // shell in sleep (motionScale stays 1 for non-reduced-motion users, so it
+  // can't). Spin and twinkle both scale by it.
+  const w = Math.min(1, Math.max(0, (goldLevel - 0.35) / 0.25));
+  const wake = w * w * (3 - 2 * w);
   useFrame((state, delta) => {
     elapsed.current += delta;
     // aSize is a target size in PIXELS, so the perspective factor must be
     // ~1 at the nodes' distance: uScale = cameraDistance × dpr makes
-    // gl_PointSize ≈ aSize device-pixels. (Multiplying by canvas height —
-    // ~630 — instead blew each point up to ~1100px, one white quad.)
+    // gl_PointSize ≈ aSize device-pixels.
     const scale = state.camera.position.length() * state.viewport.dpr;
     for (const m of pointMaterials) {
       m.uniforms.uScale.value = scale;
-      m.uniforms.uOpacity.value = Math.min(1, intensity);
+      m.uniforms.uOpacity.value = goldLevel;
       m.uniforms.uTime.value = elapsed.current;
-      m.uniforms.uMotion.value = motionScale;
+      m.uniforms.uMotion.value = motionScale * wake;
+      m.uniforms.uPulse.value = pulseRate;
+      m.uniforms.uIndigo.value = indigoLevel;
+      m.uniforms.uConvergence.value = indigoConvergence;
     }
-    // the network shell turns slowly — a globe, not a flat map. This is the
-    // single biggest "alive" cue for a node sphere, and it reveals the 3D
-    // structure. Quiets to a crawl under reduced motion.
+    // The shell turns at the STATE's own pace (rotationDrift ×1.6 to match the
+    // prior feel): arousal quickens it. Scaled by wake so DORMANT visibly
+    // stills, and by motionScale so reduced motion quiets it further.
     if (spinRef.current) {
-      spinRef.current.rotation.y += delta * 0.06 * motionScale;
+      spinRef.current.rotation.y += delta * rotationDrift * 1.6 * motionScale * wake;
     }
   });
 
   useEffect(
-    () => () => pointMaterials.forEach((m) => m.dispose()),
-    [pointMaterials],
+    () => () => {
+      pointMaterials.forEach((m) => m.dispose());
+      nodePasses.forEach((g) => g.dispose());
+      goldEdgeGeometry.dispose();
+      lavenderEdgeGeometry.dispose();
+    },
+    [pointMaterials, nodePasses, goldEdgeGeometry, lavenderEdgeGeometry],
   );
 
   return (
     <group ref={spinRef}>
-      <lineSegments geometry={edgeGeometry}>
+      <lineSegments geometry={goldEdgeGeometry}>
         <lineBasicMaterial
           vertexColors
           transparent
-          opacity={0.9 * Math.min(1, intensity)}
+          opacity={0.85 * goldLevel}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </lineSegments>
+      {/* the reasoning net brightens with indigoIntensity — the cool side
+          lights up at the decision, recedes at proof */}
+      <lineSegments geometry={lavenderEdgeGeometry}>
+        <lineBasicMaterial
+          vertexColors
+          transparent
+          opacity={Math.min(1, 0.4 + 0.6 * indigoLevel) * goldLevel}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -1206,14 +1290,19 @@ function NodalFlares({ intensity, motionScale }: { intensity: number; motionScal
 // transparent at the silhouette. One mesh, no visible sphere edge.
 const bodyShader = {
   uniforms: {
-    // Near-black at the deepest pockets. The reference's gold and violet only
-    // punch because the gaps between its lobes are genuinely dark; a warm
-    // mid-umber center (the old #4a3728) lifted the whole interior to a
-    // midtone and every glow layer lost half its contrast before it started.
-    uCenterColor: { value: new THREE.Color('#181008') },
-    uMidColor: { value: new THREE.Color('#4a3728') },
-    uEdgeColor: { value: new THREE.Color('#8a6f52') },
+    // Near-black across most of the disk. The reference's gold and violet
+    // only punch because the interior is genuinely dark; the previous mid-umber
+    // tones (#4a3728 / #8a6f52) lifted the whole globe to a muddy grey-brown
+    // taupe and every glow lost half its contrast. Umber now only rims the
+    // silhouette; the body is near-black.
+    uCenterColor: { value: new THREE.Color('#120b05') },
+    uMidColor: { value: new THREE.Color('#241a10') },
+    uEdgeColor: { value: new THREE.Color('#3a2c1e') },
     uOpacity: { value: 0.9 },
+    // lobe amplitude — driven from the awake level so the petal structure
+    // fades to a uniform vignette in sleep and can't become the dominant
+    // remaining signal (the DORMANT "pinwheel" artifact).
+    uLobe: { value: 1 },
   },
   vertexShader: /* glsl */ `
     varying vec3 vNormal;
@@ -1232,20 +1321,24 @@ const bodyShader = {
     uniform vec3 uMidColor;
     uniform vec3 uEdgeColor;
     uniform float uOpacity;
+    uniform float uLobe;
     varying vec3 vNormal;
     varying vec3 vViewDir;
     varying vec3 vLocalPos;
     void main() {
       float facing = abs(dot(normalize(vNormal), normalize(vViewDir)));
-      float density = pow(facing, 1.18);
+      float density = pow(facing, 0.95);
       // Lobed darkness: the deep tone gathers in petal-shaped pockets rather
       // than one uniform vignette, so the interior reads as segmented volume
       // (the reference's mandala structure) instead of amorphous haze. Two
-      // angular frequencies, offset by depth, keep the petals asymmetric.
+      // angular frequencies, offset by depth, keep the petals asymmetric. The
+      // amplitude is scaled by uLobe so it dissolves to a clean vignette in
+      // sleep — otherwise the petals become the brightest remaining structure
+      // once the glow fades and read as a dark pinwheel.
       float ang = atan(vLocalPos.y, vLocalPos.x);
       float lobe = 0.5
-        + 0.32 * sin(ang * 5.0 + vLocalPos.z * 2.1 + 0.7)
-        + 0.18 * sin(ang * 3.0 - vLocalPos.z * 1.4 - 1.9);
+        + uLobe * (0.32 * sin(ang * 5.0 + vLocalPos.z * 2.1 + 0.7)
+                 + 0.18 * sin(ang * 3.0 - vLocalPos.z * 1.4 - 1.9));
       float pocket = smoothstep(0.25, 0.85, lobe);
       vec3 deep = mix(uMidColor, uCenterColor, pocket);
       vec3 color = mix(uEdgeColor, deep, density);
@@ -1255,7 +1348,7 @@ const bodyShader = {
   `,
 };
 
-function VolumetricBody({ opacity }: { opacity: number }) {
+function VolumetricBody({ opacity, lobe }: { opacity: number; lobe: number }) {
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -1270,7 +1363,10 @@ function VolumetricBody({ opacity }: { opacity: number }) {
 
   useEffect(() => {
     material.uniforms.uOpacity.value = Math.min(1, opacity);
-  }, [material, opacity]);
+    // fade the petal structure out as the organism quiets, so sleep is a
+    // clean dark vignette rather than a spoked pinwheel.
+    material.uniforms.uLobe.value = Math.min(1, Math.max(0, lobe));
+  }, [material, opacity, lobe]);
 
   return (
     <mesh material={material}>
@@ -1596,7 +1692,7 @@ function LivingScene({
         {/* 6. dark internal volumetric body — inverse-fresnel ball: dense
             warm umber at the center fading to nothing at the rim, so the
             organism has a dark interior with no hard circular border. */}
-        <VolumetricBody opacity={0.82 + parameters.shellOpacity * 0.3} />
+        <VolumetricBody opacity={0.82 + parameters.shellOpacity * 0.3} lobe={goldLevel} />
 
         {/* the violet reasoning hemisphere: a genuine cool VOLUME on the
             right, which is what the reference has and a lone beacon cannot
@@ -1640,7 +1736,14 @@ function LivingScene({
         />
 
         {/* the approved primary shape: network globe on the shell */}
-        <NetworkGlobe intensity={goldLevel} motionScale={motionScale} />
+        <NetworkGlobe
+          intensity={goldLevel}
+          motionScale={motionScale}
+          indigoIntensity={indigoIntensity}
+          indigoConvergence={parameters.indigoConvergence}
+          rotationDrift={parameters.rotationDrift}
+          pulseRate={parameters.corePulseRate}
+        />
 
         {SHOW_LEGACY_STRANDS && (
           <>
