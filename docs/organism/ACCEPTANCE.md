@@ -30,6 +30,11 @@ Run the whole gate locally: `npm run gate`
 | Gold never neon yellow; lavender never electric | ENFORCED | `organism-palette.test.ts` warmth heuristics |
 | No hard circular borders (volumetric fades only) | VISUAL-REVIEW | Founder review; inverse-fresnel construction in engine |
 | Lavender leans right, interwoven — never a clean half split | ENFORCED | `organism-field.test.ts` hemisphere/interweave assertions |
+| Lavender must stay legible (WEIGHING convergence depends on it) | VISUAL-REVIEW | Founder review; lavender carries a luminance boost and never blows out to white |
+| Radial strands begin at the core — but never ALL of them | ENFORCED | `organism-field.test.ts` radial/origin-spread assertions (guards against "sun with rays") |
+| Field specs are exercised against the field that actually ships | ENFORCED | `ORGANISM_FIELD_OPTIONS` single source of truth + identity assertion |
+| Tuning one layer never re-rolls another | ENFORCED | `organism-field.test.ts` per-layer RNG isolation test |
+| Node-to-node connections stay in the 150–280 spec band | ENFORCED | `organism-field.test.ts` |
 | Filaments radiate/sweep — never all from the exact center | ENFORCED | `organism-field.test.ts` origin-spread assertions |
 | Micro-weave: 120–220 fine strands, constellation-anchored, membrane falloff | ENFORCED | `organism-field.test.ts` micro-weave suite |
 | Majors immutable when micro layer changes | ENFORCED | `organism-field.test.ts` deep-equal isolation test |
@@ -43,6 +48,10 @@ Run the whole gate locally: `npm run gate`
 | Six lifecycle labels: BREATHING → ATTENDING → SURFACING → WEIGHING → ENACTING → WITNESSED | FOUNDER-LOCKED + ENFORCED | `check-founder-compliance` §7; `organism-lab-contract.test.ts` |
 | Never rotates as one object | ENFORCED | `check-founder-compliance` §11 |
 | Held-breath transitions; leaving a decision holds longest | ENFORCED | `organism-transition.test.ts` |
+| Transitions never snap — no per-frame scale jump at the hold→settle seam | ENFORCED | `organism-transition.test.ts` walks the transition at 1/120s |
+| Overshoot is real motion, not a decorative field | ENFORCED | `organism-transition.test.ts` asserts the settle carries past the target |
+| Core shape and pulse change across the lifecycle | ENFORCED | `organism-parameters.test.ts` (guards the frozen-core regression) |
+| The charge ring only completes when releasing will actually advance | VISUAL-REVIEW | Dwell-aware charge; verified in-browser across tap/hold/Enter |
 | Action-underway cannot be skipped instantly (min dwell) | ENFORCED | `organism-transition.test.ts` |
 | Gentle float; reduced-motion quiets, never kills | ENFORCED | `organism-motion.test.ts`; `check-founder-compliance` §9 |
 | Five-minute idle → dark DORMANT sleep; any activity wakes | FOUNDER-LOCKED + ENFORCED | `check-founder-compliance` §12; `organism-sleep.test.ts` |
@@ -62,6 +71,16 @@ Run the whole gate locally: `npm run gate`
 | Lab WebGL engine bounded at 1.5MB | ENFORCED | `check-performance-budget.ts` labEngine allowance |
 | Seven security headers survive any `next.config.ts` edit | ENFORCED | `check-founder-compliance` §13; CI `quality:headers` against a running server |
 | Evidence before completion claims | FOUNDER-LOCKED | Superpowers `verification-before-completion`; CI as backstop |
+
+## E. Known gaps (honest register)
+
+Recorded rather than hidden, so nobody mistakes silence for completion.
+
+| Gap | Status | Note |
+|---|---|---|
+| Real-hardware frame rate | UNVERIFIED | This build environment has no GPU. All FPS figures describe a CPU software rasterizer and overweight vertex cost. Needs measuring on real hardware. |
+| Volumetric ribbons / caustic wisps (spec layer 7) | PLANNED | Deliberately deferred — the composition is already dense; adding another layer needs Founder review first. |
+| Tier 3 audit findings | PLANNED | ~38 medium / 10 low severity items from the six-lens audit remain unimplemented. |
 
 ## Process
 
