@@ -421,6 +421,78 @@ function Dendrites({
   );
 }
 
+// The surrounding constellation.
+//
+// This layer has to be drawn DARKER than the page, not brighter. The ground is
+// ivory (#F4EBE2), so an additive or light-toned point adds almost nothing and
+// simply disappears — which is exactly why the previous star pass could have its
+// count raised with no measurable change on screen. Each star is therefore a
+// normal-blended point tinted from the background toward umber (or dusk violet
+// on the reasoning side) in proportion to its brightness, so a faint star sits a
+// hair below the ivory and a bright one reads as a definite speck.
+//
+// Split into three size classes because a points material carries one size for
+// the whole buffer; three passes is what buys a graded field instead of a
+// uniform sprinkle.
+function AmbientStarfield({ intensity }: { intensity: number }) {
+  const classes = useMemo(() => {
+    const background = new THREE.Color(neoPalette.background);
+    const warm = new THREE.Color(neoPalette.coreUmber);
+    const cool = new THREE.Color(neoPalette.lavenderDark);
+
+    const buckets: { max: number; size: number; stars: typeof FIELD.stars }[] = [
+      { max: 0.4, size: 0.013, stars: [] },
+      { max: 0.75, size: 0.022, stars: [] },
+      { max: 1.01, size: 0.036, stars: [] },
+    ];
+
+    for (const star of FIELD.stars) {
+      (buckets.find((b) => star.size < b.max) ?? buckets[2]).stars.push(star);
+    }
+
+    return buckets.map(({ size, stars }) => {
+      const positions = new Float32Array(stars.length * 3);
+      const colors = new Float32Array(stars.length * 3);
+      stars.forEach((star, index) => {
+        positions.set(star.position, index * 3);
+        // Baked at FULL strength and dimmed by material opacity below. Folding
+        // intensity into the vertex colours instead would rebuild three buffers
+        // on every frame of every transition, and since these points never
+        // overlap the body, alpha-blending them toward the ivory background is
+        // arithmetically the same fade.
+        const tint = background
+          .clone()
+          .lerp(star.family === 'gold' ? warm : cool, Math.min(0.8, star.opacity * 1.25));
+        colors.set([tint.r, tint.g, tint.b], index * 3);
+      });
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      return { geometry, size };
+    });
+  }, []);
+
+  return (
+    <group>
+      {classes.map(({ geometry, size }, index) => (
+        <points key={index} geometry={geometry}>
+          <pointsMaterial
+            vertexColors
+            size={size}
+            transparent
+            // the constellation dims with the organism and all but vanishes in
+            // sleep, rather than hanging in the dark on its own
+            opacity={Math.min(1, intensity)}
+            depthWrite={false}
+            toneMapped={false}
+            sizeAttenuation
+          />
+        </points>
+      ))}
+    </group>
+  );
+}
+
 // Volumetric ribbons ("caustic wisps") — the reference's signature grace.
 // Broad, smooth light-sheets that sweep through the volume and catch light,
 // built as tapered triangle strips along the macro loops so the ribbons ARE
@@ -432,14 +504,24 @@ function VolumetricRibbons({ intensity }: { intensity: number }) {
     const colors: number[] = [];
     const warm = new THREE.Color(neoPalette.goldLight);
     const cool = new THREE.Color(neoPalette.lavenderLight);
-    const up = new THREE.Vector3(0, 0, 1);
 
-    FIELD.macroLoops.forEach((loop, loopIndex) => {
+    const pushTri = (
+      p0: THREE.Vector3, c0: THREE.Color,
+      p1: THREE.Vector3, c1: THREE.Color,
+      p2: THREE.Vector3, c2: THREE.Color,
+    ) => {
+      positions.push(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+      colors.push(c0.r, c0.g, c0.b, c1.r, c1.g, c1.b, c2.r, c2.g, c2.b);
+    };
+
+    FIELD.macroLoops.forEach((loop) => {
       const curve = new THREE.CatmullRomCurve3(
         loop.controlPoints.map((p) => new THREE.Vector3(p[0], p[1], p[2])),
         true,
       );
-      const samples = curve.getPoints(150).map((p) => {
+      // Finer sampling: coarse strips make the curvature read as flat facets,
+      // which is what turns a light-fold into ribbon sculpture.
+      const samples = curve.getPoints(240).map((p) => {
         // a sheet escaping the shell reads as a separate object, so fold any
         // stray point back inside the membrane
         const r = p.length();
@@ -447,44 +529,63 @@ function VolumetricRibbons({ intensity }: { intensity: number }) {
       });
       const width = 0.12 + loop.weight * 0.16;
 
-      for (let i = 0; i < samples.length - 1; i += 1) {
-        const t = i / (samples.length - 1);
+      const tangentAt = (index: number) => {
+        const next = samples[Math.min(index + 1, samples.length - 1)];
+        const prev = samples[Math.max(index - 1, 0)];
+        const t = next.clone().sub(prev);
+        return t.lengthSq() < 1e-12 ? new THREE.Vector3(1, 0, 0) : t.normalize();
+      };
+
+      // Parallel-transported width frame. Crossing the tangent with a FIXED up
+      // vector flips the sheet wherever the loop turns through that axis, and a
+      // flipped quad is a bowtie — the hard-edged shard artifact. Carrying the
+      // previous frame forward and re-orthogonalising it keeps the sheet
+      // continuous all the way around the loop.
+      let side = (() => {
+        const t0 = tangentAt(0);
+        const seed = Math.abs(t0.z) < 0.9
+          ? new THREE.Vector3(0, 0, 1)
+          : new THREE.Vector3(1, 0, 0);
+        return seed.clone().sub(t0.clone().multiplyScalar(seed.dot(t0))).normalize();
+      })();
+
+      const frames = samples.map((point, index) => {
+        const tangent = tangentAt(index);
+        const projected = side.clone().sub(tangent.clone().multiplyScalar(side.dot(tangent)));
+        side = projected.lengthSq() < 1e-10 ? side : projected.normalize();
+        const localT = index / (samples.length - 1);
+        const halfWidth = width * (Math.sin(localT * Math.PI) ** 0.7);
+        const offset = side.clone().multiplyScalar(halfWidth);
+        return {
+          left: point.clone().add(offset),
+          center: point,
+          right: point.clone().sub(offset),
+        };
+      });
+
+      for (let i = 0; i < frames.length - 1; i += 1) {
+        const t = i / (frames.length - 1);
         // the sheet swells mid-sweep and dissolves at both ends
         const taper = Math.sin(t * Math.PI) ** 0.7;
         if (taper < 0.02) continue;
 
-        const build = (index: number, localT: number) => {
-          const point = samples[index];
-          const next = samples[Math.min(index + 1, samples.length - 1)];
-          const tangent = next.clone().sub(point).normalize();
-          let side = tangent.clone().cross(up);
-          if (side.lengthSq() < 1e-6) side = new THREE.Vector3(1, 0, 0);
-          side.normalize().multiplyScalar(
-            width * (Math.sin(localT * Math.PI) ** 0.7),
-          );
-          return {
-            a: point.clone().add(side),
-            b: point.clone().sub(side),
-          };
-        };
-
-        const e0 = build(i, t);
-        const e1 = build(i + 1, (i + 1) / (samples.length - 1));
-
-        positions.push(
-          e0.a.x, e0.a.y, e0.a.z, e0.b.x, e0.b.y, e0.b.z, e1.a.x, e1.a.y, e1.a.z,
-          e1.b.x, e1.b.y, e1.b.z, e1.a.x, e1.a.y, e1.a.z, e0.b.x, e0.b.y, e0.b.z,
-        );
-
         // warm sheets sweep the left, cooler ones the right
         const cool01 = Math.min(1, Math.max(0, (samples[i].x + 0.5) / 1.3));
         const tint = warm.clone().lerp(cool, cool01 * 0.85);
-        const edge = tint.clone().multiplyScalar(taper * 0.004 * intensity);
-        const mid = tint.clone().multiplyScalar(taper * 0.017 * intensity);
-        // bright along the sheet's spine, dissolving at its edges
-        for (const c of [edge, mid, edge, mid, edge, mid]) {
-          colors.push(c.r, c.g, c.b);
-        }
+        // Brightness lives on a real SPINE. The old two-vertex strip had no
+        // centre to be bright at, so one border carried the whole value and the
+        // sheet read as a lit edge. Three vertices across — dark, bright, dark —
+        // let the strength go up while both borders still dissolve.
+        const edge = tint.clone().multiplyScalar(taper * 0.0016 * intensity);
+        const mid = tint.clone().multiplyScalar(taper * 0.052 * intensity);
+
+        const f0 = frames[i];
+        const f1 = frames[i + 1];
+
+        pushTri(f0.left, edge, f0.center, mid, f1.center, mid);
+        pushTri(f0.left, edge, f1.center, mid, f1.left, edge);
+        pushTri(f0.center, mid, f0.right, edge, f1.right, edge);
+        pushTri(f0.center, mid, f1.right, edge, f1.center, mid);
       }
     });
 
@@ -965,7 +1066,11 @@ function LivingScene({
       <directionalLight position={[4, 5, 5]} intensity={parameters.lighting.directionalIntensity} color={neoPalette.shellWhite} />
 
       <group ref={root}>
-        {/* 2. distant ambient dust — two depth layers of fine particles */}
+        {/* 2. the surrounding constellation, plus the drifting ambient dust
+            that catches the organism's own light near the shell. The dust is
+            light-on-light and so stays a shimmer; the constellation is the
+            layer that actually carries density. */}
+        <AmbientStarfield intensity={goldLevel} />
         <Sparkles
           count={Math.round(parameters.particleCount * 2.2)}
           scale={4.6}
@@ -1016,11 +1121,29 @@ function LivingScene({
             right, which is what the reference has and a lone beacon cannot
             supply */}
         <group position={[0.34, 0.04, 0.05]}>
+          {/* outer reach: wide and soft, so the cool region has an extent
+              rather than an edge */}
+          <VolumetricGlow
+            color={neoPalette.lavenderMid}
+            opacity={Math.min(0.22, 0.2 * (indigoIntensity / 0.85))}
+            power={1.55}
+            radius={0.95}
+          />
+          {/* body of the volume: this is the layer that gives the hemisphere
+              actual presence against the warm field */}
           <VolumetricGlow
             color={neoPalette.lavenderMid}
             opacity={Math.min(0.34, 0.3 * (indigoIntensity / 0.85))}
-            power={1.7}
-            radius={0.78}
+            power={2.0}
+            radius={0.7}
+          />
+          {/* saturated heart: lavenderDark keeps the volume violet instead of
+              washing to white as additive layers accumulate */}
+          <VolumetricGlow
+            color={neoPalette.lavenderDark}
+            opacity={Math.min(0.3, 0.26 * (indigoIntensity / 0.85))}
+            power={2.6}
+            radius={0.46}
           />
         </group>
 

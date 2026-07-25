@@ -39,6 +39,10 @@ Run the whole gate locally: `npm run gate`
 | Micro-weave: 120–220 fine strands, constellation-anchored, membrane falloff | ENFORCED | `organism-field.test.ts` micro-weave suite |
 | Majors immutable when micro layer changes | ENFORCED | `organism-field.test.ts` deep-equal isolation test |
 | Depth groups all present; brightness genuinely varies | ENFORCED | `organism-field.test.ts` |
+| Star field: 760 points, never over the body (in projection), three brightness classes, far field recedes | ENFORCED | `organism-field.test.ts` star-field suite |
+| Star density never re-rolls the organism | ENFORCED | `organism-field.test.ts` deep-equal isolation test |
+| Violet reasoning region is a graded VOLUME (three shells), peaking at the decision and receding by proof | VISUAL-REVIEW | Founder review; measured warm/cool separation across the six states |
+| Volumetric ribbons read as light-folds, never as ribbon sculpture | VISUAL-REVIEW | Founder review; parallel-transported frame + three-vertex spine (no bowties, no lit edge) |
 | Approved adaptive sizing (58vh target, 760px ceiling, no scroll) | FOUNDER-LOCKED + ENFORCED | `check-founder-compliance` §6; viewport sweep during review passes |
 
 ## C. Life & motion
@@ -79,7 +83,7 @@ Recorded rather than hidden, so nobody mistakes silence for completion.
 | Gap | Status | Note |
 |---|---|---|
 | Real-hardware frame rate | UNVERIFIED | This build environment has no GPU. All FPS figures describe a CPU software rasterizer and overweight vertex cost. Needs measuring on real hardware. |
-| Volumetric ribbons / caustic wisps (spec layer 7) | PLANNED | Deliberately deferred — the composition is already dense; adding another layer needs Founder review first. |
+| Violet volume / ribbon strength balance | VISUAL-REVIEW | Landed and measured, but the final call on how cool the reasoning region should read at `decision-required` is the Founder's, not a number a test can settle. |
 | Tier 3 audit findings | PLANNED | ~38 medium / 10 low severity items from the six-lens audit remain unimplemented. |
 
 ## Process

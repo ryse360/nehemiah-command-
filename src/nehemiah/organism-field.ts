@@ -66,8 +66,20 @@ export interface MicroFilament {
   opacity: number;
 }
 
+// The surrounding constellation. Deliberately a field layer rather than an
+// engine detail: its density is part of the composition and therefore has to be
+// specified and tested like every other layer.
+export interface FieldStar {
+  position: Vec3;
+  // relative brightness class, 0..1 — most stars are fine, a few carry weight
+  size: number;
+  opacity: number;
+  family: 'gold' | 'lavender';
+}
+
 export interface FieldOptions {
   seed: number;
+  starCount: number;
   nodeCount: number;
   connectionRadius: number;
   majorFilamentCount: number;
@@ -84,6 +96,7 @@ export interface FieldOptions {
 // brightness rules were being proven against a field nobody ever saw.
 export const ORGANISM_FIELD_OPTIONS: FieldOptions = {
   seed: 11,
+  starCount: 760,
   nodeCount: 420,
   connectionRadius: 0.22,
   majorFilamentCount: 190,
@@ -95,6 +108,7 @@ export const ORGANISM_FIELD_OPTIONS: FieldOptions = {
 };
 
 export interface OrganismFieldResult {
+  stars: FieldStar[];
   macroLoops: MacroLoop[];
   dendrites: Dendrite[];
   nodes: FieldNode[];
@@ -744,5 +758,62 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
     });
   }
 
-  return { macroLoops, dendrites, nodes, connections, filaments, microFilaments, arcs, flares };
+  // The surrounding constellation, on its own RNG stream so density can be
+  // tuned without disturbing a single strand of the organism itself.
+  const starRng = mulberry32(options.seed ^ 0x6a09e667);
+  const stars: FieldStar[] = [];
+  for (let index = 0; index < options.starCount; index += 1) {
+    // Placed in an annulus around the view axis rather than on a sphere. A
+    // sphere puts stars directly in front of and behind the body, and since the
+    // organism's glow layers write no depth, those land as specks ON it. The
+    // annulus keeps the constellation in the surrounding space where it belongs
+    // while |z| still supplies genuine depth.
+    const angle = starRng() * Math.PI * 2;
+    // Concentrated near the organism and thinning outward, so the field reads
+    // as this thing's own atmosphere rather than wallpaper behind it.
+    const planarRadius = 1.28 + 2.17 * Math.pow(starRng(), 1.7);
+    const depth = (starRng() * 2 - 1) * 1.2;
+    const direction: Vec3 = [Math.cos(angle), Math.sin(angle), 0];
+
+    // Three brightness classes: mostly fine, some mid, a few carrying weight.
+    const roll = starRng();
+    const size = roll < 0.7
+      ? 0.16 + starRng() * 0.24
+      : roll < 0.94
+        ? 0.42 + starRng() * 0.3
+        : 0.78 + starRng() * 0.22;
+
+    // Distance dims: the far field has to recede or depth collapses flat.
+    const depthFade = 1 - (planarRadius - 1.28) / 2.17;
+    const opacity = (0.1 + 0.42 * size) * (0.34 + 0.66 * depthFade * depthFade);
+
+    // Cool stars belong to the reasoning side; a violet speck stranded in the
+    // warm hemisphere reads as an error, not as atmosphere.
+    const wantsLavender = starRng() < 0.3;
+    const family: 'gold' | 'lavender' =
+      wantsLavender && direction[0] > -0.05 ? 'lavender' : 'gold';
+
+    stars.push({
+      position: [
+        direction[0] * planarRadius,
+        direction[1] * planarRadius,
+        depth,
+      ],
+      size,
+      opacity,
+      family,
+    });
+  }
+
+  return {
+    stars,
+    macroLoops,
+    dendrites,
+    nodes,
+    connections,
+    filaments,
+    microFilaments,
+    arcs,
+    flares,
+  };
 }

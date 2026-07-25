@@ -174,6 +174,58 @@ test('micro-weave leaves the major structure untouched', () => {
   assert.equal(withoutMicro.microFilaments.length, 0);
 });
 
+test('star field: dense, entirely outside the organism, depth-graded', () => {
+  const field = organismField(defaults);
+
+  assert.equal(field.stars.length, defaults.starCount);
+
+  for (const star of field.stars) {
+    const radius = len(star.position);
+    // A star inside the membrane is not a star, it is a speck on the body.
+    assert.ok(radius >= 1.25, `star radius ${radius} clears the organism`);
+    assert.ok(radius <= 3.7, `star radius ${radius} stays in frame`);
+    // And it must clear the body in PROJECTION too — the glow layers write no
+    // depth, so anything in front of or behind the organism lands on it.
+    const projected = Math.hypot(star.position[0], star.position[1]);
+    assert.ok(projected >= 1.25, `star projects to ${projected}, off the body`);
+    assert.ok(star.size > 0 && star.size <= 1);
+    assert.ok(star.opacity > 0 && star.opacity <= 0.62);
+  }
+
+  // Three brightness classes, and the bright ones stay rare — a uniform field
+  // of equal points reads as noise, not as a constellation.
+  const bright = field.stars.filter((s) => s.size > 0.75).length;
+  const fine = field.stars.filter((s) => s.size <= 0.4).length;
+  assert.ok(bright / field.stars.length < 0.12, `bright share ${bright / field.stars.length}`);
+  assert.ok(fine / field.stars.length > 0.5, `fine share ${fine / field.stars.length}`);
+
+  // Depth is real: distant stars are fainter than near ones.
+  const near = field.stars.filter((s) => len(s.position) < 2);
+  const far = field.stars.filter((s) => len(s.position) >= 2.8);
+  const mean = (list: typeof field.stars) =>
+    list.reduce((sum, s) => sum + s.opacity, 0) / list.length;
+  assert.ok(far.length > 0 && near.length > 0);
+  assert.ok(mean(far) < mean(near) * 0.8, 'the far field recedes');
+
+  // The cool family keeps to the reasoning side rather than salting the warm
+  // hemisphere with stray violet.
+  const lavender = field.stars.filter((s) => s.family === 'lavender');
+  assert.ok(lavender.length > 0 && lavender.length < field.stars.length / 2);
+  const rightShare = lavender.filter((s) => s.position[0] > 0).length / lavender.length;
+  assert.ok(rightShare > 0.7, `lavender right share ${rightShare} leans right`);
+});
+
+test('star field density never re-rolls the organism', () => {
+  const dense = organismField(defaults);
+  const bare = organismField({ ...defaults, starCount: 0 });
+
+  assert.deepEqual(dense.filaments, bare.filaments);
+  assert.deepEqual(dense.nodes, bare.nodes);
+  assert.deepEqual(dense.microFilaments, bare.microFilaments);
+  assert.deepEqual(dense.dendrites, bare.dendrites);
+  assert.equal(bare.stars.length, 0);
+});
+
 test('arcs and flares follow the motion spec', () => {
   const field = organismField(defaults);
 
