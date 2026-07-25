@@ -29,26 +29,29 @@ function read(relative: string): string {
 // ---------------------------------------------------------------------------
 // 1. Dependency freeze — no unapproved rendering/animation dependencies.
 //
-// The freeze was deliberately reopened by Founder decision (2026-07-25) to
-// adopt a force-directed graph rendering stack for the node-graph artifact.
-// Sanctioned additions, with the trade-offs stated to the Founder before
-// install: 3d-force-graph, r3f-forcegraph (force-graph engine + R3F wrapper),
-// @react-three/postprocessing + postprocessing (emissive bloom — previously
-// banned by name, override accepted), react-glass-ui (glassmorphic cards).
-// The denylist below still catches OTHER unsanctioned animation libraries so
-// the freeze remains meaningful for everything the Founder did NOT approve.
+// The freeze was deliberately reopened by Founder decision to adopt a full
+// platform stack for the node-graph artifact and surrounding interface.
+// Sanctioned additions, each with trade-offs stated to the Founder before
+// install:
+//   2026-07-25a: 3d-force-graph, r3f-forcegraph (force-graph engine + R3F
+//     wrapper); @react-three/postprocessing + postprocessing (bloom — was
+//     banned by name, override accepted); react-glass-ui (glass cards).
+//   2026-07-25b: ai (Vercel AI SDK); motion (framer-motion's successor — the
+//     animation lib, was banned by name, override accepted); @theatre/core +
+//     @theatre/studio (Theatre.js — was in the ORIGINAL locked prohibition,
+//     override accepted); promptfoo (dev, LLM evals).
+// The denylist below still catches animation/particle libs the Founder has
+// NOT sanctioned, so the freeze stays meaningful for everything unapproved.
 const pkg = JSON.parse(read('package.json')) as {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
 };
 const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
 const forbiddenDeps = [
-  '@theatre/core',
-  '@theatre/studio',
-  'theatre',
   'gsap',
-  'framer-motion',
   'tsparticles',
+  'anime.js',
+  'animejs',
 ];
 const foundForbidden = forbiddenDeps.filter((dep) => dep in allDeps);
 check(
