@@ -727,30 +727,44 @@ function AmbientStarfield({ intensity }: { intensity: number }) {
 const GLOBE_POINT_VERT = /* glsl */ `
   attribute vec3 color;
   attribute float aSize;
+  attribute float aPhase;
+  attribute float aPriority;
   uniform float uScale;
+  uniform float uTime;
+  uniform float uMotion;
   varying vec3 vColor;
+  varying float vTwinkle;
   void main() {
     vColor = color;
+    // each node breathes on its own phase — a field of stars, never a
+    // synchronized blink. Priority nodes pulse a touch harder (they surface).
+    float amp = 0.16 + 0.24 * aPriority;
+    vTwinkle = 1.0 - amp * uMotion * (0.5 + 0.5 * sin(uTime * (0.8 + aPhase) + aPhase * 6.28));
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = aSize * (uScale / -mv.z);
+    // priority nodes read slightly larger, so what matters pulls forward
+    gl_PointSize = aSize * (1.0 + 0.5 * aPriority) * (uScale / -mv.z);
     gl_Position = projectionMatrix * mv;
   }
 `;
 const GLOBE_POINT_FRAG = /* glsl */ `
   varying vec3 vColor;
+  varying float vTwinkle;
   uniform float uOpacity;
   void main() {
     float d = distance(gl_PointCoord, vec2(0.5));
     float soft = smoothstep(0.5, 0.05, d);
-    gl_FragColor = vec4(vColor, soft * uOpacity);
+    gl_FragColor = vec4(vColor * vTwinkle, soft * uOpacity);
   }
 `;
 
 function NetworkGlobe({
   intensity,
+  motionScale,
 }: {
   intensity: number;
+  motionScale: number;
 }) {
+  const spinRef = useRef<THREE.Group>(null);
   const { nodePasses, edgeGeometry } = useMemo(() => {
     const gold = new THREE.Color(neoPalette.goldMid);
     const goldMidTone = new THREE.Color(neoPalette.goldLight);
@@ -772,6 +786,8 @@ function NetworkGlobe({
       const positions = new Float32Array(nodes.length * 3);
       const colors = new Float32Array(nodes.length * 3);
       const sizes = new Float32Array(nodes.length);
+      const phases = new Float32Array(nodes.length);
+      const priorities = new Float32Array(nodes.length);
       nodes.forEach((nodeIndex, k) => {
         const node = globe.nodes[nodeIndex];
         positions.set(node.position, k * 3);
@@ -786,11 +802,18 @@ function NetworkGlobe({
         const c = base.clone().multiplyScalar(0.65 + 0.5 * node.size);
         colors.set([c.r, c.g, c.b], k * 3);
         sizes[k] = px;
+        // deterministic per-node twinkle phase from position — no RNG stream.
+        phases[k] = (Math.sin(node.position[0] * 91.7 + node.position[1] * 47.3) + 1) / 2;
+        // priority: the hubs are what "matters" and surface harder. A real
+        // Founder-salience signal replaces this in the personalization slice.
+        priorities[k] = node.size > 0.75 ? 1 : node.size > 0.4 ? 0.35 : 0;
       });
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+      geo.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+      geo.setAttribute('aPriority', new THREE.BufferAttribute(priorities, 1));
       return geo;
     });
 
@@ -820,7 +843,12 @@ function NetworkGlobe({
       nodePasses.map(
         () =>
           new THREE.ShaderMaterial({
-            uniforms: { uScale: { value: 630 }, uOpacity: { value: 1 } },
+            uniforms: {
+              uScale: { value: 630 },
+              uOpacity: { value: 1 },
+              uTime: { value: 0 },
+              uMotion: { value: 1 },
+            },
             vertexShader: GLOBE_POINT_VERT,
             fragmentShader: GLOBE_POINT_FRAG,
             transparent: true,
@@ -831,7 +859,9 @@ function NetworkGlobe({
     [nodePasses],
   );
 
-  useFrame((state) => {
+  const elapsed = useRef(0);
+  useFrame((state, delta) => {
+    elapsed.current += delta;
     // aSize is a target size in PIXELS, so the perspective factor must be
     // ~1 at the nodes' distance: uScale = cameraDistance × dpr makes
     // gl_PointSize ≈ aSize device-pixels. (Multiplying by canvas height —
@@ -840,6 +870,14 @@ function NetworkGlobe({
     for (const m of pointMaterials) {
       m.uniforms.uScale.value = scale;
       m.uniforms.uOpacity.value = Math.min(1, intensity);
+      m.uniforms.uTime.value = elapsed.current;
+      m.uniforms.uMotion.value = motionScale;
+    }
+    // the network shell turns slowly — a globe, not a flat map. This is the
+    // single biggest "alive" cue for a node sphere, and it reveals the 3D
+    // structure. Quiets to a crawl under reduced motion.
+    if (spinRef.current) {
+      spinRef.current.rotation.y += delta * 0.06 * motionScale;
     }
   });
 
@@ -849,7 +887,7 @@ function NetworkGlobe({
   );
 
   return (
-    <group>
+    <group ref={spinRef}>
       <lineSegments geometry={edgeGeometry}>
         <lineBasicMaterial
           vertexColors
@@ -1602,7 +1640,7 @@ function LivingScene({
         />
 
         {/* the approved primary shape: network globe on the shell */}
-        <NetworkGlobe intensity={goldLevel} />
+        <NetworkGlobe intensity={goldLevel} motionScale={motionScale} />
 
         {SHOW_LEGACY_STRANDS && (
           <>
