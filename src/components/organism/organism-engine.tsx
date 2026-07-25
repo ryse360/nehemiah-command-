@@ -607,15 +607,9 @@ function Membrane({ intensity }: { intensity: number }) {
           the membrane dissolves into the ivory instead of ending in a ring */}
       <VolumetricGlow
         color={neoPalette.goldLight}
-        opacity={0.058 * intensity}
-        power={0.9}
-        radius={MEMBRANE_RADIUS * 1.12}
-      />
-      <VolumetricGlow
-        color={neoPalette.goldLight}
-        opacity={0.032 * intensity}
-        power={0.6}
-        radius={MEMBRANE_RADIUS * 1.3}
+        opacity={0.072 * intensity}
+        power={0.75}
+        radius={MEMBRANE_RADIUS * 1.2}
       />
     </>
   );
@@ -873,13 +867,15 @@ export function OrganismEngine({
   return (
     <Canvas
       camera={{ position: parameters.camera.position, fov: parameters.camera.fieldOfView }}
-      dpr={[1, 1.65]}
+      dpr={[1, 1.4]}
       // Opaque framebuffer. With alpha:true, every additive pass accumulated
       // alpha and composited over the ivory page as a grey veil — the glow
       // layers were DARKENING the background instead of adding light. An
       // opaque canvas gives additive blending real light to add to.
       gl={{
-        antialias: true,
+        // Every silhouette in this scene is an alpha falloff, not a hard
+        // edge, so MSAA buys almost nothing and costs fill rate.
+        antialias: false,
         alpha: false,
         powerPreference: 'high-performance',
       }}
