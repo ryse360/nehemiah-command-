@@ -11,6 +11,9 @@
 @layer theme, base, components, utilities;
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities);
+/* data-state enter/exit animations used by the shadcn primitives (dialog,
+ * tooltip, dropdown, sheet). Utilities only — no global reset. */
+@import 'tw-animate-css';
 
 /* shadcn semantic tokens mapped onto Nehemiah's existing MiP palette
  * (defined in globals.css: --navy/--ivory/--gold/--slate/--charcoal/--line).
