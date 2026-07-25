@@ -99,15 +99,49 @@ check(
 );
 
 // ---------------------------------------------------------------------------
-// 4. Production interface stays untouched by the laboratory.
-const productionPage = read('src/app/page.tsx');
-const labLeaks = ['organism-lab', 'organism-engine', 'luminous-core', 'organism-field'].filter(
-  (target) => productionPage.includes(target),
+// 4. Production shares the APPROVED ORGANISM, never the laboratory shell.
+//
+// Step 3 connected the authenticated dashboard to the real orb: the production
+// shell renders <NehemiahOrb>, which drives the SAME OrganismEngine the lab
+// uses. That shared presentation component is sanctioned. What must NEVER reach
+// production is the lab SHELL itself (organism-lab) or its dev tooling (Leva) —
+// production drives the engine from sanitized production state, not from Leva
+// sliders and the fixture state machine.
+const productionSurface =
+  read('src/app/page.tsx') + read('src/components/nehemiah-shell.tsx');
+const labShellLeaks = ['organism-lab', "from 'leva'", 'from "leva"'].filter((target) =>
+  productionSurface.includes(target),
 );
 check(
-  'production interface isolated from the lab',
-  labLeaks.length === 0,
-  labLeaks.length === 0 ? 'src/app/page.tsx has no lab imports' : `leaks: ${labLeaks.join(', ')}`,
+  'production isolated from the lab shell',
+  labShellLeaks.length === 0,
+  labShellLeaks.length === 0
+    ? 'production renders the shared organism via the orb; no lab shell or Leva'
+    : `leaks: ${labShellLeaks.join(', ')}`,
+);
+
+// ---------------------------------------------------------------------------
+// 4b. The production orb consumes ONLY the sanitized OrbStateDTO.
+//
+// The client boundary that keeps Founder content out of the visual layer lives
+// at <NehemiahOrb>: it must take the derived DTO and nothing that can carry a
+// title, note, command, proof, lesson, name, or identifier. This check makes a
+// raw-data import at that seam impossible to merge (the contract tests prove the
+// derivation strips content; this proves the component can't be handed it).
+const orbComponent = read('src/components/organism/nehemiah-orb.tsx');
+const rawFounderModules = [
+  'founder-memory',
+  'founder-journey',
+  'decision-record-integrity',
+  'shell-model',
+];
+const orbRawLeaks = rawFounderModules.filter((target) => orbComponent.includes(target));
+check(
+  'orb consumes only the sanitized DTO',
+  orbRawLeaks.length === 0 && orbComponent.includes('OrbStateDTO'),
+  orbRawLeaks.length === 0
+    ? 'NehemiahOrb takes OrbStateDTO only — no raw Founder data at the client boundary'
+    : `raw Founder data reached the orb boundary: ${orbRawLeaks.join(', ')}`,
 );
 
 // ---------------------------------------------------------------------------
@@ -181,6 +215,8 @@ const requiredTestFiles = [
   'src/nehemiah/organism-motion.test.ts',
   'src/nehemiah/organism-architecture.test.ts',
   'src/nehemiah/organism-globe-model.test.ts',
+  'src/nehemiah/orb-state.test.ts',
+  'src/nehemiah/orb-parameters.test.ts',
 ];
 const missingTests = requiredTestFiles.filter((file) => !existsSync(path.join(root, file)));
 check(

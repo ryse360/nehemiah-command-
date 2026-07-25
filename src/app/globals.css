@@ -40,6 +40,10 @@ button { cursor: pointer; }
 .artifact-zone { min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 .artifact-zone > h2 { font-family:Georgia, serif; font-weight:400; font-size:32px; margin:0 0 18px; transition:opacity .4s ease; }
 .organism { width:min(39vw,520px); aspect-ratio:1; position:relative; border-radius:50%; filter:drop-shadow(0 28px 36px rgba(196,154,77,.14)); transition:transform .8s cubic-bezier(.2,.7,.2,1), filter .8s ease; }
+/* Step 3: the approved WebGL orb replaces the CSS artifact. It fills this stage,
+   which keeps the same footprint the CSS organism held. */
+.organism-stage { width:min(39vw,520px); aspect-ratio:1; position:relative; }
+.organism-stage > * { position:absolute; inset:0; }
 .organism::before,.organism::after { content:""; position:absolute; border-radius:50%; inset:13%; border:1px solid rgba(196,154,77,.35); animation:orbit 18s linear infinite; }
 .organism::after { inset:4%; border-color:rgba(75,85,99,.15); animation-duration:28s; animation-direction:reverse; }
 .organism-shell,.organism-core { position:absolute; inset:9%; border-radius:44% 56% 51% 49% / 48% 45% 55% 52%; }
@@ -157,6 +161,7 @@ body[data-state="proof-created"] .organism-core { box-shadow:0 0 34px 14px rgba(
   .context-slot, .decision-slot { min-height: 0; }
   .artifact-zone { grid-row: 1; }
   .organism { width: min(78vw, 500px); }
+  .organism-stage { width: min(78vw, 500px); }
   .focus-column, .outcome-card { max-width: none; margin-top: 0; }
   .decision-field { border-radius: 0 24px 24px 0; }
   .state-controller { padding-top: 24px; flex-direction: column; }

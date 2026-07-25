@@ -17,7 +17,8 @@ import {
 } from '@/nehemiah/founder-memory';
 import { DecisionField } from './decision-field';
 import { FounderFocus } from './founder-focus';
-import { LivingOrganism } from './living-organism';
+import { NehemiahOrb } from './organism/nehemiah-orb';
+import { computeOrbState } from '@/nehemiah/orb-state';
 import { StateController } from './state-controller';
 import { FounderMemoryPanel } from './founder-memory-panel';
 import { buildStrategicRecall } from '@/nehemiah/founder-strategic-recall';
@@ -51,6 +52,18 @@ import type { ProjectPortfolio } from '@/nehemiah/projects-actions';
 import { loadProjectPortfolio, saveProjectPortfolio } from '@/nehemiah/projects-actions-client';
 import { FounderProjectsPanel } from './founder-projects-panel';
 
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  return reduced;
+}
+
 export function NehemiahShell() {
   const [journey, setJourney] = useState(createFounderJourney);
   const [command, setCommand] = useState('');
@@ -81,6 +94,16 @@ export function NehemiahShell() {
   const [projectsSaving, setProjectsSaving] = useState(false);
   const [projectsError, setProjectsError] = useState('');
   const model = useMemo(() => buildShellModel(journey.lifecycle), [journey.lifecycle]);
+  const reducedMotion = usePrefersReducedMotion();
+  // The sanitized orb state. Salience is derived here from memory + the
+  // operating state and handed to the orb as an OrbStateDTO of pure numbers —
+  // no decision content ever reaches the visual layer. Recency is coarse (a
+  // 14-day decay), so recomputing only when memory or the state changes is
+  // exact enough; Date.now() is read but is not a reactive dependency.
+  const orbState = useMemo(
+    () => computeOrbState(memory, model.organismState, Date.now()),
+    [memory, model.organismState],
+  );
   const strategicRecall = useMemo(
     () => journey.lifecycle === 'decision-required'
       ? buildStrategicRecall(memory, journey.command)
@@ -367,7 +390,13 @@ export function NehemiahShell() {
 
           <section className="artifact-zone" aria-labelledby="primary-prompt">
             <h2 id="primary-prompt">{model.prompt}</h2>
-            <LivingOrganism state={model.organismState} />
+            <div
+              className="organism-stage"
+              role="img"
+              aria-label={`Nehemiah living intelligence artifact in ${model.organismState.replaceAll('-', ' ')} state`}
+            >
+              <NehemiahOrb dto={orbState} reducedMotion={reducedMotion} />
+            </div>
             <form className="command-bar" onSubmit={submitCommand}>
               <label className="sr-only" htmlFor="command-input">Ask Nehemiah</label>
               <input id="command-input" value={command} onChange={(event) => setCommand(event.target.value)} placeholder={journey.lifecycle === 'resting' ? 'Ask Nehemiah anything…' : journey.command || 'Journey in progress'} autoComplete="off" disabled={journey.lifecycle !== 'resting'} />
