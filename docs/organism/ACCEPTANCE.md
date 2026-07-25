@@ -81,6 +81,30 @@ Run the whole gate locally: `npm run gate`
 | Seven security headers survive any `next.config.ts` edit | ENFORCED | `check-founder-compliance` §13; CI `quality:headers` against a running server |
 | Evidence before completion claims | FOUNDER-LOCKED | Superpowers `verification-before-completion`; CI as backstop |
 
+## D2. Network-globe orb — team review disposition (2026-07-25)
+
+A six-lens review (visual, compliance, correctness, a11y, coverage, cross-state)
+raised 25 findings. Disposition, so none is silently dropped:
+
+**Fixed + verified:** state differentiation now reads indigo + convergence
+(weighing ≠ enacting); per-state spin (rotationDrift) and twinkle (pulseRate)
+that sleep stills via a wakefulness factor; near-black interior; warm-gold net;
+DORMANT pinwheel removed; **focus-ring occlusion regression fixed** (ring above
+the opaque canvas); size===0.75 boundary bug fixed via one shared comparator;
+core bloom capped (net legible through the spin); crisp refractive rim; visible
+star field; status-dot contrast ≥3:1; render-layer mappers extracted to a pure
+tested module; globe edge-integrity / determinism / isolation / floor-guard
+tests; **globe added to the compliance gate** (check #11b); reduced-motion note
+now announced; touch-device quick-nav discoverable.
+
+**Consciously deferred (low severity / risk before merge), tracked in §E:**
+legacy field layers still generated at load though unrendered (startup-only
+cost; gating cleanly would restructure the field/options contract the gate
+depends on); engine-level off-palette hex scan (needs an allowlist for the
+intentional dark-body tones); two micro-optimisations (constant-per-pass
+attributes → uniforms; legacy over-spec tests). The counter-drift refs are
+kept deliberately so `SHOW_LEGACY_STRANDS` can still A/B the two shapes.
+
 ## E. Known gaps (honest register)
 
 Recorded rather than hidden, so nobody mistakes silence for completion.

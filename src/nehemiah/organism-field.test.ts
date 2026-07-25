@@ -268,6 +268,44 @@ test('network globe density never re-rolls the organism', () => {
   assert.equal(without.globe.edges.length, 0);
 });
 
+test('network globe edges are well-formed (no self-loop, dup, or bad index)', () => {
+  const field = organismField(defaults);
+  const { nodes, edges } = field.globe;
+
+  assert.ok(edges.length >= nodes.length, `edges ${edges.length} >= nodes ${nodes.length}`);
+
+  const seen = new Set<string>();
+  for (const { a, b } of edges) {
+    assert.notEqual(a, b, 'no self-loop');
+    assert.ok(a >= 0 && a < nodes.length && b >= 0 && b < nodes.length, 'indices in range');
+    const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+    assert.ok(!seen.has(key), `no duplicate undirected edge ${key}`);
+    seen.add(key);
+  }
+});
+
+test('network globe is deterministic per seed and isolated from other layers', () => {
+  assert.deepEqual(organismField(defaults).globe, organismField(defaults).globe);
+  assert.notDeepEqual(
+    organismField(defaults).globe,
+    organismField({ ...defaults, seed: 12 }).globe,
+  );
+  const base = organismField(defaults);
+  const retuned = organismField({ ...defaults, globeMaxNeighbors: 2, globeNeighborAngle: 0.5 });
+  assert.deepEqual(retuned.filaments, base.filaments);
+  assert.deepEqual(retuned.dendrites, base.dendrites);
+  assert.deepEqual(retuned.stars, base.stars);
+  assert.deepEqual(retuned.nodes, base.nodes);
+  assert.notDeepEqual(retuned.globe.edges, base.globe.edges);
+});
+
+test('network globe params are guarded against silent shrink-to-nothing', () => {
+  assert.ok(defaults.globeNodeCount >= 180, 'globe keeps a real node population');
+  assert.ok(defaults.globeShellRadius > 0.8 && defaults.globeShellRadius <= 1, 'nodes on the shell');
+  assert.ok(defaults.globeMaxNeighbors >= 2, 'edges can form a net');
+  assert.ok(defaults.globeNeighborAngle > 0.3, 'neighbour cutoff is not degenerate');
+});
+
 test('star field density never re-rolls the organism', () => {
   const dense = organismField(defaults);
   const bare = organismField({ ...defaults, starCount: 0 });

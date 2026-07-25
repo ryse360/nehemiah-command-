@@ -180,6 +180,7 @@ const requiredTestFiles = [
   'src/nehemiah/organism-lab-contract.test.ts',
   'src/nehemiah/organism-motion.test.ts',
   'src/nehemiah/organism-architecture.test.ts',
+  'src/nehemiah/organism-globe-model.test.ts',
 ];
 const missingTests = requiredTestFiles.filter((file) => !existsSync(path.join(root, file)));
 check(
@@ -190,11 +191,33 @@ check(
 
 // ---------------------------------------------------------------------------
 // 11. No monolithic rotation — the organism must not rotate as one object.
+// The root group (body, core, star field, membrane, contact shadow) carries
+// breathing/float only and must never spin. The network-globe node shell DOES
+// rotate on its own sub-group (spinRef) — that is the sanctioned "rotation
+// lives in sub-layers" case, not the whole organism tumbling as a block, since
+// everything outside the net stays put.
 const engine = read('src/components/organism/organism-engine.tsx');
 check(
   'no monolithic rotation',
   !/root\.current\.rotation/.test(engine),
-  'root group carries breathing/float only; rotation lives in sub-layers',
+  'root carries breathing/float only; only the globe net sub-layer spins',
+);
+
+// ---------------------------------------------------------------------------
+// 11b. The primary shape (network globe) is present, gated, and parameterised.
+// The globe replaced the filament shape as THE artifact, so it must stay in
+// the compliance surface: rendered by the engine, driven by the pure model,
+// and configured by real field parameters (guards against it being silently
+// removed or zeroed while the older shape's checks keep passing).
+const globeModelPresent = existsSync(path.join(root, 'src/nehemiah/organism-globe-model.ts'));
+const fieldSource = read('src/nehemiah/organism-field.ts');
+check(
+  'primary network-globe shape governed',
+  /<NetworkGlobe/.test(engine) &&
+    /organism-globe-model/.test(engine) &&
+    globeModelPresent &&
+    /globeNodeCount:\s*\d+/.test(fieldSource),
+  'engine renders NetworkGlobe via the pure globe model with parameterised node count',
 );
 
 // ---------------------------------------------------------------------------

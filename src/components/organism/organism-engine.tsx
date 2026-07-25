@@ -16,6 +16,12 @@ import {
   organismField,
   type MajorFilament,
 } from '@/nehemiah/organism-field';
+import {
+  GLOBE_BUCKETS,
+  globeColorRole,
+  globeNodePriority,
+  globeTwinklePhase,
+} from '@/nehemiah/organism-globe-model';
 
 // The field is deterministic and pure, so build it ONCE at module scope.
 // Calling organismField() inside six separate components cost ~8.4ms each,
@@ -726,37 +732,24 @@ function AmbientStarfield({ intensity }: { intensity: number }) {
 // edges. Three node passes (fine / mid / hub) because a points material
 // carries one size per draw call, and the hubs must read as distinct jewels
 // over the fine field. Round soft sprites, not the default hard squares.
-// Pure mappers for the network globe render layer. Extracted from the
-// component so they can be unit-tested, and so ONE size-class comparator is
-// shared by the pixel bucket, the colour, and the priority — an earlier split
-// (bucket used `< max`, colour/priority used `> 0.75`) disagreed at exactly
-// size===0.75. GLOBE_HUB / GLOBE_MID are the single source of truth.
-export const GLOBE_HUB = 0.75;
-export const GLOBE_MID = 0.4;
-
-export const GLOBE_BUCKETS = [
-  { min: 0, max: GLOBE_MID, px: 7 },
-  { min: GLOBE_MID, max: GLOBE_HUB, px: 12 },
-  { min: GLOBE_HUB, max: Infinity, px: 19 },
-] as const;
-
-export function globeNodePriority(size: number): number {
-  return size >= GLOBE_HUB ? 1 : size >= GLOBE_MID ? 0.35 : 0;
-}
-
-export function globeTwinklePhase(position: readonly [number, number, number]): number {
-  // deterministic per-node phase from position — no RNG stream, always [0,1)
-  return (Math.sin(position[0] * 91.7 + position[1] * 47.3) + 1) / 2;
-}
-
-export function globeNodeColor(
+// Node classification for the globe lives in a pure, R3F-free model module
+// (organism-globe-model.ts) so it can be unit-tested and shares ONE comparator
+// across bucket/colour/priority. This thin adapter maps the colour role to a
+// concrete THREE.Color.
+function globeNodeColor(
   node: { size: number; family: 'gold' | 'lavender' },
   palette: { gold: THREE.Color; goldMidTone: THREE.Color; goldHot: THREE.Color; lavender: THREE.Color },
 ): THREE.Color {
-  if (node.family === 'lavender') return palette.lavender;
-  if (node.size >= GLOBE_HUB) return palette.goldHot;
-  if (node.size >= GLOBE_MID) return palette.goldMidTone;
-  return palette.gold;
+  switch (globeColorRole(node)) {
+    case 'lavender':
+      return palette.lavender;
+    case 'gold-hot':
+      return palette.goldHot;
+    case 'gold-mid':
+      return palette.goldMidTone;
+    default:
+      return palette.gold;
+  }
 }
 
 const GLOBE_POINT_VERT = /* glsl */ `

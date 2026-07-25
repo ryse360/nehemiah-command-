@@ -270,8 +270,13 @@ export function OrganismLab() {
             } as React.CSSProperties
           }
         />
-        <span aria-live="polite">{statusLabel}</span>
-        {reducedMotion ? <span>Reduced motion active</span> : null}
+        {/* both the state label AND the reduced-motion note live inside the
+            polite region, so a reduced-motion toggle is announced and the note
+            reads as a delimited second token rather than an unseparated run-on */}
+        <span aria-live="polite">
+          {statusLabel}
+          {reducedMotion ? <span> · Reduced motion</span> : null}
+        </span>
       </div>
 
       <nav className={styles.jumpDots} aria-label="Lifecycle states">
