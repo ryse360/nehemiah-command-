@@ -1,44 +1,40 @@
 // Cost governance for the REAL AI path. A decorator around any AIModelProvider
-// (the production OpenAICompatibleResponsesProvider) that adds the three things
-// the real orchestration path lacks: response caching, a hard per-call spend
-// ceiling, and usage telemetry. The seam is AIModelProvider.generate, so
-// orchestrateDecisionPreparation and the route are untouched.
+// (the production OpenAICompatibleResponsesProvider) that puts three things the
+// real orchestration path lacked in front of every call: response caching, a
+// durable concurrency-safe spend ceiling (per-call + daily, Phoenix-time), and
+// usage telemetry. The seam is AIModelProvider.generate, so
+// orchestrateDecisionPreparation and the route stay thin.
 //
-// SERVER-ONLY.
-//
-// Honest limits (see docs): the deployment uses a SINGLE model, so complexity
-// routing is deferred; and an in-memory ledger only accumulates within a warm
-// process, so the DAILY ceiling is best-effort here — a durable Postgres ledger
-// (step 2b) is the real daily cap. The per-OPERATION ceiling and caching are
-// reliable per invocation. Costs are estimated from text length until the
-// provider's token usage is captured.
+// SERVER-ONLY. Fails CLOSED: a ceiling breach or ledger/DB error refuses the
+// call before the provider runs. Costs reconcile from the provider's MEASURED
+// token usage against a versioned price table (estimate only pre-call).
 
+import { createHash } from 'node:crypto';
 import {
   AIOrchestrationError,
   type AIModelProvider,
   type AIProviderResponse,
 } from './ai-orchestration';
-import {
-  BudgetExceededError,
-  BudgetLedger,
-  SpendGuard,
-  costNano,
-  nanoToUsd,
-  type Clock,
-  type ModelSpec,
-} from './cost';
+import { nanoToUsd } from './cost';
 import { ResponseCache, cacheKey } from './ai/cache';
 import { UsageTelemetry } from './ai/telemetry';
+import {
+  InMemoryUsageLedgerStore,
+  UsageBudgetError,
+  UsageLedger,
+  costNanoFromUsage,
+  priceFor,
+  type ModelPrice,
+  type UsageLedgerStore,
+} from './usage-ledger';
 
 export interface GovernedProviderConfig {
-  /** Pricing for the configured model (routing is deferred to one tier). */
-  model: ModelSpec;
-  dailyUsdCeiling: number;
-  perOperationUsdCeiling: number;
-  now?: Clock;
+  modelId: string;
+  ledger: UsageLedger;
+  priceTable?: readonly ModelPrice[];
+  now?: () => number;
   cacheTtlMs?: number;
   cacheMaxEntries?: number;
-  /** Conservative output-token estimate for the pre-call authorization. */
   estOutputTokens?: number;
 }
 
@@ -47,8 +43,6 @@ function estimateTokens(text: string): number {
 }
 
 export class GovernedProvider implements AIModelProvider {
-  private readonly ledger: BudgetLedger;
-  private readonly guard: SpendGuard;
   private readonly cache: ResponseCache<AIProviderResponse>;
   private readonly telemetry = new UsageTelemetry();
   private readonly agent = 'founder-ai';
@@ -58,15 +52,18 @@ export class GovernedProvider implements AIModelProvider {
     private readonly config: GovernedProviderConfig,
   ) {
     const now = config.now ?? (() => Date.now());
-    this.ledger = new BudgetLedger(now);
-    this.guard = new SpendGuard(this.ledger, {
-      dailyUsd: config.dailyUsdCeiling,
-      perOperationUsd: config.perOperationUsdCeiling,
-    });
     this.cache = new ResponseCache<AIProviderResponse>(now, {
       ttlMs: config.cacheTtlMs ?? 10 * 60 * 1000,
       maxEntries: config.cacheMaxEntries ?? 500,
     });
+  }
+
+  private costNanoFor(inputTokens: number, outputTokens: number): number {
+    return costNanoFromUsage(
+      priceFor(this.config.modelId, this.config.priceTable),
+      inputTokens,
+      outputTokens,
+    );
   }
 
   async generate(input: {
@@ -74,67 +71,79 @@ export class GovernedProvider implements AIModelProvider {
     user: string;
     schema: Record<string, unknown>;
     timeoutMs: number;
+    requestId?: string;
   }): Promise<AIProviderResponse> {
-    const key = cacheKey(this.config.model.id, `${input.system}\n${input.user}`);
+    const key = cacheKey(this.config.modelId, `${input.system}\n${input.user}`);
     const estIn = estimateTokens(`${input.system}\n${input.user}`);
+    // stable id per logical request (idempotent across retries); fall back to a
+    // content hash for direct callers that don't thread one through.
+    const requestId =
+      input.requestId ?? createHash('sha256').update(key).digest('hex').slice(0, 40);
 
     const hit = this.cache.get(key);
     if (hit) {
-      const outTokens = estimateTokens(JSON.stringify(hit.output));
-      // a cache hit spends nothing; telemetry records the spend it AVOIDED.
+      const outTokens = hit.usage?.outputTokens ?? estimateTokens(JSON.stringify(hit.output));
+      await this.config.ledger.cacheHit({ requestId, agent: this.agent, model: this.config.modelId });
       this.telemetry.record({
         agent: this.agent,
         task: 'decision-preparation',
-        model: this.config.model.id,
-        tier: this.config.model.tier,
+        model: this.config.modelId,
+        tier: 'standard',
         inputTokens: estIn,
         outputTokens: outTokens,
         costNano: 0,
-        naiveCostNano: costNano(this.config.model, estIn, outTokens),
+        naiveCostNano: this.costNanoFor(estIn, outTokens),
         cached: true,
       });
       return hit;
     }
 
-    const estCost = costNano(
-      this.config.model,
-      estIn,
-      this.config.estOutputTokens ?? 900,
-    );
+    // pre-call reservation — fails CLOSED (throws) if over a ceiling or the
+    // ledger is unavailable.
     try {
-      this.guard.authorize(this.agent, estCost);
+      await this.config.ledger.reserve({
+        requestId,
+        agent: this.agent,
+        model: this.config.modelId,
+        estInputTokens: estIn,
+        estOutputTokens: this.config.estOutputTokens ?? 900,
+      });
     } catch (error) {
-      if (error instanceof BudgetExceededError) {
-        // map the budget breach into the route's error taxonomy (→ 502) with a
-        // clear, non-retryable message rather than crashing the request.
+      if (error instanceof UsageBudgetError) {
         throw new AIOrchestrationError(
           'provider_unavailable',
-          `AI spend ceiling reached (${error.kind}); request refused to protect the budget.`,
+          `AI spend refused (${error.reason}) to protect the budget.`,
           false,
         );
       }
       throw error;
     }
 
-    const response = await this.inner.generate(input);
+    let response: AIProviderResponse;
+    try {
+      response = await this.inner.generate(input);
+    } catch (error) {
+      // provider failed → void the reservation so it costs nothing, then
+      // rethrow so orchestration can retry (retry reuses the same requestId).
+      await this.config.ledger.fail(requestId);
+      throw error;
+    }
 
-    const outTokens = estimateTokens(JSON.stringify(response.output));
-    const cost = costNano(this.config.model, estIn, outTokens);
-    this.ledger.record({
-      agent: this.agent,
-      task: 'decision-preparation',
-      model: this.config.model.id,
-      tier: this.config.model.tier,
-      inputTokens: estIn,
+    const inTokens = response.usage?.inputTokens ?? estIn;
+    const outTokens = response.usage?.outputTokens ?? estimateTokens(JSON.stringify(response.output));
+    await this.config.ledger.reconcile({
+      requestId,
+      model: this.config.modelId,
+      inputTokens: inTokens,
       outputTokens: outTokens,
-      costNano: cost,
     });
+    const cost = this.costNanoFor(inTokens, outTokens);
     this.telemetry.record({
       agent: this.agent,
       task: 'decision-preparation',
-      model: this.config.model.id,
-      tier: this.config.model.tier,
-      inputTokens: estIn,
+      model: this.config.modelId,
+      tier: 'standard',
+      inputTokens: inTokens,
       outputTokens: outTokens,
       costNano: cost,
       naiveCostNano: cost,
@@ -144,36 +153,19 @@ export class GovernedProvider implements AIModelProvider {
     return response;
   }
 
-  /** Operational snapshot — spend today, cache hit rate, avoided cost. */
-  report() {
+  async report() {
     return {
-      spentTodayUsd: nanoToUsd(this.ledger.spentOnDayNano()),
+      spentTodayUsd: nanoToUsd(await this.config.ledger.spentTodayNano()),
       telemetry: this.telemetry.report(),
       cache: this.cache.stats,
     };
   }
 }
 
-// A representative default price for the configured model (verify against the
-// real provider's published rate; overridable via env). Used only for the
-// estimate-based ceiling + telemetry, not billing.
-function modelSpecFromEnv(modelId: string): ModelSpec {
-  const num = (key: string, fallback: number) => {
-    const v = Number(process.env[key]);
-    return Number.isFinite(v) && v > 0 ? v : fallback;
-  };
-  return {
-    id: modelId as ModelSpec['id'],
-    tier: 'standard',
-    inputUsdPerMillion: num('NEHEMIAH_AI_INPUT_USD_PER_M', 3),
-    outputUsdPerMillion: num('NEHEMIAH_AI_OUTPUT_USD_PER_M', 15),
-  };
-}
-
-// Module-scope singleton so caching and the in-process daily ledger persist
-// across requests in a warm serverless container (they reset on cold start —
-// the durable daily cap is step 2b). Keyed by model id so a config change
-// rebuilds it.
+// Module-scope singleton so the cache persists across requests in a warm
+// container. The DAILY ceiling is now durable via Postgres (survives cold
+// starts and is concurrency-safe); the in-memory store is only a dev fallback
+// when DATABASE_URL is absent.
 let cached: { modelId: string; provider: GovernedProvider } | null = null;
 
 export function governedProviderFromEnv(
@@ -181,15 +173,29 @@ export function governedProviderFromEnv(
   modelId: string,
 ): GovernedProvider {
   if (cached && cached.modelId === modelId) return cached.provider;
-  const num = (key: string, fallback: number) => {
-    const v = Number(process.env[key]);
+
+  const num = (envKey: string, fallback: number) => {
+    const v = Number(process.env[envKey]);
     return Number.isFinite(v) && v > 0 ? v : fallback;
   };
-  const provider = new GovernedProvider(inner, {
-    model: modelSpecFromEnv(modelId),
-    dailyUsdCeiling: num('NEHEMIAH_AI_DAILY_USD', 25),
-    perOperationUsdCeiling: num('NEHEMIAH_AI_PER_CALL_USD', 1),
+
+  let store: UsageLedgerStore;
+  const dbUrl = process.env.DATABASE_URL;
+  if (dbUrl) {
+    // lazy require so the pg client isn't pulled into environments without a DB
+    const { PostgresUsageLedgerStore } = require('./postgres-usage-ledger-store') as typeof import('./postgres-usage-ledger-store');
+    store = new PostgresUsageLedgerStore(dbUrl);
+  } else {
+    store = new InMemoryUsageLedgerStore();
+  }
+
+  const ledger = new UsageLedger({
+    store,
+    dailyCeilingUsd: num('NEHEMIAH_AI_DAILY_USD', 25),
+    perCallCeilingUsd: num('NEHEMIAH_AI_PER_CALL_USD', 1),
   });
+
+  const provider = new GovernedProvider(inner, { modelId, ledger });
   cached = { modelId, provider };
   return provider;
 }

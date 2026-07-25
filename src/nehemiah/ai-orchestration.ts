@@ -38,6 +38,8 @@ export type AIProviderResponse = {
   model: string;
   providerRequestId?: string;
   output: unknown;
+  /** Measured token usage, when the provider reports it. */
+  usage?: { inputTokens: number; outputTokens: number };
 };
 
 export interface AIModelProvider {
@@ -46,6 +48,9 @@ export interface AIModelProvider {
     user: string;
     schema: Record<string, unknown>;
     timeoutMs: number;
+    /** Stable per logical request; reused across retry attempts so a cost
+     * ledger can be idempotent (no double-charge on retry). */
+    requestId?: string;
   }): Promise<AIProviderResponse>;
 }
 
@@ -199,11 +204,14 @@ export async function orchestrateDecisionPreparation(
   const id = options.id ?? randomUUID;
   const startedAt = now();
   const prompt = buildDecisionPreparationPrompt(request);
+  // one stable id for this logical request, reused across retry attempts so a
+  // cost ledger charges it at most once.
+  const requestId = id();
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const response = await provider.generate({ ...prompt, schema: decisionPreparationSchema, timeoutMs });
+      const response = await provider.generate({ ...prompt, schema: decisionPreparationSchema, timeoutMs, requestId });
       const preparation = validateAIResult(response.output);
       return {
         preparation,
@@ -231,7 +239,7 @@ export class OpenAICompatibleResponsesProvider implements AIModelProvider {
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
-  async generate(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number }): Promise<AIProviderResponse> {
+  async generate(input: { system: string; user: string; schema: Record<string, unknown>; timeoutMs: number; requestId?: string }): Promise<AIProviderResponse> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), input.timeoutMs);
     try {
@@ -251,12 +259,18 @@ export class OpenAICompatibleResponsesProvider implements AIModelProvider {
       if (!response.ok) {
         throw new AIOrchestrationError('provider_unavailable', `AI provider returned ${response.status}.`, response.status >= 500 || response.status === 429);
       }
-      const payload = await response.json() as { id?: string; model?: string; output_text?: string };
+      const payload = await response.json() as {
+        id?: string; model?: string; output_text?: string;
+        usage?: { input_tokens?: number; output_tokens?: number };
+      };
       if (!payload.output_text) throw new AIOrchestrationError('invalid_output', 'AI provider returned no structured output.');
       let output: unknown;
       try { output = JSON.parse(payload.output_text); }
       catch { throw new AIOrchestrationError('invalid_output', 'AI provider returned malformed JSON.'); }
-      return { model: payload.model ?? this.config.model, providerRequestId: payload.id, output };
+      const usage = payload.usage && typeof payload.usage.input_tokens === 'number' && typeof payload.usage.output_tokens === 'number'
+        ? { inputTokens: payload.usage.input_tokens, outputTokens: payload.usage.output_tokens }
+        : undefined;
+      return { model: payload.model ?? this.config.model, providerRequestId: payload.id, output, usage };
     } catch (error) {
       if (error instanceof AIOrchestrationError) throw error;
       if (error instanceof Error && error.name === 'AbortError') throw new AIOrchestrationError('provider_timeout', 'AI provider timed out.', true);
