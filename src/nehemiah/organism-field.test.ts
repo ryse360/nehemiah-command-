@@ -215,6 +215,59 @@ test('star field: dense, entirely outside the organism, depth-graded', () => {
   assert.ok(rightShare > 0.7, `lavender right share ${rightShare} leans right`);
 });
 
+test('network globe: nodes wrap the shell, edges join near neighbours only', () => {
+  const field = organismField(defaults);
+  const globe = field.globe;
+
+  assert.equal(globe.nodes.length, defaults.globeNodeCount);
+
+  // every node sits ON the shell (within the small jitter), not in the volume
+  for (const node of globe.nodes) {
+    const r = len(node.position);
+    assert.ok(
+      r > defaults.globeShellRadius * 0.9 && r < defaults.globeShellRadius * 1.1,
+      `node radius ${r} hugs the shell`,
+    );
+  }
+
+  // three brightness classes; hubs stay rare, fine dots dominate
+  const hubs = globe.nodes.filter((n) => n.size > 0.75).length;
+  const fine = globe.nodes.filter((n) => n.size <= 0.4).length;
+  assert.ok(hubs / globe.nodes.length < 0.12, `hub share ${hubs / globe.nodes.length}`);
+  assert.ok(fine / globe.nodes.length > 0.5, `fine share ${fine / globe.nodes.length}`);
+
+  // it is a sparse geodesic net, not a filled mesh: bounded degree, and every
+  // edge joins genuinely nearby nodes
+  assert.ok(globe.edges.length > 0);
+  assert.ok(
+    globe.edges.length < globe.nodes.length * defaults.globeMaxNeighbors,
+    'edge count stays sparse',
+  );
+  for (const { a, b } of globe.edges) {
+    assert.ok(
+      dist(globe.nodes[a].position, globe.nodes[b].position) < defaults.globeNeighborAngle,
+      'edge joins nearby nodes only',
+    );
+  }
+
+  // cool nodes keep to the reasoning side
+  const lavender = globe.nodes.filter((n) => n.family === 'lavender');
+  assert.ok(lavender.length > 0 && lavender.length < globe.nodes.length / 2);
+  const rightShare = lavender.filter((n) => n.position[0] > 0).length / lavender.length;
+  assert.ok(rightShare > 0.7, `lavender right share ${rightShare}`);
+});
+
+test('network globe density never re-rolls the organism', () => {
+  const withGlobe = organismField(defaults);
+  const without = organismField({ ...defaults, globeNodeCount: 0 });
+
+  assert.deepEqual(withGlobe.filaments, without.filaments);
+  assert.deepEqual(withGlobe.dendrites, without.dendrites);
+  assert.deepEqual(withGlobe.stars, without.stars);
+  assert.equal(without.globe.nodes.length, 0);
+  assert.equal(without.globe.edges.length, 0);
+});
+
 test('star field density never re-rolls the organism', () => {
   const dense = organismField(defaults);
   const bare = organismField({ ...defaults, starCount: 0 });

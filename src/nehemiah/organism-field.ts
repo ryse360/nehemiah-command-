@@ -88,6 +88,11 @@ export interface FieldOptions {
   flareCount: number;
   macroLoopCount: number;
   dendriteTrunkCount: number;
+  globeNodeCount: number;
+  globeShellRadius: number;
+  globeMaxNeighbors: number;
+  /** max chord distance for a node pair to be considered neighbours. */
+  globeNeighborAngle: number;
 }
 
 // The single source of truth for the shipped field. The engine imports this
@@ -105,7 +110,33 @@ export const ORGANISM_FIELD_OPTIONS: FieldOptions = {
   flareCount: 8,
   macroLoopCount: 4,
   dendriteTrunkCount: 24,
+  globeNodeCount: 260,
+  globeShellRadius: 0.94,
+  globeMaxNeighbors: 3,
+  globeNeighborAngle: 0.62,
 };
+
+// The network globe — the approved primary shape. Discrete nodes wrapped on
+// the sphere's SHELL (not filling the volume) joined by a sparse geodesic net
+// of nearest-neighbour edges. This is the "network globe / constellation
+// sphere" language from the reference, distinct from the volume-distributed
+// `nodes`/`connections` cognition graph.
+export interface GlobeNode {
+  position: Vec3;
+  /** relative brightness/size class, 0..1 — mostly fine, a few hubs. */
+  size: number;
+  family: 'gold' | 'lavender';
+}
+
+export interface GlobeEdge {
+  a: number;
+  b: number;
+}
+
+export interface NetworkGlobe {
+  nodes: GlobeNode[];
+  edges: GlobeEdge[];
+}
 
 export interface OrganismFieldResult {
   stars: FieldStar[];
@@ -117,6 +148,7 @@ export interface OrganismFieldResult {
   microFilaments: MicroFilament[];
   arcs: OrbitalArc[];
   flares: NodalFlare[];
+  globe: NetworkGlobe;
 }
 
 function mulberry32(seed: number): () => number {
@@ -141,6 +173,65 @@ function length(p: Vec3): number {
 function normalize(p: Vec3): Vec3 {
   const l = length(p) || 1;
   return [p[0] / l, p[1] / l, p[2] / l];
+}
+
+// Build the network globe: nodes evenly wrapped on the shell (Fibonacci
+// sphere with a little jitter), joined to their few nearest neighbours only —
+// a geodesic net, not a filled mesh. Own RNG stream so density tuning never
+// disturbs any other layer.
+function buildNetworkGlobe(
+  seed: number,
+  count: number,
+  shellRadius: number,
+  maxNeighbors: number,
+  neighborAngle: number,
+  lavenderPole: Vec3,
+): NetworkGlobe {
+  const rng = mulberry32(seed ^ 0x517cc1b7);
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const nodes: GlobeNode[] = [];
+
+  for (let i = 0; i < count; i += 1) {
+    const y = 1 - (2 * (i + 0.5)) / count;
+    const ring = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = golden * i;
+    const jitter = 1 + (rng() - 0.5) * 0.05;
+    const dir = normalize([ring * Math.cos(theta), y, ring * Math.sin(theta)]);
+    const r = shellRadius * jitter;
+
+    // three brightness classes: mostly fine, some mid, a few hubs
+    const roll = rng();
+    const size =
+      roll < 0.72 ? 0.16 + rng() * 0.22 : roll < 0.93 ? 0.42 + rng() * 0.25 : 0.75 + rng() * 0.25;
+
+    // cool nodes lean toward the reasoning pole, never salt the warm side
+    const towardLavender = dir[0] * lavenderPole[0] + dir[1] * lavenderPole[1] > 0.12;
+    const family: GlobeNode['family'] = towardLavender && rng() < 0.35 ? 'lavender' : 'gold';
+
+    nodes.push({ position: [dir[0] * r, dir[1] * r, dir[2] * r], size, family });
+  }
+
+  // geodesic edges: each node to its nearest few within the angular cutoff
+  const edges: GlobeEdge[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < nodes.length; i += 1) {
+    const near: Array<[number, number]> = [];
+    for (let j = 0; j < nodes.length; j += 1) {
+      if (i === j) continue;
+      const d = distance(nodes[i].position, nodes[j].position);
+      if (d < neighborAngle) near.push([d, j]);
+    }
+    near.sort((p, q) => p[0] - q[0]);
+    for (let k = 0; k < Math.min(maxNeighbors, near.length); k += 1) {
+      const j = near[k][1];
+      const key = i < j ? `${i}_${j}` : `${j}_${i}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push({ a: i, b: j });
+    }
+  }
+
+  return { nodes, edges };
 }
 
 // Three to five macro circulation paths — never ten, never twenty. Each is
@@ -457,6 +548,16 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
   const dendrites = buildDendrites(
     options.seed,
     options.dendriteTrunkCount,
+    LAVENDER_POLE,
+  );
+
+  // The approved primary shape: a network globe wrapped on the shell.
+  const globe = buildNetworkGlobe(
+    options.seed,
+    options.globeNodeCount,
+    options.globeShellRadius,
+    options.globeMaxNeighbors,
+    options.globeNeighborAngle,
     LAVENDER_POLE,
   );
 
@@ -830,5 +931,6 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
     microFilaments,
     arcs,
     flares,
+    globe,
   };
 }

@@ -33,6 +33,12 @@ const MEMBRANE_RADIUS = 1.02;
 // Spec depth treatment: rear 8-22%, middle 18-45%, front 35-75% opacity.
 const DEPTH_BASE = { rear: 0.18, middle: 0.36, front: 0.62 } as const;
 
+// The primary shape is now the approved network globe. The previous
+// filament/dendrite/bead/weave/ribbon/flare anatomy is kept in the codebase
+// (and still generated + tested at the field layer) but no longer rendered.
+// Flip this to A/B the two shape languages without deleting either.
+const SHOW_LEGACY_STRANDS = false;
+
 // Animates the displayed parameters toward the target with the held-breath
 // personality: still (and slightly contracted) through the hold, then a
 // settling ease with overshoot. Re-renders only while a transition runs.
@@ -713,6 +719,154 @@ function AmbientStarfield({ intensity }: { intensity: number }) {
   );
 }
 
+// The network globe — the approved primary shape. Discrete luminous nodes
+// wrapped on the sphere's shell, joined by a sparse geodesic net of thin
+// edges. Three node passes (fine / mid / hub) because a points material
+// carries one size per draw call, and the hubs must read as distinct jewels
+// over the fine field. Round soft sprites, not the default hard squares.
+const GLOBE_POINT_VERT = /* glsl */ `
+  attribute vec3 color;
+  attribute float aSize;
+  uniform float uScale;
+  varying vec3 vColor;
+  void main() {
+    vColor = color;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = aSize * (uScale / -mv.z);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+const GLOBE_POINT_FRAG = /* glsl */ `
+  varying vec3 vColor;
+  uniform float uOpacity;
+  void main() {
+    float d = distance(gl_PointCoord, vec2(0.5));
+    float soft = smoothstep(0.5, 0.05, d);
+    gl_FragColor = vec4(vColor, soft * uOpacity);
+  }
+`;
+
+function NetworkGlobe({
+  intensity,
+}: {
+  intensity: number;
+}) {
+  const { nodePasses, edgeGeometry } = useMemo(() => {
+    const gold = new THREE.Color(neoPalette.goldMid);
+    const goldMidTone = new THREE.Color(neoPalette.goldLight);
+    const goldHot = new THREE.Color(neoPalette.shellWhite);
+    const lavender = new THREE.Color(neoPalette.lavenderMid).multiplyScalar(1.3);
+    const globe = FIELD.globe;
+
+    // three size buckets: [maxSize, pixelSize]
+    const buckets: Array<{ max: number; px: number; nodes: number[] }> = [
+      { max: 0.4, px: 9, nodes: [] },
+      { max: 0.75, px: 15, nodes: [] },
+      { max: 1.01, px: 23, nodes: [] },
+    ];
+    globe.nodes.forEach((node, i) => {
+      (buckets.find((b) => node.size < b.max) ?? buckets[2]).nodes.push(i);
+    });
+
+    const nodePasses = buckets.map(({ px, nodes }) => {
+      const positions = new Float32Array(nodes.length * 3);
+      const colors = new Float32Array(nodes.length * 3);
+      const sizes = new Float32Array(nodes.length);
+      nodes.forEach((nodeIndex, k) => {
+        const node = globe.nodes[nodeIndex];
+        positions.set(node.position, k * 3);
+        const base =
+          node.family === 'lavender'
+            ? lavender
+            : node.size > 0.75
+              ? goldHot
+              : node.size > 0.4
+                ? goldMidTone
+                : gold;
+        const c = base.clone().multiplyScalar(0.65 + 0.5 * node.size);
+        colors.set([c.r, c.g, c.b], k * 3);
+        sizes[k] = px;
+      });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+      return geo;
+    });
+
+    // thin geodesic edges, centrality-free but family-tinted and dim
+    const goldEdge = new THREE.Color(neoPalette.goldMid).multiplyScalar(0.5);
+    const lavenderEdge = new THREE.Color(neoPalette.lavenderMid).multiplyScalar(0.5);
+    const ep = new Float32Array(globe.edges.length * 6);
+    const ec = new Float32Array(globe.edges.length * 6);
+    globe.edges.forEach((edge, i) => {
+      const a = globe.nodes[edge.a];
+      const b = globe.nodes[edge.b];
+      ep.set(a.position, i * 6);
+      ep.set(b.position, i * 6 + 3);
+      const tint = a.family === 'lavender' || b.family === 'lavender' ? lavenderEdge : goldEdge;
+      ec.set([tint.r, tint.g, tint.b], i * 6);
+      ec.set([tint.r, tint.g, tint.b], i * 6 + 3);
+    });
+    const edgeGeometry = new THREE.BufferGeometry();
+    edgeGeometry.setAttribute('position', new THREE.BufferAttribute(ep, 3));
+    edgeGeometry.setAttribute('color', new THREE.BufferAttribute(ec, 3));
+
+    return { nodePasses, edgeGeometry };
+  }, []);
+
+  const pointMaterials = useMemo(
+    () =>
+      nodePasses.map(
+        () =>
+          new THREE.ShaderMaterial({
+            uniforms: { uScale: { value: 630 }, uOpacity: { value: 1 } },
+            vertexShader: GLOBE_POINT_VERT,
+            fragmentShader: GLOBE_POINT_FRAG,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          }),
+      ),
+    [nodePasses],
+  );
+
+  useFrame((state) => {
+    // aSize is a target size in PIXELS, so the perspective factor must be
+    // ~1 at the nodes' distance: uScale = cameraDistance × dpr makes
+    // gl_PointSize ≈ aSize device-pixels. (Multiplying by canvas height —
+    // ~630 — instead blew each point up to ~1100px, one white quad.)
+    const scale = state.camera.position.length() * state.viewport.dpr;
+    for (const m of pointMaterials) {
+      m.uniforms.uScale.value = scale;
+      m.uniforms.uOpacity.value = Math.min(1, intensity);
+    }
+  });
+
+  useEffect(
+    () => () => pointMaterials.forEach((m) => m.dispose()),
+    [pointMaterials],
+  );
+
+  return (
+    <group>
+      <lineSegments geometry={edgeGeometry}>
+        <lineBasicMaterial
+          vertexColors
+          transparent
+          opacity={0.9 * Math.min(1, intensity)}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </lineSegments>
+      {nodePasses.map((geometry, index) => (
+        <points key={index} geometry={geometry} material={pointMaterials[index]} />
+      ))}
+    </group>
+  );
+}
+
 // Volumetric ribbons ("caustic wisps") — the reference's signature grace.
 // Broad, smooth light-sheets that sweep through the volume and catch light,
 // built as tapered triangle strips along the macro loops so the ribbons ARE
@@ -1384,20 +1538,22 @@ function LivingScene({
         <Membrane intensity={goldLevel} />
 
         {/* 5. rear neural filaments + receding half of the micro-weave */}
-        <group ref={rearGroup}>
-          <MicroWeave
-            goldIntensity={goldIntensity}
-            indigoIntensity={indigoIntensity}
-            half="rear"
-          />
-          <FilamentDepthGroup
-            filaments={field.filaments}
-            depth="rear"
-            goldIntensity={goldIntensity}
-            indigoIntensity={indigoIntensity}
-            indigoConvergence={parameters.indigoConvergence}
-          />
-        </group>
+        {SHOW_LEGACY_STRANDS && (
+          <group ref={rearGroup}>
+            <MicroWeave
+              goldIntensity={goldIntensity}
+              indigoIntensity={indigoIntensity}
+              half="rear"
+            />
+            <FilamentDepthGroup
+              filaments={field.filaments}
+              depth="rear"
+              goldIntensity={goldIntensity}
+              indigoIntensity={indigoIntensity}
+              indigoConvergence={parameters.indigoConvergence}
+            />
+          </group>
+        )}
 
         {/* 6. dark internal volumetric body — inverse-fresnel ball: dense
             warm umber at the center fading to nothing at the rim, so the
@@ -1445,6 +1601,11 @@ function LivingScene({
           radius={0.9}
         />
 
+        {/* the approved primary shape: network globe on the shell */}
+        <NetworkGlobe intensity={goldLevel} />
+
+        {SHOW_LEGACY_STRANDS && (
+          <>
         {/* volumetric ribbons: the circulation made visible */}
         <VolumetricRibbons intensity={goldLevel} />
 
@@ -1517,6 +1678,8 @@ function LivingScene({
 
         {/* 10. major nodal flares */}
         <NodalFlares intensity={goldLevel} motionScale={motionScale} />
+          </>
+        )}
 
         {/* focal core (gold primary + lavender secondary inside LuminousCore) */}
         <LuminousCore parameters={parameters} reducedMotion={reducedMotion} />
