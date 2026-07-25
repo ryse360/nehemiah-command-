@@ -29,6 +29,9 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
+      - name: Founder compliance gate
+        run: npm run governance:organism
+
       - name: Build production application
         run: npm run build
 
@@ -41,7 +44,7 @@ jobs:
           NEHEMIAH_BASE_URL: http://127.0.0.1:3000
           NEHEMIAH_FOUNDER_ID: ci-founder
           NEHEMIAH_FOUNDER_PASSWORD_HASH: scrypt$16384$8$1$00$00
-          NEHEMIAH_SESSION_SECRET: 12345678901234567890123456789012
+          NEHEMIAH_SESSION_SECRET: '12345678901234567890123456789012'
           NEHEMIAH_AUTH_VERSION: '1'
         run: |
           npm start > /tmp/nehemiah-ci.log 2>&1 &

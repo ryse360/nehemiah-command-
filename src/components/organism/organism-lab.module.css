@@ -1,0 +1,252 @@
+.labShell {
+  width: min(100%, 920px);
+  height: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(0.35rem, 1vh, 0.85rem);
+}
+
+.stage {
+  --charge: 0;
+  position: relative;
+  /*
+   * Intelligent adaptive sizing. The organism aims for a commanding ~58% of
+   * the viewport height, but three guards keep it elegant everywhere:
+   *   48vw            — never overwhelm a narrow window
+   *   100dvh - 22rem  — always leave room for the chrome, so it never scrolls
+   *   760px ceiling   — stay tasteful on large desktops and ultrawides
+   *   18rem floor     — stay a real presence on the smallest screens
+   */
+  width: clamp(18rem, min(58vh, 48vw, calc(100dvh - 22rem)), 760px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  isolation: isolate;
+}
+
+/* The canvas is opaque now, so anything painted behind it is invisible. The
+   warm halo and the contact shadow both moved in-scene, where additive light
+   and soft falloff actually work. ::before is kept only as the focus ring
+   carrier. */
+.stage::before {
+  content: '';
+  position: absolute;
+  inset: -6%;
+  z-index: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.stage :global(canvas) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Focus indicator must clear WCAG 1.4.11 / 2.4.11. The old 0.32-alpha ring
+   measured 1.63:1 against the ivory; full-strength Threshold Indigo measures
+   6.36:1. The transparent outline preserves a visible ring in forced-colors
+   mode, where box-shadow is dropped. */
+.stage:focus-visible {
+  outline: 3px solid transparent;
+  outline-offset: 3px;
+}
+
+.stage:focus-visible::before {
+  box-shadow: 0 0 0 3px rgb(68, 82, 145);
+}
+
+@media (forced-colors: active) {
+  .stage:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+.chargeRing {
+  position: absolute;
+  inset: 4px;
+  z-index: 2;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: calc(var(--charge) * 0.85);
+  background: conic-gradient(
+    rgba(184, 150, 78, 0.55) calc(var(--charge) * 360deg),
+    transparent 0
+  );
+  -webkit-mask: radial-gradient(closest-side, transparent 97%, black 98%);
+  mask: radial-gradient(closest-side, transparent 97%, black 98%);
+}
+
+.statusRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 1.6rem;
+  flex-shrink: 0;
+  color: #5b5548;
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.statusDot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: #b8964e;
+  box-shadow: 0 0 16px rgba(184, 150, 78, 0.55);
+}
+
+.jumpDots {
+  display: flex;
+  justify-content: center;
+  gap: 0.15rem;
+  min-height: 1.5rem;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+
+.labShell:hover .jumpDots,
+.labShell:focus-within .jumpDots {
+  opacity: 1;
+}
+
+.jumpDot {
+  /* WCAG 2.5.8 needs a 24px target; the visual dot stays 0.42rem and the
+     hit area grows around it. */
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  background: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.jumpDot::before {
+  content: '';
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: rgba(100, 91, 69, 0.22);
+  transition: background 200ms ease, transform 200ms ease;
+}
+
+.jumpDot:hover::before {
+  background: rgba(184, 150, 78, 0.6);
+  transform: scale(1.35);
+}
+
+.jumpDot[data-current='true']::before {
+  background: #b8964e;
+  box-shadow: 0 0 10px rgba(184, 150, 78, 0.5);
+}
+
+.jumpDot:focus-visible {
+  outline: 2px solid rgba(68, 82, 145, 0.4);
+  outline-offset: 3px;
+}
+
+.commandSurface {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(100, 91, 69, 0.10);
+  border-radius: 999px;
+  background: rgba(255, 253, 247, 0.45);
+  opacity: 1;
+  flex-shrink: 0;
+  transition: opacity 600ms ease, border-color 600ms ease, box-shadow 600ms ease;
+}
+
+/* Attentive breath: adapted (and heavily quieted) from the Animate.css
+   heartBeat recipe — a glow that swells and releases, no scale punch,
+   no hover response. The surface looks awake, never interactive. */
+.commandSurface[data-presence='attentive'] {
+  border-color: rgba(184, 150, 78, 0.32);
+  background: rgba(255, 253, 247, 0.7);
+  animation: surfaceBreath calc(4.4s / max(var(--surface-glow, 1), 0.5)) ease-in-out infinite;
+}
+
+@keyframes surfaceBreath {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(184, 150, 78, 0);
+  }
+  45% {
+    box-shadow: 0 4px 26px rgba(184, 150, 78, 0.28);
+  }
+}
+
+.commandPlaceholder {
+  color: #605A4C;
+  font-size: 0.92rem;
+}
+
+.commandButton {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 50%;
+  background: rgba(184, 150, 78, 0.16);
+  color: #b8964e;
+  cursor: not-allowed;
+}
+
+.commandHelperText {
+  margin: 0;
+  text-align: center;
+  color: #6A6354;
+  font-size: 0.74rem;
+  flex-shrink: 0;
+}
+
+.fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: #5b5548;
+}
+
+@media (max-width: 720px) {
+  .stage {
+    /* Phones/tablets: width leads, height guards, still generous. */
+    width: clamp(15rem, min(84vw, 52vh, calc(100dvh - 20rem)), 460px);
+  }
+
+  .commandSurface {
+    padding: 0.7rem 0.9rem;
+  }
+
+  .commandPlaceholder {
+    font-size: 0.82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commandSurface[data-presence='attentive'] {
+    animation: none;
+    box-shadow: 0 4px 20px rgba(184, 150, 78, 0.18);
+  }
+
+  .jumpDots,
+  .jumpDot::before,
+  .commandSurface {
+    transition: none;
+  }
+}

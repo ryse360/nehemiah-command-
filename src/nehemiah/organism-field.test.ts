@@ -1,0 +1,340 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  ORGANISM_FIELD_OPTIONS,
+  organismField,
+  type FieldOptions,
+} from './organism-field';
+
+const defaults: FieldOptions = ORGANISM_FIELD_OPTIONS;
+const dist = (a: [number, number, number], b: [number, number, number]) =>
+  Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const len = (p: [number, number, number]) => Math.hypot(p[0], p[1], p[2]);
+
+test('generation is deterministic per seed and varies across seeds', () => {
+  assert.deepEqual(organismField(defaults), organismField(defaults));
+  assert.notDeepEqual(organismField(defaults), organismField({ ...defaults, seed: 12 }));
+});
+
+test('honors requested counts and spec ranges', () => {
+  const field = organismField(defaults);
+
+  assert.equal(field.nodes.length, defaults.nodeCount);
+  assert.equal(field.filaments.length, defaults.majorFilamentCount);
+  assert.equal(field.arcs.length, defaults.arcCount);
+  assert.equal(field.flares.length, defaults.flareCount);
+  assert.ok(
+    field.connections.length >= 150 && field.connections.length <= 280,
+    `connections ${field.connections.length} within spec 150-280`,
+  );
+});
+
+test('connections only join nearby nodes', () => {
+  const field = organismField(defaults);
+  for (const { a, b } of field.connections) {
+    assert.ok(
+      dist(field.nodes[a].position, field.nodes[b].position) < defaults.connectionRadius,
+    );
+  }
+});
+
+test('major filaments now fill the volume; the dendrites own the starburst', () => {
+  const field = organismField(defaults);
+  const reachCount = { radial: 0, inner: 0, membrane: 0, orbital: 0 };
+  for (const filament of field.filaments) reachCount[filament.reach] += 1;
+  const total = field.filaments.length;
+
+  // The radiating anatomy moved to the dendrite system, which fans properly
+  // instead of scribbling. Major filaments keep only a small radial remnant
+  // and otherwise do the volume-filling flow work.
+  assert.ok(reachCount.radial / total <= 0.14);
+  assert.ok(reachCount.inner / total >= 0.5 && reachCount.inner / total <= 0.65);
+  assert.ok(reachCount.membrane / total >= 0.14 && reachCount.membrane / total <= 0.28);
+  assert.ok(reachCount.orbital / total >= 0.06 && reachCount.orbital / total <= 0.14);
+});
+
+test('radial strands begin at the core and sweep outward', () => {
+  const field = organismField(defaults);
+  const radial = field.filaments.filter((f) => f.reach === 'radial');
+
+  assert.ok(radial.length > 0);
+  for (const filament of radial) {
+    const origin = filament.controlPoints[0];
+    const end = filament.controlPoints[filament.controlPoints.length - 1];
+
+    assert.ok(len(origin) <= 0.11, 'radial strands start at the luminous core');
+    assert.ok(len(end) >= 0.7, 'and reach well out into the volume');
+  }
+});
+
+test('orbital filaments genuinely extend beyond the membrane', () => {
+  const field = organismField(defaults);
+  for (const filament of field.filaments) {
+    const end = filament.controlPoints[filament.controlPoints.length - 1];
+    if (filament.reach === 'orbital') {
+      assert.ok(len(end) >= 1.14, 'orbital strands push past the shell');
+    }
+    if (filament.reach === 'inner') {
+      assert.ok(len(end) <= 0.98, 'inner strands stay within the membrane');
+    }
+  }
+});
+
+test('filaments never ALL originate from the center', () => {
+  const field = organismField(defaults);
+  const origins = field.filaments.map((f) => f.controlPoints[0]);
+
+  // The radial class deliberately starts at the core (that is the reference's
+  // starburst). The acceptance criterion is that not every strand does — a
+  // healthy majority must still begin out in the volume, or the organism
+  // reads as a sun with rays.
+  const fromCore = origins.filter((o) => len(o) <= 0.12).length;
+  assert.ok(fromCore > 0, 'some strands radiate from the core');
+  assert.ok(
+    fromCore / origins.length <= 0.55,
+    'but most strands still begin out in the volume',
+  );
+
+  let maxSpread = 0;
+  for (const a of origins) for (const b of origins) maxSpread = Math.max(maxSpread, dist(a, b));
+  assert.ok(maxSpread > 0.4, 'origins are spread through the volume');
+});
+
+test('all three depth groups exist and brightness genuinely varies', () => {
+  const field = organismField(defaults);
+  const depths = new Set(field.filaments.map((f) => f.depth));
+
+  assert.ok(depths.has('rear') && depths.has('middle') && depths.has('front'));
+
+  const brightness = field.filaments.map((f) => f.brightness);
+  assert.ok(Math.max(...brightness) - Math.min(...brightness) > 0.4);
+  for (const value of brightness) assert.ok(value >= 0.1 && value <= 1);
+});
+
+test('lavender leans right while staying interwoven with gold', () => {
+  const field = organismField(defaults);
+  const lavender = field.nodes.filter((n) => n.family === 'lavender');
+  const gold = field.nodes.filter((n) => n.family === 'gold');
+
+  assert.ok(lavender.length > 0 && gold.length > 0);
+
+  const meanX = (nodes: typeof field.nodes) =>
+    nodes.reduce((sum, n) => sum + n.position[0], 0) / nodes.length;
+  assert.ok(meanX(lavender) > meanX(gold), 'lavender biased to the right hemisphere');
+
+  // interwoven, not a clean half-split: some lavender on the left, some gold on the right
+  assert.ok(lavender.some((n) => n.position[0] < 0.1));
+  assert.ok(gold.some((n) => n.position[0] > 0.3));
+
+  // gold dominates per the 55-65% warm balance
+  const goldShare = gold.length / field.nodes.length;
+  assert.ok(goldShare >= 0.55 && goldShare <= 0.8, `gold share ${goldShare}`);
+});
+
+test('micro-weave: numerous, fine, volume-filling, receding', () => {
+  const field = organismField(defaults);
+
+  assert.equal(field.microFilaments.length, defaults.microFilamentCount);
+
+  for (const micro of field.microFilaments) {
+    // extremely fine and mostly receding — far fainter than any major strand
+    assert.ok(micro.opacity >= 0.03 && micro.opacity <= 0.18);
+    // stays inside the membrane with natural falloff — never crosses out
+    for (const point of micro.controlPoints) {
+      assert.ok(len(point) <= 0.97, 'micro strands dissolve before the membrane');
+    }
+  }
+
+  // concentrated around the node constellation: every anchor sits near a node
+  for (const micro of field.microFilaments) {
+    const anchor = micro.controlPoints[0];
+    const nearest = Math.min(
+      ...field.nodes.map((node) => dist(node.position, anchor)),
+    );
+    assert.ok(nearest < 0.16, `anchor ${nearest} hugs the constellation`);
+  }
+
+  // falloff near the membrane: only a small share of the weave sits outer
+  const allPoints = field.microFilaments.flatMap((m) => m.controlPoints);
+  const outerShare = allPoints.filter((p) => len(p) > 0.85).length / allPoints.length;
+  assert.ok(outerShare < 0.15, `outer share ${outerShare} thins toward the shell`);
+
+  // woven through the full volume, not one clump
+  const meanRadius = allPoints.reduce((s, p) => s + len(p), 0) / allPoints.length;
+  assert.ok(meanRadius > 0.3 && meanRadius < 0.75);
+});
+
+test('micro-weave leaves the major structure untouched', () => {
+  const withMicro = organismField(defaults);
+  const withoutMicro = organismField({ ...defaults, microFilamentCount: 0 });
+
+  assert.deepEqual(withMicro.filaments, withoutMicro.filaments);
+  assert.deepEqual(withMicro.nodes, withoutMicro.nodes);
+  assert.deepEqual(withMicro.arcs, withoutMicro.arcs);
+  assert.equal(withoutMicro.microFilaments.length, 0);
+});
+
+test('arcs and flares follow the motion spec', () => {
+  const field = organismField(defaults);
+
+  const directions = new Set(field.arcs.map((a) => a.direction));
+  assert.equal(directions.size, 2, 'arcs travel in both directions');
+  for (const arc of field.arcs) {
+    assert.ok(arc.periodSeconds >= 16 && arc.periodSeconds <= 32);
+    assert.ok(arc.radius >= 1.2 && arc.radius <= 2.0);
+  }
+  // some arcs orbit well beyond the organism, restrained but present
+  assert.ok(field.arcs.some((a) => a.radius > 1.55));
+  assert.ok(field.arcs.filter((a) => a.radius > 1.55).length <= field.arcs.length / 2);
+
+  const phases = new Set(field.flares.map((f) => f.phase.toFixed(3)));
+  assert.ok(phases.size > 1, 'flares never pulse in unison');
+  for (const flare of field.flares) {
+    assert.ok(flare.pulseSeconds >= 1.8 && flare.pulseSeconds <= 4.8);
+    assert.ok(flare.scale >= 0.03 && flare.scale <= 0.07);
+  }
+});
+
+test('the specs above are exercised against the field that actually ships', () => {
+  // A divergent copy of these options in the engine meant every reach, depth
+  // and brightness rule was being proven against a field nobody ever saw.
+  assert.equal(defaults, ORGANISM_FIELD_OPTIONS);
+  assert.ok(ORGANISM_FIELD_OPTIONS.majorFilamentCount >= 120, 'a genuine weave, not a few cables');
+  assert.ok(ORGANISM_FIELD_OPTIONS.microFilamentCount >= 400);
+});
+
+test('tuning one layer never re-rolls another', () => {
+  const base = organismField(ORGANISM_FIELD_OPTIONS);
+
+  const moreFilaments = organismField({
+    ...ORGANISM_FIELD_OPTIONS,
+    majorFilamentCount: ORGANISM_FIELD_OPTIONS.majorFilamentCount + 1,
+  });
+  assert.deepEqual(moreFilaments.arcs, base.arcs, 'arcs survive a filament change');
+
+  const moreArcs = organismField({
+    ...ORGANISM_FIELD_OPTIONS,
+    arcCount: ORGANISM_FIELD_OPTIONS.arcCount + 1,
+  });
+  assert.deepEqual(moreArcs.flares, base.flares, 'flares survive an arc change');
+
+  const moreMicro = organismField({
+    ...ORGANISM_FIELD_OPTIONS,
+    microFilamentCount: ORGANISM_FIELD_OPTIONS.microFilamentCount + 50,
+  });
+  assert.deepEqual(moreMicro.filaments, base.filaments, 'majors survive a micro change');
+});
+
+test('the visibility hierarchy keeps most complexity implicit', () => {
+  const field = organismField(defaults);
+  const counts = { hero: 0, support: 0, recessive: 0 };
+  for (const filament of field.filaments) counts[filament.filamentClass] += 1;
+
+  // A handful the eye consciously follows, a supporting field, and a
+  // recessive mass that is sensed more than read.
+  assert.ok(counts.hero >= 8 && counts.hero <= 16, `hero ${counts.hero}`);
+  assert.ok(counts.support >= 25 && counts.support <= 60, `support ${counts.support}`);
+  assert.ok(
+    counts.recessive > counts.hero + counts.support,
+    'the recessive mass must dominate by count',
+  );
+
+  // and be genuinely dimmer, or the hierarchy is nominal only
+  const mean = (c: (typeof field.filaments)[number]['filamentClass']) => {
+    const set = field.filaments.filter((f) => f.filamentClass === c);
+    return set.reduce((s, f) => s + f.brightness, 0) / set.length;
+  };
+  assert.ok(mean('hero') > mean('support'));
+  assert.ok(mean('support') > mean('recessive'));
+});
+
+test('macro loops are few, and every one has a job', () => {
+  const field = organismField(defaults);
+
+  // three to five readable circulation paths — never ten, never twenty
+  assert.ok(field.macroLoops.length >= 3 && field.macroLoops.length <= 5);
+  for (const loop of field.macroLoops) {
+    assert.ok(
+      ['gathering', 'circulating', 'focusing', 'releasing'].includes(loop.job),
+      'a loop with no behavioural job is ornamental noise',
+    );
+    assert.ok(loop.controlPoints.length > 8);
+  }
+});
+
+test('the graph is clustered, not an evenly spread mesh', () => {
+  const field = organismField(defaults);
+  const zones = { core: 0, secondary: 0, peripheral: 0 };
+  for (const node of field.nodes) zones[node.zone] += 1;
+
+  assert.ok(zones.core > 0 && zones.secondary > 0 && zones.peripheral > 0);
+  assert.ok(zones.peripheral > zones.core, 'the periphery is the sparse majority');
+
+  // connectivity must concentrate: the core holds far more edges per node
+  const edgesByZone = { core: 0, secondary: 0, peripheral: 0 };
+  for (const edge of field.connections) edgesByZone[field.nodes[edge.a].zone] += 1;
+
+  const corePerNode = edgesByZone.core / zones.core;
+  const peripheralPerNode = edgesByZone.peripheral / zones.peripheral;
+  assert.ok(
+    corePerNode > peripheralPerNode * 3,
+    `core ${corePerNode.toFixed(2)}/node vs periphery ${peripheralPerNode.toFixed(2)}/node`,
+  );
+});
+
+test('dendrites branch into generations, each finer than its parent', () => {
+  const field = organismField(defaults);
+  const byGeneration = [0, 0, 0];
+  for (const d of field.dendrites) byGeneration[d.generation] += 1;
+
+  assert.equal(byGeneration[0], defaults.dendriteTrunkCount, 'one strand per trunk');
+  assert.ok(byGeneration[1] > byGeneration[0], 'branches outnumber trunks');
+  assert.ok(byGeneration[2] > byGeneration[1], 'twigs outnumber branches');
+
+  const meanBrightness = (generation: number) => {
+    const set = field.dendrites.filter((d) => d.generation === generation);
+    return set.reduce((sum, d) => sum + d.brightness, 0) / set.length;
+  };
+  assert.ok(meanBrightness(0) > meanBrightness(1));
+  assert.ok(meanBrightness(1) > meanBrightness(2));
+});
+
+test('no dendrite ever folds back on itself — this is what stops the scribble', () => {
+  const field = organismField(defaults);
+
+  for (const dendrite of field.dendrites) {
+    let previous = len(dendrite.points[0]);
+    for (let i = 1; i < dendrite.points.length; i += 1) {
+      const radius = len(dendrite.points[i]);
+      assert.ok(
+        radius >= previous - 1e-9,
+        `dendrite reversed direction at step ${i} (${radius} < ${previous})`,
+      );
+      previous = radius;
+    }
+    // and every strand stays inside the membrane
+    assert.ok(previous <= 0.98);
+  }
+});
+
+test('trunks are evenly separated in angle, which is what creates the negative space', () => {
+  const field = organismField(defaults);
+  const trunks = field.dendrites.filter((d) => d.generation === 0);
+
+  const directions = trunks.map((t) => {
+    const tip = t.points[t.points.length - 1];
+    const r = len(tip);
+    return [tip[0] / r, tip[1] / r, tip[2] / r] as [number, number, number];
+  });
+
+  // no two trunks may grow along nearly the same heading, or petals overlap
+  for (let i = 0; i < directions.length; i += 1) {
+    for (let j = i + 1; j < directions.length; j += 1) {
+      const dot =
+        directions[i][0] * directions[j][0] +
+        directions[i][1] * directions[j][1] +
+        directions[i][2] * directions[j][2];
+      assert.ok(dot < 0.96, `trunks ${i} and ${j} grow along the same heading`);
+    }
+  }
+});
