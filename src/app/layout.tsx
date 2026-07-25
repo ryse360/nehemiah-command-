@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
+// Additive Tailwind-v4 utility layer (no Preflight) for shadcn/ui primitives.
+// Imported AFTER globals.css; contributes utilities only, resets nothing.
+import './tailwind.css';
 
 export const metadata: Metadata = {
   title: 'Nehemiah Command',

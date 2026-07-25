@@ -39,6 +39,10 @@ Run the whole gate locally: `npm run gate`
 | Micro-weave: 120–220 fine strands, constellation-anchored, membrane falloff | ENFORCED | `organism-field.test.ts` micro-weave suite |
 | Majors immutable when micro layer changes | ENFORCED | `organism-field.test.ts` deep-equal isolation test |
 | Depth groups all present; brightness genuinely varies | ENFORCED | `organism-field.test.ts` |
+| Star field: 760 points, never over the body (in projection), three brightness classes, far field recedes | ENFORCED | `organism-field.test.ts` star-field suite |
+| Star density never re-rolls the organism | ENFORCED | `organism-field.test.ts` deep-equal isolation test |
+| Violet reasoning region is a graded VOLUME (three shells), peaking at the decision and receding by proof | VISUAL-REVIEW | Founder review; measured warm/cool separation across the six states |
+| Volumetric ribbons read as light-folds, never as ribbon sculpture | VISUAL-REVIEW | Founder review; parallel-transported frame + three-vertex spine (no bowties, no lit edge) |
 | Approved adaptive sizing (58vh target, 760px ceiling, no scroll) | FOUNDER-LOCKED + ENFORCED | `check-founder-compliance` §6; viewport sweep during review passes |
 
 ## C. Life & motion
@@ -63,7 +67,12 @@ Run the whole gate locally: `npm run gate`
 
 | Detail | Status | Enforcement |
 |---|---|---|
-| Dependency freeze (no postprocessing/Theatre/animation libs) | FOUNDER-LOCKED + ENFORCED | `check-founder-compliance` §1 |
+| Dependency freeze — **reopened by Founder decision 2026-07-25** to adopt a full platform stack | FOUNDER-DECISION + ENFORCED | `check-founder-compliance` §1. Sanctioned with trade-offs stated before install. Round A: `3d-force-graph` + `r3f-forcegraph` (force-graph), `@react-three/postprocessing` + `postprocessing` (bloom, was banned by name), `react-glass-ui` (glass cards, dashboard surface). Round B: `ai` (Vercel AI SDK), `motion` (framer-motion successor, was banned by name), `@theatre/core` + `@theatre/studio` (Theatre.js, was in the original locked prohibition), `promptfoo` (dev, evals). Denylist still catches unsanctioned animation/particle libs. |
+| shadcn/ui primitive layer added additively (Tailwind v4, no Preflight) | DONE + ENFORCED | Nine approved primitives under `src/components/ui`, tokens mapped to the MiP palette. `globals.css` byte-unchanged; orb pixel-identical; budgets green. Restyle-before-product-use is a VISUAL-REVIEW gate per primitive. |
+| AI cost-control boundary precedes any real spend | FOUNDER-DECISION + ENFORCED | `src/nehemiah/cost/*` — model routing by complexity, integer nano-dollar ledger with per-agent/daily attribution, hard-fail spend ceilings. Server-only, synthetic, `cost.test.ts` proves all three ceilings throw. No API key or real data wired. |
+| Memory admission gates writes + embeds (don't memorialize everything) | FOUNDER-DECISION + ENFORCED | `src/nehemiah/memory/*` — salience threshold (kind + substance) drops chatter/thin text; dedup-before-embed (normalized exact + shingled-Jaccard near-dup) skips paying to embed duplicates. Server-only, synthetic; `memory.test.ts` proves noise and duplicates never reach the embedding model. |
+| Unified AI boundary: caching + telemetry, provider call is an injected seam | FOUNDER-DECISION + ENFORCED | `src/nehemiah/ai/*` — `AIBoundary` composes routing + hard ceilings + response cache + usage telemetry + memory admission behind one entry point; the model call is an injected executor (synthetic now, real AI SDK later) with every control in front of it. `ai.test.ts` proves cache hits are free, ceilings refuse before the provider runs, and a synthetic "day" reports controlled-vs-naive savings (~80% on the sample workload). |
+| Remaining platform nodes (non-npm path or a decision) | OPEN | Graphiti is Python (separate backend service, not an npm dep). Context7 + Playwright MCP are MCP servers (config-level, not project deps). Wiring AI SDK + memory to real Founder data stays a security-gated step (keys/PII/production surface per MASTER_AI_HANDOFF) — the cost boundary above is the prerequisite. |
 | Leva confined to the lab shell; engine layers clean | ENFORCED | `check-founder-compliance` §3; `organism-architecture.test.ts` |
 | Every governed module carries tests | ENFORCED | `check-founder-compliance` §10 |
 | Tests, typecheck, build green before any push | ENFORCED | CI (`.github/workflows/ci.yml`) on every push and PR |
@@ -72,6 +81,30 @@ Run the whole gate locally: `npm run gate`
 | Seven security headers survive any `next.config.ts` edit | ENFORCED | `check-founder-compliance` §13; CI `quality:headers` against a running server |
 | Evidence before completion claims | FOUNDER-LOCKED | Superpowers `verification-before-completion`; CI as backstop |
 
+## D2. Network-globe orb — team review disposition (2026-07-25)
+
+A six-lens review (visual, compliance, correctness, a11y, coverage, cross-state)
+raised 25 findings. Disposition, so none is silently dropped:
+
+**Fixed + verified:** state differentiation now reads indigo + convergence
+(weighing ≠ enacting); per-state spin (rotationDrift) and twinkle (pulseRate)
+that sleep stills via a wakefulness factor; near-black interior; warm-gold net;
+DORMANT pinwheel removed; **focus-ring occlusion regression fixed** (ring above
+the opaque canvas); size===0.75 boundary bug fixed via one shared comparator;
+core bloom capped (net legible through the spin); crisp refractive rim; visible
+star field; status-dot contrast ≥3:1; render-layer mappers extracted to a pure
+tested module; globe edge-integrity / determinism / isolation / floor-guard
+tests; **globe added to the compliance gate** (check #11b); reduced-motion note
+now announced; touch-device quick-nav discoverable.
+
+**Consciously deferred (low severity / risk before merge), tracked in §E:**
+legacy field layers still generated at load though unrendered (startup-only
+cost; gating cleanly would restructure the field/options contract the gate
+depends on); engine-level off-palette hex scan (needs an allowlist for the
+intentional dark-body tones); two micro-optimisations (constant-per-pass
+attributes → uniforms; legacy over-spec tests). The counter-drift refs are
+kept deliberately so `SHOW_LEGACY_STRANDS` can still A/B the two shapes.
+
 ## E. Known gaps (honest register)
 
 Recorded rather than hidden, so nobody mistakes silence for completion.
@@ -79,7 +112,7 @@ Recorded rather than hidden, so nobody mistakes silence for completion.
 | Gap | Status | Note |
 |---|---|---|
 | Real-hardware frame rate | UNVERIFIED | This build environment has no GPU. All FPS figures describe a CPU software rasterizer and overweight vertex cost. Needs measuring on real hardware. |
-| Volumetric ribbons / caustic wisps (spec layer 7) | PLANNED | Deliberately deferred — the composition is already dense; adding another layer needs Founder review first. |
+| Violet volume / ribbon strength balance | VISUAL-REVIEW | Landed and measured, but the final call on how cool the reasoning region should read at `decision-required` is the Founder's, not a number a test can settle. |
 | Tier 3 audit findings | PLANNED | ~38 medium / 10 low severity items from the six-lens audit remain unimplemented. |
 
 ## Process

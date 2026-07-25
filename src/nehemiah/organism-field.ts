@@ -66,8 +66,20 @@ export interface MicroFilament {
   opacity: number;
 }
 
+// The surrounding constellation. Deliberately a field layer rather than an
+// engine detail: its density is part of the composition and therefore has to be
+// specified and tested like every other layer.
+export interface FieldStar {
+  position: Vec3;
+  // relative brightness class, 0..1 — most stars are fine, a few carry weight
+  size: number;
+  opacity: number;
+  family: 'gold' | 'lavender';
+}
+
 export interface FieldOptions {
   seed: number;
+  starCount: number;
   nodeCount: number;
   connectionRadius: number;
   majorFilamentCount: number;
@@ -76,6 +88,11 @@ export interface FieldOptions {
   flareCount: number;
   macroLoopCount: number;
   dendriteTrunkCount: number;
+  globeNodeCount: number;
+  globeShellRadius: number;
+  globeMaxNeighbors: number;
+  /** max chord distance for a node pair to be considered neighbours. */
+  globeNeighborAngle: number;
 }
 
 // The single source of truth for the shipped field. The engine imports this
@@ -84,6 +101,7 @@ export interface FieldOptions {
 // brightness rules were being proven against a field nobody ever saw.
 export const ORGANISM_FIELD_OPTIONS: FieldOptions = {
   seed: 11,
+  starCount: 760,
   nodeCount: 420,
   connectionRadius: 0.22,
   majorFilamentCount: 190,
@@ -91,10 +109,37 @@ export const ORGANISM_FIELD_OPTIONS: FieldOptions = {
   arcCount: 8,
   flareCount: 8,
   macroLoopCount: 4,
-  dendriteTrunkCount: 17,
+  dendriteTrunkCount: 24,
+  globeNodeCount: 260,
+  globeShellRadius: 0.94,
+  globeMaxNeighbors: 3,
+  globeNeighborAngle: 0.62,
 };
 
+// The network globe — the approved primary shape. Discrete nodes wrapped on
+// the sphere's SHELL (not filling the volume) joined by a sparse geodesic net
+// of nearest-neighbour edges. This is the "network globe / constellation
+// sphere" language from the reference, distinct from the volume-distributed
+// `nodes`/`connections` cognition graph.
+export interface GlobeNode {
+  position: Vec3;
+  /** relative brightness/size class, 0..1 — mostly fine, a few hubs. */
+  size: number;
+  family: 'gold' | 'lavender';
+}
+
+export interface GlobeEdge {
+  a: number;
+  b: number;
+}
+
+export interface NetworkGlobe {
+  nodes: GlobeNode[];
+  edges: GlobeEdge[];
+}
+
 export interface OrganismFieldResult {
+  stars: FieldStar[];
   macroLoops: MacroLoop[];
   dendrites: Dendrite[];
   nodes: FieldNode[];
@@ -103,6 +148,7 @@ export interface OrganismFieldResult {
   microFilaments: MicroFilament[];
   arcs: OrbitalArc[];
   flares: NodalFlare[];
+  globe: NetworkGlobe;
 }
 
 function mulberry32(seed: number): () => number {
@@ -127,6 +173,65 @@ function length(p: Vec3): number {
 function normalize(p: Vec3): Vec3 {
   const l = length(p) || 1;
   return [p[0] / l, p[1] / l, p[2] / l];
+}
+
+// Build the network globe: nodes evenly wrapped on the shell (Fibonacci
+// sphere with a little jitter), joined to their few nearest neighbours only —
+// a geodesic net, not a filled mesh. Own RNG stream so density tuning never
+// disturbs any other layer.
+function buildNetworkGlobe(
+  seed: number,
+  count: number,
+  shellRadius: number,
+  maxNeighbors: number,
+  neighborAngle: number,
+  lavenderPole: Vec3,
+): NetworkGlobe {
+  const rng = mulberry32(seed ^ 0x517cc1b7);
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const nodes: GlobeNode[] = [];
+
+  for (let i = 0; i < count; i += 1) {
+    const y = 1 - (2 * (i + 0.5)) / count;
+    const ring = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = golden * i;
+    const jitter = 1 + (rng() - 0.5) * 0.05;
+    const dir = normalize([ring * Math.cos(theta), y, ring * Math.sin(theta)]);
+    const r = shellRadius * jitter;
+
+    // three brightness classes: mostly fine, some mid, a few hubs
+    const roll = rng();
+    const size =
+      roll < 0.72 ? 0.16 + rng() * 0.22 : roll < 0.93 ? 0.42 + rng() * 0.25 : 0.75 + rng() * 0.25;
+
+    // cool nodes lean toward the reasoning pole, never salt the warm side
+    const towardLavender = dir[0] * lavenderPole[0] + dir[1] * lavenderPole[1] > 0.12;
+    const family: GlobeNode['family'] = towardLavender && rng() < 0.35 ? 'lavender' : 'gold';
+
+    nodes.push({ position: [dir[0] * r, dir[1] * r, dir[2] * r], size, family });
+  }
+
+  // geodesic edges: each node to its nearest few within the angular cutoff
+  const edges: GlobeEdge[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < nodes.length; i += 1) {
+    const near: Array<[number, number]> = [];
+    for (let j = 0; j < nodes.length; j += 1) {
+      if (i === j) continue;
+      const d = distance(nodes[i].position, nodes[j].position);
+      if (d < neighborAngle) near.push([d, j]);
+    }
+    near.sort((p, q) => p[0] - q[0]);
+    for (let k = 0; k < Math.min(maxNeighbors, near.length); k += 1) {
+      const j = near[k][1];
+      const key = i < j ? `${i}_${j}` : `${j}_${i}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push({ a: i, b: j });
+    }
+  }
+
+  return { nodes, edges };
 }
 
 // Three to five macro circulation paths — never ten, never twenty. Each is
@@ -219,12 +324,27 @@ function rotateAbout(v: Vec3, axis: Vec3, angle: number): Vec3 {
   ];
 }
 
-// Grow one smooth strand outward. Two properties make it read as elegant
+// One global swirl field, shared by every strand. This is what makes the
+// anatomy HARMONIOUS: a strand's curl is a smooth function of where it grows,
+// so neighbouring strands bend the same way and the whole body reads as one
+// combed flow — streamlines of a single field — instead of a tangle of
+// individually-random walks. Broad, low-frequency terms keep the coherence
+// regions wide (many trunks share each sweep).
+function swirlAt(direction: Vec3): number {
+  return (
+    0.3 * Math.sin(direction[0] * 1.7 + direction[1] * 2.3 + 0.6) +
+    0.2 * Math.sin(direction[2] * 2.9 - direction[0] * 1.1 - 1.2)
+  );
+}
+
+// Grow one smooth strand outward. Three properties make it read as elegant
 // rather than scribbled:
 //   1. radius increases on EVERY step, so a strand can never fold back and
 //      cross its own family;
 //   2. lateral drift comes from one slowly-rotating vector rather than fresh
-//      randomness per step, so the curve is continuous, not jittery.
+//      randomness per step, so the curve is continuous, not jittery;
+//   3. the rotation's direction and rate come from the global swirl field —
+//      per-strand randomness is only a whisper on top.
 function growStrand(
   origin: Vec3,
   direction: Vec3,
@@ -237,7 +357,7 @@ function growStrand(
   const points: Vec3[] = [origin];
   const reference: Vec3 = Math.abs(direction[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
   let lateral = normalize(cross(direction, reference));
-  const spin = (rng() * 2 - 1) * 0.5;
+  const spin = swirlAt(direction) + (rng() * 2 - 1) * 0.09;
 
   for (let step = 1; step <= steps; step += 1) {
     const t = step / steps;
@@ -306,7 +426,7 @@ function buildDendrites(
 
     // Branches leave the trunk partway along, never at its tip, so the fork
     // reads as growth rather than a broken line.
-    const branchCount = 2 + Math.floor(rng() * 2);
+    const branchCount = 3 + Math.floor(rng() * 2);
     for (let b = 0; b < branchCount; b += 1) {
       const forkAt = 0.42 + rng() * 0.34;
       const forkIndex = Math.floor(forkAt * (trunkPoints.length - 1));
@@ -428,6 +548,16 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
   const dendrites = buildDendrites(
     options.seed,
     options.dendriteTrunkCount,
+    LAVENDER_POLE,
+  );
+
+  // The approved primary shape: a network globe wrapped on the shell.
+  const globe = buildNetworkGlobe(
+    options.seed,
+    options.globeNodeCount,
+    options.globeShellRadius,
+    options.globeMaxNeighbors,
+    options.globeNeighborAngle,
     LAVENDER_POLE,
   );
 
@@ -744,5 +874,63 @@ export function organismField(options: FieldOptions): OrganismFieldResult {
     });
   }
 
-  return { macroLoops, dendrites, nodes, connections, filaments, microFilaments, arcs, flares };
+  // The surrounding constellation, on its own RNG stream so density can be
+  // tuned without disturbing a single strand of the organism itself.
+  const starRng = mulberry32(options.seed ^ 0x6a09e667);
+  const stars: FieldStar[] = [];
+  for (let index = 0; index < options.starCount; index += 1) {
+    // Placed in an annulus around the view axis rather than on a sphere. A
+    // sphere puts stars directly in front of and behind the body, and since the
+    // organism's glow layers write no depth, those land as specks ON it. The
+    // annulus keeps the constellation in the surrounding space where it belongs
+    // while |z| still supplies genuine depth.
+    const angle = starRng() * Math.PI * 2;
+    // Concentrated near the organism and thinning outward, so the field reads
+    // as this thing's own atmosphere rather than wallpaper behind it.
+    const planarRadius = 1.28 + 2.17 * Math.pow(starRng(), 1.7);
+    const depth = (starRng() * 2 - 1) * 1.2;
+    const direction: Vec3 = [Math.cos(angle), Math.sin(angle), 0];
+
+    // Three brightness classes: mostly fine, some mid, a few carrying weight.
+    const roll = starRng();
+    const size = roll < 0.7
+      ? 0.16 + starRng() * 0.24
+      : roll < 0.94
+        ? 0.42 + starRng() * 0.3
+        : 0.78 + starRng() * 0.22;
+
+    // Distance dims: the far field has to recede or depth collapses flat.
+    const depthFade = 1 - (planarRadius - 1.28) / 2.17;
+    const opacity = (0.1 + 0.42 * size) * (0.34 + 0.66 * depthFade * depthFade);
+
+    // Cool stars belong to the reasoning side; a violet speck stranded in the
+    // warm hemisphere reads as an error, not as atmosphere.
+    const wantsLavender = starRng() < 0.3;
+    const family: 'gold' | 'lavender' =
+      wantsLavender && direction[0] > -0.05 ? 'lavender' : 'gold';
+
+    stars.push({
+      position: [
+        direction[0] * planarRadius,
+        direction[1] * planarRadius,
+        depth,
+      ],
+      size,
+      opacity,
+      family,
+    });
+  }
+
+  return {
+    stars,
+    macroLoops,
+    dendrites,
+    nodes,
+    connections,
+    filaments,
+    microFilaments,
+    arcs,
+    flares,
+    globe,
+  };
 }

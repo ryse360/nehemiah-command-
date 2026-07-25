@@ -33,12 +33,14 @@
 /* The canvas is opaque now, so anything painted behind it is invisible. The
    warm halo and the contact shadow both moved in-scene, where additive light
    and soft falloff actually work. ::before is kept only as the focus ring
-   carrier. */
+   carrier — and it MUST sit ABOVE the opaque canvas (z-index 3 > canvas 1),
+   otherwise the circular ring is clipped by the square canvas to four cardinal
+   arcs (a WCAG 2.4.7 regression from making the framebuffer opaque). */
 .stage::before {
   content: '';
   position: absolute;
   inset: -6%;
-  z-index: 0;
+  z-index: 3;
   border-radius: 50%;
   pointer-events: none;
 }
@@ -99,8 +101,31 @@
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
-  background: #b8964e;
-  box-shadow: 0 0 16px rgba(184, 150, 78, 0.55);
+  /* goldDeep #8E7358 clears the 3:1 non-text contrast bar (WCAG 1.4.11)
+     against ivory, where the lighter #b8964e sat at ~2.2:1. */
+  background: #8e7358;
+  box-shadow: 0 0 16px rgba(142, 115, 88, 0.5);
+  /* Synced to the organism's own live corePulseRate via --pulse-seconds (set
+     from JS, same pattern as --surface-glow below) so this reads as the
+     organism's pulse surfacing here, not an indicator doing its own thing. */
+  animation: statusPulse var(--pulse-seconds, 8s) ease-in-out infinite;
+}
+
+.statusDot[data-asleep='true'] {
+  animation: none;
+  box-shadow: 0 0 6px rgba(184, 150, 78, 0.22);
+}
+
+@keyframes statusPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(184, 150, 78, 0.4);
+    transform: scale(0.92);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(184, 150, 78, 0.7);
+    transform: scale(1.08);
+  }
 }
 
 .jumpDots {
@@ -116,6 +141,15 @@
 .labShell:hover .jumpDots,
 .labShell:focus-within .jumpDots {
   opacity: 1;
+}
+
+/* Touch devices have no hover and no easy focus path, so keep the lifecycle
+   quick-nav at a low resting opacity there — otherwise the alternate
+   navigation is undiscoverable (only the press-and-hold path is reachable). */
+@media (hover: none) {
+  .jumpDots {
+    opacity: 0.6;
+  }
 }
 
 .jumpDot {
@@ -248,5 +282,10 @@
   .jumpDot::before,
   .commandSurface {
     transition: none;
+  }
+
+  .statusDot {
+    animation: none;
+    box-shadow: 0 0 12px rgba(184, 150, 78, 0.45);
   }
 }

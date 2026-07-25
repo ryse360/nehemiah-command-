@@ -28,27 +28,37 @@ function read(relative: string): string {
 
 // ---------------------------------------------------------------------------
 // 1. Dependency freeze — no unapproved rendering/animation dependencies.
+//
+// The freeze was deliberately reopened by Founder decision to adopt a full
+// platform stack for the node-graph artifact and surrounding interface.
+// Sanctioned additions, each with trade-offs stated to the Founder before
+// install:
+//   2026-07-25a: 3d-force-graph, r3f-forcegraph (force-graph engine + R3F
+//     wrapper); @react-three/postprocessing + postprocessing (bloom — was
+//     banned by name, override accepted); react-glass-ui (glass cards).
+//   2026-07-25b: ai (Vercel AI SDK); motion (framer-motion's successor — the
+//     animation lib, was banned by name, override accepted); @theatre/core +
+//     @theatre/studio (Theatre.js — was in the ORIGINAL locked prohibition,
+//     override accepted); promptfoo (dev, LLM evals).
+// The denylist below still catches animation/particle libs the Founder has
+// NOT sanctioned, so the freeze stays meaningful for everything unapproved.
 const pkg = JSON.parse(read('package.json')) as {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
 };
 const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
 const forbiddenDeps = [
-  '@react-three/postprocessing',
-  'postprocessing',
-  '@theatre/core',
-  '@theatre/studio',
-  'theatre',
   'gsap',
-  'framer-motion',
   'tsparticles',
+  'anime.js',
+  'animejs',
 ];
 const foundForbidden = forbiddenDeps.filter((dep) => dep in allDeps);
 check(
   'dependency freeze holds',
   foundForbidden.length === 0,
   foundForbidden.length === 0
-    ? 'no unapproved rendering/animation dependencies'
+    ? 'no unapproved rendering/animation dependencies (force-graph + bloom + glass sanctioned 2026-07-25)'
     : `forbidden: ${foundForbidden.join(', ')}`,
 );
 
@@ -170,6 +180,7 @@ const requiredTestFiles = [
   'src/nehemiah/organism-lab-contract.test.ts',
   'src/nehemiah/organism-motion.test.ts',
   'src/nehemiah/organism-architecture.test.ts',
+  'src/nehemiah/organism-globe-model.test.ts',
 ];
 const missingTests = requiredTestFiles.filter((file) => !existsSync(path.join(root, file)));
 check(
@@ -180,11 +191,33 @@ check(
 
 // ---------------------------------------------------------------------------
 // 11. No monolithic rotation — the organism must not rotate as one object.
+// The root group (body, core, star field, membrane, contact shadow) carries
+// breathing/float only and must never spin. The network-globe node shell DOES
+// rotate on its own sub-group (spinRef) — that is the sanctioned "rotation
+// lives in sub-layers" case, not the whole organism tumbling as a block, since
+// everything outside the net stays put.
 const engine = read('src/components/organism/organism-engine.tsx');
 check(
   'no monolithic rotation',
   !/root\.current\.rotation/.test(engine),
-  'root group carries breathing/float only; rotation lives in sub-layers',
+  'root carries breathing/float only; only the globe net sub-layer spins',
+);
+
+// ---------------------------------------------------------------------------
+// 11b. The primary shape (network globe) is present, gated, and parameterised.
+// The globe replaced the filament shape as THE artifact, so it must stay in
+// the compliance surface: rendered by the engine, driven by the pure model,
+// and configured by real field parameters (guards against it being silently
+// removed or zeroed while the older shape's checks keep passing).
+const globeModelPresent = existsSync(path.join(root, 'src/nehemiah/organism-globe-model.ts'));
+const fieldSource = read('src/nehemiah/organism-field.ts');
+check(
+  'primary network-globe shape governed',
+  /<NetworkGlobe/.test(engine) &&
+    /organism-globe-model/.test(engine) &&
+    globeModelPresent &&
+    /globeNodeCount:\s*\d+/.test(fieldSource),
+  'engine renders NetworkGlobe via the pure globe model with parameterised node count',
 );
 
 // ---------------------------------------------------------------------------

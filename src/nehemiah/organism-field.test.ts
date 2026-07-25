@@ -174,6 +174,149 @@ test('micro-weave leaves the major structure untouched', () => {
   assert.equal(withoutMicro.microFilaments.length, 0);
 });
 
+test('star field: dense, entirely outside the organism, depth-graded', () => {
+  const field = organismField(defaults);
+
+  assert.equal(field.stars.length, defaults.starCount);
+
+  for (const star of field.stars) {
+    const radius = len(star.position);
+    // A star inside the membrane is not a star, it is a speck on the body.
+    assert.ok(radius >= 1.25, `star radius ${radius} clears the organism`);
+    assert.ok(radius <= 3.7, `star radius ${radius} stays in frame`);
+    // And it must clear the body in PROJECTION too — the glow layers write no
+    // depth, so anything in front of or behind the organism lands on it.
+    const projected = Math.hypot(star.position[0], star.position[1]);
+    assert.ok(projected >= 1.25, `star projects to ${projected}, off the body`);
+    assert.ok(star.size > 0 && star.size <= 1);
+    assert.ok(star.opacity > 0 && star.opacity <= 0.62);
+  }
+
+  // Three brightness classes, and the bright ones stay rare — a uniform field
+  // of equal points reads as noise, not as a constellation.
+  const bright = field.stars.filter((s) => s.size > 0.75).length;
+  const fine = field.stars.filter((s) => s.size <= 0.4).length;
+  assert.ok(bright / field.stars.length < 0.12, `bright share ${bright / field.stars.length}`);
+  assert.ok(fine / field.stars.length > 0.5, `fine share ${fine / field.stars.length}`);
+
+  // Depth is real: distant stars are fainter than near ones.
+  const near = field.stars.filter((s) => len(s.position) < 2);
+  const far = field.stars.filter((s) => len(s.position) >= 2.8);
+  const mean = (list: typeof field.stars) =>
+    list.reduce((sum, s) => sum + s.opacity, 0) / list.length;
+  assert.ok(far.length > 0 && near.length > 0);
+  assert.ok(mean(far) < mean(near) * 0.8, 'the far field recedes');
+
+  // The cool family keeps to the reasoning side rather than salting the warm
+  // hemisphere with stray violet.
+  const lavender = field.stars.filter((s) => s.family === 'lavender');
+  assert.ok(lavender.length > 0 && lavender.length < field.stars.length / 2);
+  const rightShare = lavender.filter((s) => s.position[0] > 0).length / lavender.length;
+  assert.ok(rightShare > 0.7, `lavender right share ${rightShare} leans right`);
+});
+
+test('network globe: nodes wrap the shell, edges join near neighbours only', () => {
+  const field = organismField(defaults);
+  const globe = field.globe;
+
+  assert.equal(globe.nodes.length, defaults.globeNodeCount);
+
+  // every node sits ON the shell (within the small jitter), not in the volume
+  for (const node of globe.nodes) {
+    const r = len(node.position);
+    assert.ok(
+      r > defaults.globeShellRadius * 0.9 && r < defaults.globeShellRadius * 1.1,
+      `node radius ${r} hugs the shell`,
+    );
+  }
+
+  // three brightness classes; hubs stay rare, fine dots dominate
+  const hubs = globe.nodes.filter((n) => n.size > 0.75).length;
+  const fine = globe.nodes.filter((n) => n.size <= 0.4).length;
+  assert.ok(hubs / globe.nodes.length < 0.12, `hub share ${hubs / globe.nodes.length}`);
+  assert.ok(fine / globe.nodes.length > 0.5, `fine share ${fine / globe.nodes.length}`);
+
+  // it is a sparse geodesic net, not a filled mesh: bounded degree, and every
+  // edge joins genuinely nearby nodes
+  assert.ok(globe.edges.length > 0);
+  assert.ok(
+    globe.edges.length < globe.nodes.length * defaults.globeMaxNeighbors,
+    'edge count stays sparse',
+  );
+  for (const { a, b } of globe.edges) {
+    assert.ok(
+      dist(globe.nodes[a].position, globe.nodes[b].position) < defaults.globeNeighborAngle,
+      'edge joins nearby nodes only',
+    );
+  }
+
+  // cool nodes keep to the reasoning side
+  const lavender = globe.nodes.filter((n) => n.family === 'lavender');
+  assert.ok(lavender.length > 0 && lavender.length < globe.nodes.length / 2);
+  const rightShare = lavender.filter((n) => n.position[0] > 0).length / lavender.length;
+  assert.ok(rightShare > 0.7, `lavender right share ${rightShare}`);
+});
+
+test('network globe density never re-rolls the organism', () => {
+  const withGlobe = organismField(defaults);
+  const without = organismField({ ...defaults, globeNodeCount: 0 });
+
+  assert.deepEqual(withGlobe.filaments, without.filaments);
+  assert.deepEqual(withGlobe.dendrites, without.dendrites);
+  assert.deepEqual(withGlobe.stars, without.stars);
+  assert.equal(without.globe.nodes.length, 0);
+  assert.equal(without.globe.edges.length, 0);
+});
+
+test('network globe edges are well-formed (no self-loop, dup, or bad index)', () => {
+  const field = organismField(defaults);
+  const { nodes, edges } = field.globe;
+
+  assert.ok(edges.length >= nodes.length, `edges ${edges.length} >= nodes ${nodes.length}`);
+
+  const seen = new Set<string>();
+  for (const { a, b } of edges) {
+    assert.notEqual(a, b, 'no self-loop');
+    assert.ok(a >= 0 && a < nodes.length && b >= 0 && b < nodes.length, 'indices in range');
+    const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+    assert.ok(!seen.has(key), `no duplicate undirected edge ${key}`);
+    seen.add(key);
+  }
+});
+
+test('network globe is deterministic per seed and isolated from other layers', () => {
+  assert.deepEqual(organismField(defaults).globe, organismField(defaults).globe);
+  assert.notDeepEqual(
+    organismField(defaults).globe,
+    organismField({ ...defaults, seed: 12 }).globe,
+  );
+  const base = organismField(defaults);
+  const retuned = organismField({ ...defaults, globeMaxNeighbors: 2, globeNeighborAngle: 0.5 });
+  assert.deepEqual(retuned.filaments, base.filaments);
+  assert.deepEqual(retuned.dendrites, base.dendrites);
+  assert.deepEqual(retuned.stars, base.stars);
+  assert.deepEqual(retuned.nodes, base.nodes);
+  assert.notDeepEqual(retuned.globe.edges, base.globe.edges);
+});
+
+test('network globe params are guarded against silent shrink-to-nothing', () => {
+  assert.ok(defaults.globeNodeCount >= 180, 'globe keeps a real node population');
+  assert.ok(defaults.globeShellRadius > 0.8 && defaults.globeShellRadius <= 1, 'nodes on the shell');
+  assert.ok(defaults.globeMaxNeighbors >= 2, 'edges can form a net');
+  assert.ok(defaults.globeNeighborAngle > 0.3, 'neighbour cutoff is not degenerate');
+});
+
+test('star field density never re-rolls the organism', () => {
+  const dense = organismField(defaults);
+  const bare = organismField({ ...defaults, starCount: 0 });
+
+  assert.deepEqual(dense.filaments, bare.filaments);
+  assert.deepEqual(dense.nodes, bare.nodes);
+  assert.deepEqual(dense.microFilaments, bare.microFilaments);
+  assert.deepEqual(dense.dendrites, bare.dendrites);
+  assert.equal(bare.stars.length, 0);
+});
+
 test('arcs and flares follow the motion spec', () => {
   const field = organismField(defaults);
 
