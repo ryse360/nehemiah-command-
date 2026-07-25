@@ -104,7 +104,7 @@ export const ORGANISM_FIELD_OPTIONS: FieldOptions = {
   arcCount: 8,
   flareCount: 8,
   macroLoopCount: 4,
-  dendriteTrunkCount: 17,
+  dendriteTrunkCount: 24,
 };
 
 export interface OrganismFieldResult {
@@ -233,12 +233,27 @@ function rotateAbout(v: Vec3, axis: Vec3, angle: number): Vec3 {
   ];
 }
 
-// Grow one smooth strand outward. Two properties make it read as elegant
+// One global swirl field, shared by every strand. This is what makes the
+// anatomy HARMONIOUS: a strand's curl is a smooth function of where it grows,
+// so neighbouring strands bend the same way and the whole body reads as one
+// combed flow — streamlines of a single field — instead of a tangle of
+// individually-random walks. Broad, low-frequency terms keep the coherence
+// regions wide (many trunks share each sweep).
+function swirlAt(direction: Vec3): number {
+  return (
+    0.3 * Math.sin(direction[0] * 1.7 + direction[1] * 2.3 + 0.6) +
+    0.2 * Math.sin(direction[2] * 2.9 - direction[0] * 1.1 - 1.2)
+  );
+}
+
+// Grow one smooth strand outward. Three properties make it read as elegant
 // rather than scribbled:
 //   1. radius increases on EVERY step, so a strand can never fold back and
 //      cross its own family;
 //   2. lateral drift comes from one slowly-rotating vector rather than fresh
-//      randomness per step, so the curve is continuous, not jittery.
+//      randomness per step, so the curve is continuous, not jittery;
+//   3. the rotation's direction and rate come from the global swirl field —
+//      per-strand randomness is only a whisper on top.
 function growStrand(
   origin: Vec3,
   direction: Vec3,
@@ -251,7 +266,7 @@ function growStrand(
   const points: Vec3[] = [origin];
   const reference: Vec3 = Math.abs(direction[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
   let lateral = normalize(cross(direction, reference));
-  const spin = (rng() * 2 - 1) * 0.5;
+  const spin = swirlAt(direction) + (rng() * 2 - 1) * 0.09;
 
   for (let step = 1; step <= steps; step += 1) {
     const t = step / steps;
@@ -320,7 +335,7 @@ function buildDendrites(
 
     // Branches leave the trunk partway along, never at its tip, so the fork
     // reads as growth rather than a broken line.
-    const branchCount = 2 + Math.floor(rng() * 2);
+    const branchCount = 3 + Math.floor(rng() * 2);
     for (let b = 0; b < branchCount; b += 1) {
       const forkAt = 0.42 + rng() * 0.34;
       const forkIndex = Math.floor(forkAt * (trunkPoints.length - 1));

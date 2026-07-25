@@ -342,28 +342,116 @@ function MicroWeave({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Kinetic strand motion — the wave law harvested from Jakub Antalik's
+// thinking-orbs (MIT), translated from its 2D canvas ribbon into these GLSL
+// vertex shaders. The load-bearing constants are his, verbatim:
+//   wob = 0.16·sin(3a − 1.7t + 0.22·strand) + 0.07·sin(5a + 1.1t)
+// Two counter-traveling waves along each strand's arc length, with a small
+// per-strand phase offset (0.22·id) — neighbours ride the SAME wave slightly
+// delayed, which is what turns independent wires into one piece of combed
+// silk. One master clock drives everything; per-state tempo is one number.
+// Sway is radially anchored: zero at the core, full at the outer reach, so
+// the anatomy waves like anemone arms rather than floating apart.
+// ---------------------------------------------------------------------------
+const STRAND_SWAY_GLSL = /* glsl */ `
+  vec3 strandSway(vec3 pos, float phase, float strand, float time, float amp) {
+    float r = length(pos);
+    vec3 radial = pos / max(r, 1e-4);
+    vec3 up = abs(radial.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    vec3 s1 = normalize(cross(radial, up));
+    vec3 s2 = normalize(cross(s1, radial));
+    float a = phase * 6.2831853;
+    // slow phrase envelope: the motion breathes in phrases, never drones
+    float phrase = 0.72 + 0.28 * sin(time * 0.29 + strand * 0.13);
+    float wob = 0.16 * sin(a * 3.0 - time * 1.7 + strand * 0.22)
+              + 0.07 * sin(a * 5.0 + time * 1.1);
+    float wob2 = 0.10 * sin(a * 2.0 + time * 1.3 + strand * 0.22 + 1.9);
+    float reach = smoothstep(0.06, 0.5, r);
+    return pos + (s1 * wob + s2 * wob2) * (amp * phrase * reach);
+  }
+`;
+
+const kineticLineShader = {
+  vertexShader: /* glsl */ `
+    attribute vec3 color;
+    attribute float aPhase;
+    attribute float aStrand;
+    uniform float uTime;
+    uniform float uAmp;
+    varying vec3 vColor;
+    ${STRAND_SWAY_GLSL}
+    void main() {
+      vColor = color;
+      vec3 pos = strandSway(position, aPhase, aStrand, uTime, uAmp);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */ `
+    varying vec3 vColor;
+    void main() {
+      gl_FragColor = vec4(vColor, 1.0);
+    }
+  `,
+};
+
+const kineticBeadShader = {
+  vertexShader: /* glsl */ `
+    attribute vec3 color;
+    attribute float aPhase;
+    attribute float aStrand;
+    uniform float uTime;
+    uniform float uAmp;
+    uniform float uSize;
+    uniform float uScale;
+    varying vec3 vColor;
+    varying float vFlow;
+    ${STRAND_SWAY_GLSL}
+    void main() {
+      // light travels ALONG the strand: a brightness wave runs outward
+      // through the beads, so the wiring visibly carries current
+      vFlow = 0.68 + 0.42 * sin(aPhase * 14.0 - uTime * 2.4 + aStrand * 0.22);
+      vColor = color;
+      vec3 pos = strandSway(position, aPhase, aStrand, uTime, uAmp);
+      vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+      gl_PointSize = uSize * (uScale / -mvPosition.z);
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  `,
+  fragmentShader: /* glsl */ `
+    varying vec3 vColor;
+    varying float vFlow;
+    void main() {
+      float d = distance(gl_PointCoord, vec2(0.5));
+      float soft = smoothstep(0.5, 0.12, d);
+      gl_FragColor = vec4(vColor * vFlow * soft, 1.0);
+    }
+  `,
+};
+
 // The dendrite system — the organism's radiating anatomy, drawn as a fan of
-// branching families rather than independent wandering strands. Each
-// generation is finer and dimmer than its parent, so a trunk reads clearly,
-// its branches support it, and its twigs dissolve. Split into three passes so
-// each generation gets its own line width in a single draw call.
+// branching families that all comb through the same global swirl field. One
+// buffer, one draw call, alive: every vertex rides the harvested wave law
+// above, phase-keyed to its position along its strand.
 function Dendrites({
-  generation,
-  lineWidth,
   goldIntensity,
   indigoIntensity,
+  tempo,
+  amplitude,
 }: {
-  generation: 0 | 1 | 2;
-  lineWidth: number;
   goldIntensity: number;
   indigoIntensity: number;
+  tempo: number;
+  amplitude: number;
 }) {
   const goldLevel = goldIntensity / 1.18;
   const indigoLevel = indigoIntensity / 0.85;
 
-  const { points, vertexColors } = useMemo(() => {
-    const pts: [number, number, number][] = [];
-    const cols: [number, number, number][] = [];
+  const geometry = useMemo(() => {
+    const pts: number[] = [];
+    const cols: number[] = [];
+    const phases: number[] = [];
+    const strands: number[] = [];
 
     const tone = {
       gold: {
@@ -378,17 +466,16 @@ function Dendrites({
       },
     } as const;
 
-    // generation gain: trunks carry the light, twigs are barely sensed
-    const gain = generation === 0 ? 0.5 : generation === 1 ? 0.24 : 0.1;
+    const gains = [0.68, 0.32, 0.13] as const;
+    const sampleCounts = [40, 28, 18] as const;
 
-    for (const dendrite of FIELD.dendrites) {
-      if (dendrite.generation !== generation) continue;
-
+    FIELD.dendrites.forEach((dendrite, strandIndex) => {
       const level = dendrite.family === 'gold' ? goldLevel : indigoLevel;
-      const base = tone[dendrite.family][generation];
+      const base = tone[dendrite.family][dendrite.generation];
+      const gain = gains[dendrite.generation];
       const vectors = dendrite.points.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
       const samples = new THREE.CatmullRomCurve3(vectors).getPoints(
-        generation === 0 ? 40 : generation === 1 ? 28 : 18,
+        sampleCounts[dendrite.generation],
       );
 
       for (let i = 0; i < samples.length - 1; i += 1) {
@@ -400,31 +487,48 @@ function Dendrites({
           .clone()
           .multiplyScalar(dendrite.brightness * gain * level * taper);
         pts.push(
-          [samples[i].x, samples[i].y, samples[i].z],
-          [samples[i + 1].x, samples[i + 1].y, samples[i + 1].z],
+          samples[i].x, samples[i].y, samples[i].z,
+          samples[i + 1].x, samples[i + 1].y, samples[i + 1].z,
         );
-        cols.push([c.r, c.g, c.b], [c.r, c.g, c.b]);
+        cols.push(c.r, c.g, c.b, c.r, c.g, c.b);
+        phases.push(t, (i + 1) / (samples.length - 1));
+        strands.push(strandIndex, strandIndex);
       }
-    }
+    });
 
-    return { points: pts, vertexColors: cols };
-  }, [generation, goldLevel, indigoLevel]);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+    geo.setAttribute('aPhase', new THREE.Float32BufferAttribute(phases, 1));
+    geo.setAttribute('aStrand', new THREE.Float32BufferAttribute(strands, 1));
+    return geo;
+  }, [goldLevel, indigoLevel]);
 
-  if (points.length === 0) return null;
-
-  return (
-    <Line
-      segments
-      points={points}
-      vertexColors={vertexColors}
-      transparent
-      opacity={1}
-      lineWidth={lineWidth}
-      blending={THREE.AdditiveBlending}
-      depthWrite={false}
-      toneMapped={false}
-    />
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        ...kineticLineShader,
+        uniforms: { uTime: { value: 0 }, uAmp: { value: 0 } },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        toneMapped: false,
+      } as THREE.ShaderMaterialParameters),
+    [],
   );
+
+  const clockRef = useRef(0);
+  useFrame((_, delta) => {
+    // tempo-scaled master clock, accumulated so a state change bends the
+    // pace without snapping the phase
+    clockRef.current += delta * tempo;
+    material.uniforms.uTime.value = clockRef.current;
+    material.uniforms.uAmp.value = amplitude;
+  });
+
+  useEffect(() => () => material.dispose(), [material]);
+
+  return <lineSegments geometry={geometry} material={material} />;
 }
 
 // Beads: tiny bright nodes seated ON the strand paths themselves. This is
@@ -437,9 +541,13 @@ function Dendrites({
 function StrandBeads({
   goldIntensity,
   indigoIntensity,
+  tempo,
+  amplitude,
 }: {
   goldIntensity: number;
   indigoIntensity: number;
+  tempo: number;
+  amplitude: number;
 }) {
   const goldLevel = goldIntensity / 1.18;
   const indigoLevel = indigoIntensity / 0.85;
@@ -461,8 +569,11 @@ function StrandBeads({
       return jitterState / 2147483647;
     };
 
-    for (const dendrite of FIELD.dendrites) {
-      if (dendrite.generation > 1) continue;
+    const phases: number[] = [];
+    const strands: number[] = [];
+
+    FIELD.dendrites.forEach((dendrite, strandIndex) => {
+      if (dendrite.generation > 1) return;
       const level = dendrite.family === 'gold' ? goldLevel : indigoLevel;
       const genGain = dendrite.generation === 0 ? 1 : 0.55;
       const stride = dendrite.generation === 0 ? 2 : 3;
@@ -483,29 +594,51 @@ function StrandBeads({
             (0.5 + 0.85 * along) * dendrite.brightness * genGain * level,
           );
         colors.push(c.r, c.g, c.b);
+        // identical phase/strand keys to the line pass: the beads sway with
+        // exactly the same displacement, so they stay welded to their strands
+        phases.push(t);
+        strands.push(strandIndex);
       }
-    }
+    });
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geo.setAttribute('aPhase', new THREE.Float32BufferAttribute(phases, 1));
+    geo.setAttribute('aStrand', new THREE.Float32BufferAttribute(strands, 1));
     return geo;
   }, [goldLevel, indigoLevel]);
 
-  return (
-    <points geometry={geometry}>
-      <pointsMaterial
-        vertexColors
-        size={0.03}
-        transparent
-        opacity={0.95}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-        toneMapped={false}
-        sizeAttenuation
-      />
-    </points>
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        ...kineticBeadShader,
+        uniforms: {
+          uTime: { value: 0 },
+          uAmp: { value: 0 },
+          uSize: { value: 0.03 },
+          uScale: { value: 540 },
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        toneMapped: false,
+      } as THREE.ShaderMaterialParameters),
+    [],
   );
+
+  const clockRef = useRef(0);
+  useFrame((state, delta) => {
+    clockRef.current += delta * tempo;
+    material.uniforms.uTime.value = clockRef.current;
+    material.uniforms.uAmp.value = amplitude;
+    // matches PointsMaterial's sizeAttenuation scale for the current canvas
+    material.uniforms.uScale.value = state.size.height * 0.5 * state.viewport.dpr;
+  });
+
+  useEffect(() => () => material.dispose(), [material]);
+
+  return <points geometry={geometry} material={material} />;
 }
 
 // The surrounding constellation.
@@ -1205,6 +1338,12 @@ function LivingScene({
 
   const motionScale = resolveMotionScale(reducedMotion, parameters.reducedMotion.motionScale);
 
+  // Strand kinetics: tempo rides the state's own pulse rate (the same value
+  // the core and status dot breathe on — one organism, one clock family) and
+  // amplitude quiets with reduced motion without fully dying.
+  const strandTempo = 0.55 + 0.6 * parameters.corePulseRate;
+  const strandAmplitude = 0.055 * motionScale;
+
   return (
     <>
       <color attach="background" args={[neoPalette.background]} />
@@ -1309,29 +1448,22 @@ function LivingScene({
         {/* volumetric ribbons: the circulation made visible */}
         <VolumetricRibbons intensity={goldLevel} />
 
-        {/* the radiating anatomy: trunks, branches, twigs */}
+        {/* the radiating anatomy: trunks, branches, twigs — one kinetic
+            system riding the harvested wave law. Tempo follows the state's
+            own pulse (arousal quickens the water); amplitude quiets under
+            reduced motion but never fully dies. */}
         <Dendrites
-          generation={2}
-          lineWidth={0.34}
           goldIntensity={goldIntensity}
           indigoIntensity={indigoIntensity}
-        />
-        <Dendrites
-          generation={1}
-          lineWidth={0.5}
-          goldIntensity={goldIntensity}
-          indigoIntensity={indigoIntensity}
-        />
-        <Dendrites
-          generation={0}
-          lineWidth={0.85}
-          goldIntensity={goldIntensity}
-          indigoIntensity={indigoIntensity}
+          tempo={strandTempo}
+          amplitude={strandAmplitude}
         />
         {/* the beads that turn drawn lines into strings of luminous points */}
         <StrandBeads
           goldIntensity={goldIntensity}
           indigoIntensity={indigoIntensity}
+          tempo={strandTempo}
+          amplitude={strandAmplitude}
         />
 
         {/* 7-8. inner micro-weave + constellation drift together, then the
