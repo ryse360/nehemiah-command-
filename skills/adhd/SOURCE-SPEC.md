@@ -1,8 +1,9 @@
 # Divergent Ideation (source skill)
 
-This is the original skill spec that `connect-dots` operationalizes as a runnable
-tree-of-thought engine. Kept here for reference and as the authoritative description
-of the divergence/convergence loop the engine implements.
+This is the prose source spec for the divergent-ideation method. In this repo it
+is operationalized by the runnable `adhd` skill (`.claude/skills/adhd/SKILL.md`),
+which drives the divergence/convergence loop via parallel agent branches. Kept
+here for reference and as the authoritative description of that loop.
 
 ---
 

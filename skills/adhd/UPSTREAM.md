@@ -9,6 +9,11 @@ Udit Akhouri
 License:
 MIT
 
+Deployed copy:
+The runnable skill body lives at `.claude/skills/adhd/SKILL.md` (the single
+source of truth Claude Code loads). This directory keeps only the provenance and
+reference material — LICENSE, SOURCE-SPEC.md, and this file.
+
 Nehemiah role:
 Controlled divergent ideation for consequential, open-ended decisions.
 Used before implementation planning to generate isolated alternatives,
