@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nehemiah × Voicebox — Compatibility Probe</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 820px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.3rem; }
+  p.lede { opacity: .8; }
+  fieldset { border: 1px solid #8884; border-radius: 8px; margin: 1rem 0; }
+  label { display: inline-block; min-width: 8rem; }
+  input[type=text] { width: 22rem; max-width: 100%; padding: .3rem .5rem; }
+  button { font: inherit; padding: .5rem 1rem; border-radius: 8px; border: 1px solid #8886; cursor: pointer; }
+  button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+  table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #8883; vertical-align: top; }
+  .pass { color: #16a34a; font-weight: 600; }
+  .fail { color: #dc2626; font-weight: 600; }
+  .warn { color: #d97706; font-weight: 600; }
+  .verdict { font-size: 1.1rem; padding: .8rem 1rem; border-radius: 8px; margin-top: 1rem; }
+  .verdict.go { background: #16a34a22; }
+  .verdict.partial { background: #d9770622; }
+  .verdict.nogo { background: #dc262622; }
+  pre { background: #8881; padding: .8rem; border-radius: 8px; overflow-x: auto; font-size: 12px; }
+  small { opacity: .7; }
+</style>
+</head>
+<body>
+<h1>Nehemiah × Voicebox — Compatibility Probe</h1>
+<p class="lede">
+  <strong>Purpose.</strong> Prove whether this browser, opened at the deployed
+  Nehemiah origin, can reach the local Voicebox instance — and capture Voicebox's
+  exact API contract. This is the <strong>go/no-go gate</strong> before the voice
+  transport is built. Run it in each browser you care about (Firefox, Chrome,
+  Safari, Edge). Nothing here changes Nehemiah or Voicebox; it only reads.
+</p>
+
+<fieldset>
+  <legend>Setup</legend>
+  <p><label for="url">Voicebox base URL</label>
+     <input id="url" type="text" value="http://127.0.0.1:17493" /></p>
+  <p><label for="text">Sample text</label>
+     <input id="text" type="text" value="Nehemiah compatibility probe." /></p>
+  <p><small>Origin: <code id="origin"></code> · Secure context:
+     <code id="secure"></code> · Browser: <code id="ua"></code></small></p>
+  <p><button class="primary" id="run">Run probe</button>
+     <button id="copy" disabled>Copy results</button></p>
+</fieldset>
+
+<table id="results" hidden>
+  <thead><tr><th>Step</th><th>Result</th><th>Detail</th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<div id="verdict"></div>
+
+<h2 hidden id="chdr">Captured Voicebox contract</h2>
+<pre id="contract" hidden></pre>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const detectBrowser = () => {
+    const ua = navigator.userAgent;
+    if (/Firefox\//.test(ua)) return 'Firefox';
+    if (/Edg\//.test(ua)) return 'Edge';
+    if (/OPR\//.test(ua)) return 'Opera';
+    if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) return 'Chrome';
+    if (/Chromium\//.test(ua)) return 'Chromium';
+    if (/Safari\//.test(ua) && /Version\//.test(ua)) return 'Safari';
+    return 'Unknown';
+  };
+
+  $('origin').textContent = location.origin;
+  $('secure').textContent = String(window.isSecureContext);
+  $('ua').textContent = detectBrowser();
+
+  const rows = [];
+  const capture = {};
+  function row(step, status, detail) {
+    rows.push({ step, status, detail });
+    const tb = $('results').querySelector('tbody');
+    const tr = document.createElement('tr');
+    const cls = status === 'PASS' ? 'pass' : status === 'FAIL' ? 'fail' : 'warn';
+    tr.innerHTML = `<td>${step}</td><td class="${cls}">${status}</td><td>${detail || ''}</td>`;
+    tb.appendChild(tr);
+    $('results').hidden = false;
+  }
+
+  const withTimeout = (ms) => {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), ms);
+    return { signal: c.signal, done: () => clearTimeout(t) };
+  };
+
+  async function run() {
+    rows.length = 0;
+    $('results').querySelector('tbody').innerHTML = '';
+    $('verdict').innerHTML = '';
+    $('contract').hidden = true; $('chdr').hidden = true;
+    for (const k of Object.keys(capture)) delete capture[k];
+
+    const base = $('url').value.replace(/\/+$/, '');
+    const text = $('text').value;
+
+    capture.browser = detectBrowser();
+    capture.origin = location.origin;
+    capture.secureContext = window.isSecureContext;
+    capture.voiceboxBaseUrl = base;
+    capture.timestamp = new Date().toISOString();
+
+    let reachable = false;
+    let genId = null;
+
+    // 1) Reachability + CORS/PNA — GET /profiles
+    try {
+      const to = withTimeout(4000);
+      const res = await fetch(base + '/profiles', { signal: to.signal });
+      to.done();
+      const body = await res.text();
+      let parsed; try { parsed = JSON.parse(body); } catch { parsed = body.slice(0, 400); }
+      capture.profiles = { status: res.status, sample: parsed };
+      if (res.ok) { reachable = true; row('1. Reachability (GET /profiles)', 'PASS', 'HTTP ' + res.status); }
+      else row('1. Reachability (GET /profiles)', 'WARN', 'HTTP ' + res.status);
+    } catch (e) {
+      capture.profiles = { error: String(e) };
+      row('1. Reachability (GET /profiles)', 'FAIL',
+        'Blocked — likely CORS / Private Network Access, or Voicebox not running. ' + String(e));
+    }
+
+    // 2) Async generate — POST /generate (capture the contract)
+    if (reachable) {
+      try {
+        const to = withTimeout(8000);
+        const res = await fetch(base + '/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, language: 'en' }),
+          signal: to.signal,
+        });
+        to.done();
+        const body = await res.text();
+        let parsed; try { parsed = JSON.parse(body); } catch { parsed = body.slice(0, 800); }
+        capture.generate = { status: res.status, response: parsed };
+        if (res.ok) {
+          genId = (parsed && (parsed.id || parsed.generation_id || parsed.generationId || parsed.job_id)) || null;
+          row('2. POST /generate', 'PASS', 'HTTP ' + res.status + (genId ? ' · id=' + genId : ' · no id field found (see contract)'));
+        } else {
+          row('2. POST /generate', 'FAIL', 'HTTP ' + res.status);
+        }
+      } catch (e) {
+        capture.generate = { error: String(e) };
+        row('2. POST /generate', 'FAIL', String(e));
+      }
+    } else {
+      row('2. POST /generate', 'WARN', 'Skipped — not reachable');
+    }
+
+    // 3) SSE status stream — capture a few events
+    if (genId) {
+      await new Promise((resolve) => {
+        let es, settled = false, events = [];
+        const finish = (status, detail) => {
+          if (settled) return; settled = true;
+          try { es && es.close(); } catch {}
+          capture.statusEvents = events;
+          row('3. SSE /generate/{id}/status', status, detail);
+          resolve();
+        };
+        try {
+          es = new EventSource(base + '/generate/' + encodeURIComponent(genId) + '/status');
+          const timer = setTimeout(() => finish('WARN', 'No terminal event within 15s; captured ' + events.length + ' event(s)'), 15000);
+          es.onmessage = (ev) => {
+            events.push(ev.data.slice(0, 300));
+            if (/complete|done|ready|error|failed|cancel/i.test(ev.data)) { clearTimeout(timer); finish('PASS', 'Stream reached a terminal event'); }
+          };
+          es.onerror = () => { clearTimeout(timer); finish('WARN', 'EventSource error (cross-origin SSE may be blocked); captured ' + events.length + ' event(s)'); };
+        } catch (e) { finish('FAIL', String(e)); }
+      });
+    } else if (reachable) {
+      row('3. SSE /generate/{id}/status', 'WARN', 'Skipped — no generation id to follow');
+    }
+
+    // 4) Autoplay (this click is a user gesture, so it should be unlocked)
+    try {
+      const el = new Audio();
+      // 1s of silence WAV data URI
+      el.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=';
+      await el.play();
+      el.pause();
+      row('4. Autoplay after gesture', 'PASS', 'Audio session unlocked by the Run click');
+      capture.autoplay = 'ok';
+    } catch (e) {
+      row('4. Autoplay after gesture', 'WARN', 'Autoplay rejected even after a gesture: ' + String(e));
+      capture.autoplay = String(e);
+    }
+
+    // 5) Cancellation endpoint
+    if (genId) {
+      try {
+        const to = withTimeout(4000);
+        const res = await fetch(base + '/generate/' + encodeURIComponent(genId) + '/cancel', { method: 'POST', signal: to.signal });
+        to.done();
+        capture.cancel = { status: res.status };
+        row('5. POST /generate/{id}/cancel', res.ok ? 'PASS' : 'WARN', 'HTTP ' + res.status);
+      } catch (e) {
+        capture.cancel = { error: String(e) };
+        row('5. POST /generate/{id}/cancel', 'WARN', String(e));
+      }
+    }
+
+    // Verdict
+    const hard = rows.find((r) => r.step.startsWith('1') );
+    const genOk = rows.find((r) => r.step.startsWith('2') && r.status === 'PASS');
+    const v = $('verdict');
+    if (hard && hard.status === 'PASS' && genOk) {
+      v.className = 'verdict go';
+      v.innerHTML = '✅ <strong>GO for this browser.</strong> The deployed origin can reach Voicebox and generate speech. Record this row in the compatibility matrix.';
+    } else if (hard && hard.status === 'PASS') {
+      v.className = 'verdict partial';
+      v.innerHTML = '⚠️ <strong>PARTIAL.</strong> Reachable, but generation/streaming needs attention. Review the captured contract and detail above.';
+    } else {
+      v.className = 'verdict nogo';
+      v.innerHTML = '⛔ <strong>NO-GO for this browser.</strong> The origin cannot reach loopback Voicebox (CORS / Private Network Access, or Voicebox not running). Try Firefox, or a documented fallback (run Nehemiah from localhost, or a local shim).';
+    }
+
+    $('chdr').hidden = false;
+    $('contract').hidden = false;
+    $('contract').textContent = JSON.stringify(capture, null, 2);
+    $('copy').disabled = false;
+  }
+
+  $('run').addEventListener('click', run);
+  $('copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(JSON.stringify({ matrix: rows, capture }, null, 2)); $('copy').textContent = 'Copied ✓'; }
+    catch { $('copy').textContent = 'Copy failed — select the JSON manually'; }
+  });
+})();
+</script>
+</body>
+</html>
