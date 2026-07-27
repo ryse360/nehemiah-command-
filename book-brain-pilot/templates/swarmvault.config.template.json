@@ -1,0 +1,24 @@
+{
+  "_comment": "Default: fully offline heuristic provider. No API key required, none written here. To later try a cloud provider, add an entry like the commented block below, referencing the key by ENV VAR NAME ONLY — never paste a literal key into this file.",
+  "providers": {
+    "heuristic": {
+      "type": "heuristic"
+    }
+  },
+  "tasks": {
+    "compileProvider": "heuristic",
+    "queryProvider": "heuristic",
+    "embeddingProvider": "heuristic",
+    "lintProvider": "heuristic"
+  },
+  "profile": {
+    "preset": "default",
+    "guidedSessionMode": false
+  },
+  "retrieval": {
+    "rerank": false
+  },
+  "hooks": {
+    "graphFirst": true
+  }
+}

@@ -1,0 +1,13 @@
+# Pinned dependencies for the Nehemiah Book Brain pilot's Python extraction
+# pipeline. Install inside the pilot's venv only (see
+# scripts/01_bootstrap_pilot.sh) — never into system Python.
+#
+# Versions recorded as current/latest as of 2026-07-27. Re-verify against
+# https://pypi.org/project/docling/ before upgrading; Docling requires
+# Python >=3.10, <4.0.
+
+docling==2.115.0
+pypdf==5.1.0
+pymupdf==1.24.13
+pdfplumber==0.11.4
+rich==13.9.4
