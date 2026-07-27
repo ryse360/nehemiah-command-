@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createFounderJourney,
   reduceFounderJourney,
@@ -50,10 +50,40 @@ import { FounderKnowledgePanel } from './founder-knowledge-panel';
 import type { ProjectPortfolio } from '@/nehemiah/projects-actions';
 import { loadProjectPortfolio, saveProjectPortfolio } from '@/nehemiah/projects-actions-client';
 import { FounderProjectsPanel } from './founder-projects-panel';
+import { FounderVoiceControls } from './founder-voice-controls';
+import {
+  createVoicePreferences,
+  setAutoSpeak,
+  setQuietMode,
+  setVolume,
+  shouldSpeak,
+  type VoicePreferences,
+} from '@/nehemiah/speech/voice-preferences';
+import { voiceUtteranceForState } from '@/nehemiah/speech/voice-utterance-for-state';
+import {
+  createPlaybackController,
+  createSpeechOrchestrator,
+  createVoiceboxProvider,
+  resolveVoiceConfig,
+  type SpeechOrchestrator,
+} from '@/platform/speech';
 
 export function NehemiahShell() {
   const [journey, setJourney] = useState(createFounderJourney);
   const [command, setCommand] = useState('');
+  const [voicePrefs, setVoicePrefs] = useState<VoicePreferences>(createVoicePreferences);
+  const [stateRevision, setStateRevision] = useState(0);
+  const voiceRef = useRef<SpeechOrchestrator | null>(null);
+  const voiceConfig = useMemo(
+    () =>
+      resolveVoiceConfig({
+        enabled: process.env.NEXT_PUBLIC_VOICEBOX_ENABLED,
+        baseUrl: process.env.NEXT_PUBLIC_VOICEBOX_URL,
+        profileId: process.env.NEXT_PUBLIC_VOICEBOX_PROFILE_ID,
+        profileVersion: process.env.NEXT_PUBLIC_VOICEBOX_PROFILE_VERSION,
+      }),
+    [],
+  );
   const [decisionOpen, setDecisionOpen] = useState(false);
   const [proof, setProof] = useState('');
   const [lesson, setLesson] = useState('');
@@ -142,6 +172,48 @@ export function NehemiahShell() {
     setAiError('');
   }, [baseDecisionReadiness, journey.command, journey.lifecycle]);
 
+  // Voice output is browser-only and entirely optional: with the capability
+  // flag off (the default) nothing below ever runs.
+  useEffect(() => {
+    if (!voiceConfig.enabled || typeof window === 'undefined') return;
+    const provider = createVoiceboxProvider({
+      config: voiceConfig,
+      fetchImpl: window.fetch.bind(window),
+      eventSourceFactory: (url) => new EventSource(url),
+    });
+    const playback = createPlaybackController({
+      baseUrl: voiceConfig.baseUrl,
+      audioFactory: () => new Audio(),
+      fetchImpl: window.fetch.bind(window),
+      createObjectUrl: (blob) => URL.createObjectURL(blob),
+      revokeObjectUrl: (url) => URL.revokeObjectURL(url),
+    });
+    voiceRef.current = createSpeechOrchestrator({
+      provider,
+      playback,
+      isEnabled: () => voiceConfig.enabled,
+      autoSpeak: true,
+      now: () => Date.now(),
+    });
+    return () => {
+      voiceRef.current?.stop();
+      voiceRef.current = null;
+    };
+  }, [voiceConfig]);
+
+  // A new transition is a new utterance identity, so dedupe keys on the
+  // transition rather than on wording.
+  useEffect(() => {
+    setStateRevision((revision) => revision + 1);
+  }, [journey.lifecycle]);
+
+  useEffect(() => {
+    const orchestrator = voiceRef.current;
+    if (!orchestrator || !shouldSpeak(voicePrefs)) return;
+    const utterance = voiceUtteranceForState(journey.lifecycle, { stateRevision });
+    if (!utterance) return;
+    void orchestrator.speak(utterance);
+  }, [journey.lifecycle, stateRevision, voicePrefs]);
 
   function dispatch(event: Parameters<typeof reduceFounderJourney>[1]) {
     setJourney((current) => reduceFounderJourney(current, event));
@@ -371,9 +443,22 @@ export function NehemiahShell() {
             <form className="command-bar" onSubmit={submitCommand}>
               <label className="sr-only" htmlFor="command-input">Ask Nehemiah</label>
               <input id="command-input" value={command} onChange={(event) => setCommand(event.target.value)} placeholder={journey.lifecycle === 'resting' ? 'Ask Nehemiah anything…' : journey.command || 'Journey in progress'} autoComplete="off" disabled={journey.lifecycle !== 'resting'} />
-              <button type="button" className="voice-button" aria-label="Start listening" disabled={journey.lifecycle !== 'resting'} onClick={() => setCommand('Listen to my decision about the restricted pilot.')}>◉</button>
+              <button type="button" className="voice-button" aria-label="Voice input — coming in a later phase" title="Voice input is not available yet" disabled>◉</button>
               <button type="submit" className="send-button" aria-label="Send command" disabled={journey.lifecycle !== 'resting'}>↑</button>
             </form>
+            <FounderVoiceControls
+              available={voiceConfig.enabled}
+              preferences={voicePrefs}
+              onToggleAutoSpeak={(on) => {
+                setVoicePrefs((prefs) => setAutoSpeak(prefs, on));
+                voiceRef.current?.setAutoSpeak(on);
+              }}
+              onToggleQuiet={(on) => setVoicePrefs((prefs) => setQuietMode(prefs, on))}
+              onVolume={(value) => setVoicePrefs((prefs) => setVolume(prefs, value))}
+              onStop={() => voiceRef.current?.stop()}
+              onReplay={() => void voiceRef.current?.replayLast()}
+              onReconnect={() => voiceRef.current?.reconnect()}
+            />
           </section>
 
           <div className={`decision-slot${model.showDecision ? ' is-visible' : ''}`}>

@@ -461,3 +461,8 @@ body[data-state="proof-created"] .organism-core { box-shadow:0 0 34px 14px rgba(
   html:focus-within { scroll-behavior:auto; }
   .organism::before,.organism::after,.shell-one,.shell-two,.shell-three { animation:none !important; }
 }
+
+.voice-controls { display:flex; flex-wrap:wrap; gap:.75rem; align-items:center; margin-top:.5rem; font-size:.85rem; }
+.voice-controls label { display:flex; gap:.35rem; align-items:center; }
+.voice-controls button { min-height:44px; padding:0 .75rem; border-radius:8px; border:1px solid var(--navy); background:transparent; color:var(--navy); }
+.voice-button:disabled { opacity:.35; cursor:not-allowed; }
