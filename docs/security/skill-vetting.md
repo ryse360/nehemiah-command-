@@ -97,6 +97,25 @@ If a future LLM-assisted pass (`skillspector scan --baseline ... `, without
 `--no-llm`, given provider credentials) disagrees with any of the above,
 treat that as a reason to re-review, not to widen the baseline further.
 
+`docs/security/skillspector-baseline.yaml` also suppresses 20 findings
+(reviewed 2026-07-27) against the 15 vendored `koala73/worldmonitor`
+economic-intelligence skills in `skills/worldmonitor-economic-intelligence/`
+(mirrored into `.claude/skills/`). Every finding — `P1` (Prompt Injection)
+on all 15, plus `YR4` (YARA rule `agent_skill_prompt_injection_hidden_
+instructions`) on 5 of them — traces to the same source: each `SKILL.md`
+carries a "Content safety" section instructing the agent to treat API
+response fields as data, never as instructions, and it quotes the literal
+phrase *"ignore previous instructions"* as the example text to disregard.
+The static matcher and the YARA rule both fire on the quoted example, not
+on an actual embedded instruction override — the same prohibition-vs-act
+confusion documented above for `obra/superpowers`. None of the 20 findings
+trace to exploit code, credential access, or executable content; each
+skill is a single static `SKILL.md` describing a REST endpoint, with no
+accompanying scripts. See `skills/worldmonitor-economic-intelligence/
+UPSTREAM.md` for why these skills are vendored for reference only (no API
+key is provisioned, so none of them can make a live call) and for the
+separate, still-open account-trust caveat on the upstream repository.
+
 ## Reviewing a new finding
 
 When the gate fails on a real change:

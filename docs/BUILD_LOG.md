@@ -555,3 +555,31 @@ A public deployment requires either a connected GitHub repository or an authenti
 - [x] Verified the gate blocks: injected a `curl | bash` instruction into a
       vendored skill locally and confirmed `security:scan-skills` exits
       non-zero; reverted and confirmed a clean baseline-only exit 0.
+
+## 2026-07-27 — World Monitor Economic-Intelligence Skills (Reference Only)
+
+### Completed
+- [x] Evaluated `koala73/worldmonitor` as a candidate skill source covering
+      the economic and geopolitical signals a financial advisor, counselor,
+      or coach needs to stay current for client guidance (markets, tariffs,
+      sanctions, energy shocks, trade flows, prediction markets, country
+      risk/resilience, supply-chain stress, conflict events).
+- [x] Vendored the 15 relevant skills into
+      `skills/worldmonitor-economic-intelligence/` (mirrored into
+      `.claude/skills/`), with upstream's AGPL-3.0-only `LICENSE` and a
+      governance `UPSTREAM.md`.
+- [x] Ran the pinned NVIDIA SkillSpector build against them: 20 findings
+      across the 15 skills, all one already-precedented false-positive
+      pattern (a "Content safety" disclaimer quoting the phrase it warns
+      against). Reviewed and added to
+      `docs/security/skillspector-baseline.yaml`, full rationale in
+      `docs/security/skill-vetting.md`.
+- [x] Kept these skills reference-only: no `WM_API_KEY` is configured
+      anywhere in this repo, and `.mcp.json` was not touched, so no live
+      call to `worldmonitor.app` can occur without a separate Founder
+      decision. Flagged the upstream repository's star/fork count as
+      implausible for its account age — a live-wiring decision, not a
+      content-review one.
+- [x] Searched GitHub for a comparable structured, multi-skill economic-
+      intelligence source; found none — scattered single skills in
+      unrelated skill packs, not a comparable suite.

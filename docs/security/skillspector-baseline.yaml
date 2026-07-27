@@ -7,335 +7,675 @@ fingerprints:
   rule_id: AS1
   file: writing-skills/examples/CLAUDE_MD_TESTING.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:2626e30e64795cfa
   rule_id: AS1
   file: writing-skills/examples/CLAUDE_MD_TESTING.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:ff061ce953d6dfc2
   rule_id: EA2
   file: executing-plans/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:a7fb495650fa7f44
   rule_id: EA2
   file: requesting-code-review/code-reviewer.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:8e1084826175b597
   rule_id: EA2
   file: subagent-driven-development/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:5a89d759b6119d56
   rule_id: EA4
   file: systematic-debugging/condition-based-waiting.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:fa9e57d3c392e61c
   rule_id: EA2
   file: using-git-worktrees/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:faa1fc1a35ac6ee4
   rule_id: EA2
   file: verification-before-completion/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:8815014bee8c90b2
   rule_id: PE3
   file: brainstorming/scripts/server.cjs
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:0088ec9562efd08c
   rule_id: PE2
   file: brainstorming/scripts/start-server.sh
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:56102a20a951dd81
   rule_id: PE3
   file: systematic-debugging/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:2d956f005d1492b3
   rule_id: PE3
   file: systematic-debugging/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:75020e43a0ef3f60
   rule_id: P2
   file: brainstorming/scripts/server.cjs
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:1933571b3d043f30
   rule_id: RA2
   file: brainstorming/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:0ab0d3b9efd7ab26
   rule_id: RA2
   file: brainstorming/scripts/start-server.sh
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:a82022e13d49e325
   rule_id: RA2
   file: brainstorming/scripts/start-server.sh
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:a82022e13d49e325
   rule_id: RA2
   file: brainstorming/scripts/start-server.sh
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:a67d5f17c901846a
   rule_id: RA2
   file: brainstorming/scripts/start-server.sh
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:3300ecb02fdd60bf
   rule_id: RA2
   file: brainstorming/scripts/start-server.sh
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:32b6b3bf815bfb1b
   rule_id: RA2
   file: subagent-driven-development/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:37d228367b9d7614
   rule_id: RA1
   file: writing-skills/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:aff733ca0b38885a
   rule_id: RA1
   file: writing-skills/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:9bea62f1381ae4ee
   rule_id: RA1
   file: writing-skills/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:290192964d99b187
   rule_id: RA1
   file: writing-skills/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:71ed0fbf0c4d57de
   rule_id: RA1
   file: writing-skills/testing-skills-with-subagents.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:600af02a4b42d3d8
   rule_id: TM1
   file: brainstorming/scripts/stop-server.sh
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:b563c5f0f5e0e305
   rule_id: TM1
   file: subagent-driven-development/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
 - hash: sha256:c32c2527ef85cf04
   rule_id: YR1
   file: subagent-driven-development/SKILL.md
   reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): matches keyword/pattern
-    rules against legitimate skill-authoring documentation and local dev-tooling prose
-    in the vendored obra/superpowers skill set (e.g. nohup/disown to background a
-    local companion HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s
-    own state file, an HTML comment mis-flagged as a hidden instruction, and skill-writing/testing
-    guides that literally document Write/Edit-skill and grep ~/.claude/ workflows).
-    No finding traces to code that exfiltrates data, escalates privilege beyond the
-    skill''s own local tooling, or executes attacker-controlled input. See docs/security/skill-vetting.md
-    for the full review.'
+    rules against legitimate skill-authoring documentation and local dev-tooling prose in
+    the vendored obra/superpowers skill set (e.g. nohup/disown to background a local companion
+    HTTP server, chmod 600 on a lock file, rm -f cleanup of the skill''s own state file, an
+    HTML comment mis-flagged as a hidden instruction, and skill-writing/testing guides that
+    literally document Write/Edit-skill and grep ~/.claude/ workflows). No finding traces
+    to code that exfiltrates data, escalates privilege beyond the skill''s own local tooling,
+    or executes attacker-controlled input. See docs/security/skill-vetting.md for the full
+    review.'
+- hash: sha256:a2bf3f062409d38f
+  rule_id: P1
+  file: assess-energy-shock/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:d1fdd36fdd759968
+  rule_id: P1
+  file: check-chokepoint-status/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:4f8a7b2bbc3f640c
+  rule_id: P1
+  file: check-country-risk/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:c4243435d14b26b3
+  rule_id: P1
+  file: check-forecast-signals/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:2948d0031a691021
+  rule_id: P1
+  file: check-sanctions-pressure/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:762f264fa731ee60
+  rule_id: P1
+  file: fetch-country-brief/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:646192dd66d2d371
+  rule_id: P1
+  file: fetch-news-digest/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:2fdb92b45064ef03
+  rule_id: P1
+  file: fetch-resilience-score/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:5753f69237b0c029
+  rule_id: P1
+  file: get-market-quotes/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:93853609ef5264b5
+  rule_id: P1
+  file: get-prediction-markets/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:9695a7ed542eb846
+  rule_id: P1
+  file: monitor-energy-disruptions/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:1c5c518fc371747b
+  rule_id: P1
+  file: monitor-supply-chain-stress/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:702b3f1e7fd12691
+  rule_id: P1
+  file: trace-trade-flows/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:f3e991bf6523725c
+  rule_id: P1
+  file: track-conflict-events/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:a831c4e805158132
+  rule_id: P1
+  file: track-tariff-trends/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:6f631fa5c7664e61
+  rule_id: YR4
+  file: assess-energy-shock/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:d998bad943978505
+  rule_id: YR4
+  file: check-forecast-signals/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:9c8bb204e54bcabe
+  rule_id: YR4
+  file: fetch-country-brief/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:de62a4d8f64dcdad
+  rule_id: YR4
+  file: get-prediction-markets/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
+- hash: sha256:d8c7f1632ba3b9c6
+  rule_id: YR4
+  file: monitor-energy-disruptions/SKILL.md
+  reason: 'Reviewed 2026-07-27 (static-only scan, no LLM filter): every P1/YR4 match in the
+    vendored koala73/worldmonitor economic-intelligence skills traces to the same ''Content
+    safety'' section each SKILL.md includes verbatim: a disclaimer instructing the agent to
+    treat API response fields as data, never as instructions, and quoting the literal phrase
+    ''ignore previous instructions'' as the example text to disregard. The static pattern
+    matcher and the YARA rule ''agent_skill_prompt_injection_hidden_instructions'' cannot
+    distinguish a prohibition from the act itself, so the anti-injection warning trips the
+    same rule it is warning against — the same false-positive shape already reviewed for the
+    vendored obra/superpowers skill set above. No finding traces to exploit code, credential
+    access, or a real embedded instruction override. See docs/security/skill-vetting.md for
+    the full review. These skills call a live third-party API (api.worldmonitor.app) that
+    requires an API key; no key is configured anywhere in this repo or its secrets, so the
+    skills are vendored for reference only and are inert until a Founder decision provisions
+    credentials.'
