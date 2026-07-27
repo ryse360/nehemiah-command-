@@ -53,6 +53,27 @@ jobs:
           npm run quality:smoke
           npm run quality:headers
 
+      # Surfaces advisory drift on every run. Deliberately non-blocking and
+      # deliberately does NOT set NEHEMIAH_DEPENDENCY_AUDIT_CURRENT: that flag
+      # must reflect a reviewed audit recorded in
+      # docs/security/dependency-advisory.md, not an automatic pass. Wiring it
+      # here would defeat the fail-closed design. Between v0.17.1 and
+      # v1.0.0-rc.1 the registry returned HTTP 502 and nothing noticed,
+      # because nothing was watching.
+      - name: Dependency advisory check (informational)
+        continue-on-error: true
+        run: |
+          npm audit --omit=dev || true
+          npm audit --omit=dev --json > dependency-audit-result.json || true
+
+      - name: Upload dependency advisory evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-result
+          path: dependency-audit-result.json
+          if-no-files-found: warn
+
       - name: Release candidate audit
         env:
           NEHEMIAH_TESTS_VERIFIED: 'true'

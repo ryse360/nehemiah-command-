@@ -533,3 +533,34 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Added production external-actions record and v1 release checklist.
 - Updated CI with performance and release-candidate gates.
 - Applied safe patch updates for postgres and tsx.
+
+## 2026-07-27 — Dependency Audit Gate Closed and Next.js Security Patch
+
+### Completed
+- [x] Obtained the first current dependency audit since v0.17.1; the registry
+      endpoint that returned HTTP 502 at both v0.17.1 and v1.0.0-rc.1 responded
+      normally.
+- [x] Upgraded `next` 16.2.10 to 16.2.12, resolving nine high-severity Next.js
+      advisories including a Middleware / Proxy bypass in App Router, two
+      Server-Side Request Forgery paths, two cache-confusion issues, and
+      unauthenticated disclosure of internal Server Function endpoints.
+- [x] Verified the upgrade against the full gate: 251 tests, strict
+      TypeScript, 14/14 founder-compliance checks, optimized production build.
+- [x] Preserved the audit JSON as release evidence.
+- [x] Added a non-blocking CI dependency advisory step so registry failures and
+      new advisories surface on every run instead of silently going stale.
+- [x] Recorded three residual high advisories, with no upstream fix available,
+      as an explicit open Founder decision rather than reporting them resolved.
+
+### Not completed
+- [ ] Resolution of the residual `postcss` and `sharp` advisories nested inside
+      Next.js. No forward fix exists; `npm audit` proposes a seven-major
+      downgrade to `next@9.3.3`, which was rejected. Requires Founder risk
+      acceptance or a tested `overrides` remediation.
+
+### Evidence
+- Audit result: `docs/production/dependency-audit-result.json`
+- Advisory record: `docs/security/dependency-advisory.md`
+- Checklist: `docs/production/v1-release-checklist.md`
+- External actions: `docs/production/remaining-external-actions.md`
+- CI: `.github/workflows/ci.yml`

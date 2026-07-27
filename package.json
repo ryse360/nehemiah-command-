@@ -41,7 +41,7 @@
     "leva": "^0.10.1",
     "lucide-react": "^1.26.0",
     "motion": "^12.42.2",
-    "next": "16.2.10",
+    "next": "16.2.12",
     "postgres": "3.4.9",
     "r3f-forcegraph": "^1.1.1",
     "react": "19.1.1",
