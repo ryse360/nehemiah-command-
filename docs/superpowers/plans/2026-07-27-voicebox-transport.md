@@ -8,6 +8,13 @@
 
 **Tech Stack:** TypeScript, Next.js 16 (React 19), `node:test` + `node:assert/strict`, no new runtime dependencies.
 
+**Status (2026-07-27): Tasks 1–6 COMPLETE and pushed.** Full gate green — 323
+tests, typecheck clean, governance 14/14, build OK. Only **Task 7** remains: it
+pins the live wire format and the approved voice profile, and requires the
+Founder to run `scripts/voicebox-contract-probe.py` against a running Voicebox.
+Until Task 7, the contract adapter uses permissive multi-key extraction (which
+already works against the observed API) and voice stays disabled by default.
+
 ## Global Constraints
 
 - Voice is **optional and non-blocking**. No code path may throw to the UI, block rendering, or change existing behavior when voice is off or Voicebox is absent (fail-safe / silent degradation).
@@ -49,7 +56,7 @@ The exact Voicebox field names (generation id key, audio URL field, SSE payload 
 - Consumes: nothing (leaf module).
 - Produces: `extractGenerationId(payload: unknown): string | null`, `extractAudioUrl(payload: unknown): string | null`, `classifyStatusEvent(raw: string): StatusEventKind`, `type StatusEventKind = 'progress' | 'complete' | 'error' | 'cancelled'`, `type GenerateRequestBody`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // src/platform/speech/providers/voicebox-contract.test.ts
@@ -108,12 +115,12 @@ test('maps the Spanish locale to the Voicebox language code', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --import tsx --test "src/platform/speech/providers/voicebox-contract.test.ts"`
 Expected: FAIL — `Cannot find module './voicebox-contract.ts'`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // src/platform/speech/providers/voicebox-contract.ts
@@ -207,12 +214,12 @@ export function buildGenerateBody(input: {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --import tsx --test "src/platform/speech/providers/voicebox-contract.test.ts"`
 Expected: PASS (6 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/platform/speech/providers/voicebox-contract.ts src/platform/speech/providers/voicebox-contract.test.ts
@@ -236,7 +243,7 @@ Satisfies mandatory tests **9** (EventSource closed on completion/cancel/timeout
   `SynthesizeInput = { text: string; locale: SpeechLocale; signal?: AbortSignal }`,
   `SynthesizeResult = { ok: true; audioUrl: string; generationId: string } | { ok: false; reason: SpeechFailureReason; generationId?: string }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // src/platform/speech/providers/voicebox-provider.test.ts
@@ -388,12 +395,12 @@ test('cancel posts to the cancel endpoint and never throws', async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --import tsx --test "src/platform/speech/providers/voicebox-provider.test.ts"`
 Expected: FAIL — `Cannot find module './voicebox-provider.ts'`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // src/platform/speech/providers/voicebox-provider.ts
@@ -562,12 +569,12 @@ export function createVoiceboxProvider(deps: VoiceboxProviderDeps): VoiceboxProv
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --import tsx --test "src/platform/speech/providers/voicebox-provider.test.ts"`
 Expected: PASS (8 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/platform/speech/providers/voicebox-provider.ts src/platform/speech/providers/voicebox-provider.test.ts
@@ -590,7 +597,7 @@ Satisfies mandatory tests **4** (autoplay rejection), **7** (unapproved audio or
   `PlaybackController = { play(audioUrl: string, sequence: number): Promise<PlaybackResult>; stop(): void; currentSequence(): number; setVolume(volume: number): void; setRate(rate: number): void }`,
   `PlaybackResult = { status: 'played' } | { status: 'superseded' } | { status: 'autoplay-blocked' } | { status: 'rejected'; reason: 'invalid-audio-origin' | 'audio-decode' | 'network' }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // src/platform/speech/playback-controller.test.ts
@@ -729,12 +736,12 @@ test('revokes the previous blob url when replaced and on stop', async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --import tsx --test "src/platform/speech/playback-controller.test.ts"`
 Expected: FAIL — `Cannot find module './playback-controller.ts'`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // src/platform/speech/playback-controller.ts
@@ -883,12 +890,12 @@ export function createPlaybackController(deps: PlaybackControllerDeps): Playback
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --import tsx --test "src/platform/speech/playback-controller.test.ts"`
 Expected: PASS (8 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/platform/speech/playback-controller.ts src/platform/speech/playback-controller.test.ts
@@ -910,7 +917,7 @@ Satisfies mandatory tests **1** (stale generation cannot play), **2** (new utter
 - Produces: `createSpeechOrchestrator(deps): SpeechOrchestrator` where
   `SpeechOrchestrator = { speak(utterance: VoiceUtterance): Promise<SpeechOutcome>; stop(): void; replayLast(): Promise<SpeechOutcome>; setAutoSpeak(on: boolean): void; reconnect(): void }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // src/platform/speech/speech-orchestrator.test.ts
@@ -1195,12 +1202,12 @@ test('never passes narrative text to the logger', async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --import tsx --test "src/platform/speech/speech-orchestrator.test.ts"`
 Expected: FAIL — `Cannot find module './speech-orchestrator.ts'`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // src/platform/speech/speech-orchestrator.ts
@@ -1363,12 +1370,12 @@ export function createSpeechOrchestrator(deps: SpeechOrchestratorDeps): SpeechOr
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --import tsx --test "src/platform/speech/speech-orchestrator.test.ts"`
 Expected: PASS (11 tests)
 
-- [ ] **Step 5: Export the new surface and run the full gate**
+- [x] **Step 5: Export the new surface and run the full gate**
 
 Replace the body of `src/platform/speech/index.ts` with:
 
@@ -1415,7 +1422,7 @@ export {
 Run: `npm run gate`
 Expected: all tests pass, typecheck clean, governance 14/14, build OK.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/platform/speech/speech-orchestrator.ts src/platform/speech/speech-orchestrator.test.ts src/platform/speech/index.ts
@@ -1437,7 +1444,7 @@ Satisfies mandatory test **16** (fake listening not presented as real listening)
 - Consumes: nothing from earlier tasks (pure preference state + presentational component).
 - Produces: `createVoicePreferences(): VoicePreferences`, `type VoicePreferences = { autoSpeak: boolean; volume: number; rate: number; quietMode: boolean }`, `setAutoSpeak/setVolume/setRate/setQuietMode` reducers, and `shouldSpeak(prefs: VoicePreferences): boolean`. Component: `FounderVoiceControls(props)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // src/nehemiah/speech/voice-preferences.test.ts
@@ -1488,12 +1495,12 @@ test('reducers never mutate the input', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --import tsx --test "src/nehemiah/speech/voice-preferences.test.ts"`
 Expected: FAIL — `Cannot find module './voice-preferences.ts'`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // src/nehemiah/speech/voice-preferences.ts
@@ -1541,12 +1548,12 @@ export function shouldSpeak(prefs: VoicePreferences): boolean {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --import tsx --test "src/nehemiah/speech/voice-preferences.test.ts"`
 Expected: PASS (6 tests)
 
-- [ ] **Step 5: Create the controls component**
+- [x] **Step 5: Create the controls component**
 
 ```tsx
 // src/components/founder-voice-controls.tsx
@@ -1615,12 +1622,12 @@ export function FounderVoiceControls({
 }
 ```
 
-- [ ] **Step 6: Run the full gate**
+- [x] **Step 6: Run the full gate**
 
 Run: `npm run gate`
 Expected: all pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/nehemiah/speech/voice-preferences.ts src/nehemiah/speech/voice-preferences.test.ts src/components/founder-voice-controls.tsx
@@ -1641,7 +1648,7 @@ Satisfies mandatory test **16** (the fake-listening control is removed).
 - Consumes: `createSpeechOrchestrator`, `createVoiceboxProvider`, `createPlaybackController`, `resolveVoiceConfig` (Tasks 2–4); `voiceUtteranceForState` (already built); `createVoicePreferences`, `shouldSpeak`, `setAutoSpeak`, `setQuietMode`, `setVolume` (Task 5); `FounderVoiceControls` (Task 5).
 - Produces: no new exports.
 
-- [ ] **Step 1: Replace the fake-listening button**
+- [x] **Step 1: Replace the fake-listening button**
 
 In `src/components/nehemiah-shell.tsx`, find:
 
@@ -1663,7 +1670,7 @@ Replace it with a control that does not pretend to listen:
 </button>
 ```
 
-- [ ] **Step 2: Add imports at the top of the file**
+- [x] **Step 2: Add imports at the top of the file**
 
 ```tsx
 import { FounderVoiceControls } from './founder-voice-controls';
@@ -1685,7 +1692,7 @@ import {
 } from '@/platform/speech';
 ```
 
-- [ ] **Step 3: Add voice state and the lazily-created orchestrator**
+- [x] **Step 3: Add voice state and the lazily-created orchestrator**
 
 Add inside `NehemiahShell()`, next to the other `useState` calls:
 
@@ -1711,7 +1718,7 @@ Add `useRef` to the React import on line 3:
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 ```
 
-- [ ] **Step 4: Create the orchestrator in a browser-only effect**
+- [x] **Step 4: Create the orchestrator in a browser-only effect**
 
 ```tsx
 useEffect(() => {
@@ -1742,7 +1749,7 @@ useEffect(() => {
 }, [voiceConfig]);
 ```
 
-- [ ] **Step 5: Bump the revision on every lifecycle change, then speak**
+- [x] **Step 5: Bump the revision on every lifecycle change, then speak**
 
 ```tsx
 useEffect(() => {
@@ -1758,7 +1765,7 @@ useEffect(() => {
 }, [journey.lifecycle, stateRevision, voicePrefs]);
 ```
 
-- [ ] **Step 6: Render the controls**
+- [x] **Step 6: Render the controls**
 
 Place next to the command form (immediately after the `</form>` that contains the voice button):
 
@@ -1778,7 +1785,7 @@ Place next to the command form (immediately after the `</form>` that contains th
 />
 ```
 
-- [ ] **Step 7: Add minimal styles**
+- [x] **Step 7: Add minimal styles**
 
 Append to `src/app/globals.css`:
 
@@ -1789,12 +1796,12 @@ Append to `src/app/globals.css`:
 .voice-button:disabled { opacity:.35; cursor:not-allowed; }
 ```
 
-- [ ] **Step 8: Run the full gate**
+- [x] **Step 8: Run the full gate**
 
 Run: `npm run gate`
 Expected: all tests pass, typecheck clean, governance 14/14, build OK.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/components/nehemiah-shell.tsx src/app/globals.css
