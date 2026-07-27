@@ -2,27 +2,29 @@
 """
 Voicebox contract probe — Phase 0 gate, part B.
 
-Completes the compatibility gate by exercising the FULL generation lifecycle
-against a live local Voicebox instance and capturing its exact API contract:
+Exercises the FULL generation lifecycle against a live local Voicebox and
+captures its exact API contract:
 
-    openapi -> presets -> create profile -> POST /generate -> SSE status -> cancel
+    openapi -> presets -> profile -> POST /generate -> SSE status -> audio -> cancel
 
 The HTML probe (public/voicebox-probe.html) answers the BROWSER boundary
 question (CORS / Private Network Access). This script answers the CONTRACT
 question — the precise request/response shapes the transport must be built
 against — without a browser in the way.
 
+DESIGN PRINCIPLES (learned the hard way):
+  * ALWAYS print the response body on failure. A bare status code sends you
+    round-trip guessing; FastAPI's validation errors name the exact field.
+  * DERIVE the request payload from the server's own OpenAPI schema rather
+    than hardcoding field names, then retry with variants if the server still
+    objects. The API is the authority, not our assumptions.
+
 Run on the Founder's Mac with Voicebox running:
 
-    python3 scripts/voicebox-contract-probe.py
+    python3 scripts/voicebox-contract-probe.py --voice bm_george
 
-Optional:
-    --base-url http://127.0.0.1:17493
-    --engine kokoro
-    --out docs/integrations/voicebox-contract.json
-
-Stdlib only. Read-mostly: it creates one voice profile (required — /generate
-rejects requests without a profile_id) and cancels the generation it starts.
+Stdlib only. It creates one preset voice profile (generation requires a
+profile_id) and cancels the generation it starts.
 """
 
 from __future__ import annotations
@@ -36,14 +38,22 @@ from typing import Any
 
 TIMEOUT = 15
 # The FIRST successful generation downloads a TTS model from HuggingFace, which
-# can take minutes. The status stream therefore gets a much longer budget than
-# ordinary requests.
+# can take minutes. The status stream therefore gets a much longer budget.
 STREAM_TIMEOUT = 600
 
+ID_KEYS = ("id", "generation_id", "generationId", "job_id", "jobId")
+AUDIO_KEYS = ("audio_url", "audioUrl", "url", "audio_path", "path", "file", "output_path")
+NESTED_KEYS = ("result", "data", "generation", "audio", "output")
+TERMINAL_STATUSES = {
+    "complete", "completed", "done", "ready", "finished", "success",
+    "error", "failed", "failure", "cancelled", "canceled", "aborted",
+}
 
-def request(
-    method: str, url: str, body: dict[str, Any] | None = None
-) -> tuple[int, Any]:
+
+# --------------------------------------------------------------------------- io
+
+
+def request(method: str, url: str, body: dict[str, Any] | None = None) -> tuple[int, Any]:
     """Return (status, parsed-or-raw-body). Never raises on HTTP error status."""
     data = json.dumps(body).encode() if body is not None else None
     headers = {"Content-Type": "application/json"} if data else {}
@@ -63,50 +73,46 @@ def request(
         return status, raw[:2000]
 
 
-AUDIO_KEYS = ("audio_url", "audioUrl", "url", "audio_path", "path", "file", "output_path")
-NESTED_KEYS = ("result", "data", "generation", "audio", "output")
+def step(label: str, ok: bool, detail: str = "") -> None:
+    print(f"[{'PASS' if ok else 'FAIL'}] {label}{' — ' + detail if detail else ''}")
 
 
-def _safe_status(payload: str) -> bool:
-    try:
-        return isinstance(json.loads(payload), dict)
-    except json.JSONDecodeError:
-        return False
+def show_body(label: str, body: Any, limit: int = 1200) -> None:
+    """Print a response body. Called on EVERY failure — never hide the detail."""
+    rendered = json.dumps(body, indent=2, ensure_ascii=False) if isinstance(body, (dict, list)) else str(body)
+    print(f"       {label}: {rendered[:limit]}")
 
 
-def extract_audio(payload: Any) -> str | None:
-    """Locate the finished audio reference, whatever Voicebox calls it."""
+# ---------------------------------------------------------------- extraction
+
+
+def find_key(payload: Any, keys: tuple[str, ...]) -> str | None:
     if not isinstance(payload, dict):
         return None
-    for key in AUDIO_KEYS:
+    for key in keys:
         value = payload.get(key)
         if isinstance(value, str) and value:
             return value
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return str(value)
     for nested in NESTED_KEYS:
-        found = extract_audio(payload.get(nested))
+        found = find_key(payload.get(nested), keys)
         if found:
             return found
     return None
 
 
 def find_id(payload: Any) -> str | None:
-    """Voicebox may name the generation id differently across versions."""
-    if not isinstance(payload, dict):
-        return None
-    for key in ("id", "generation_id", "generationId", "job_id", "jobId"):
-        value = payload.get(key)
-        if isinstance(value, (str, int)):
-            return str(value)
-    return None
+    return find_key(payload, ID_KEYS)
 
 
-TERMINAL_STATUSES = {"complete", "completed", "done", "ready", "finished", "success",
-                     "error", "failed", "failure", "cancelled", "canceled", "aborted"}
+def extract_audio(payload: Any) -> str | None:
+    return find_key(payload, AUDIO_KEYS)
 
 
 def is_terminal(payload: str) -> bool:
     """
-    Decide termination from the `status` FIELD, never by scanning the raw text.
+    Decide termination from the `status` FIELD, never by scanning raw text.
 
     Every live event carries an `error` key (null when healthy), so a substring
     search for "error" wrongly terminates on healthy events such as
@@ -123,7 +129,6 @@ def is_terminal(payload: str) -> bool:
 
 
 def read_sse(url: str, max_events: int = 200) -> list[str]:
-    """Read the status stream until a terminal event or the timeout."""
     events: list[str] = []
     try:
         with urllib.request.urlopen(url, timeout=STREAM_TIMEOUT) as stream:
@@ -142,25 +147,113 @@ def read_sse(url: str, max_events: int = 200) -> list[str]:
     return events
 
 
+# -------------------------------------------------------------- openapi schema
+
+
+def resolve_ref(openapi: dict[str, Any], ref: str) -> dict[str, Any]:
+    node: Any = openapi
+    for part in ref.lstrip("#/").split("/"):
+        if not isinstance(node, dict):
+            return {}
+        node = node.get(part, {})
+    return node if isinstance(node, dict) else {}
+
+
+def request_schema(openapi: Any, path: str) -> dict[str, Any]:
+    """Resolve the JSON request-body schema for POST {path}, following $ref."""
+    if not isinstance(openapi, dict):
+        return {}
+    operation = openapi.get("paths", {}).get(path, {}).get("post", {})
+    content = operation.get("requestBody", {}).get("content", {})
+    schema = content.get("application/json", {}).get("schema", {})
+    if "$ref" in schema:
+        schema = resolve_ref(openapi, schema["$ref"])
+    return schema if isinstance(schema, dict) else {}
+
+
+def describe_schema(schema: dict[str, Any]) -> str:
+    required = schema.get("required", [])
+    props = schema.get("properties", {})
+    if not props:
+        return "(no schema found)"
+    lines = []
+    for name, spec in props.items():
+        flag = "REQUIRED" if name in required else "optional"
+        kind = spec.get("type") or ("anyOf" if "anyOf" in spec else "?")
+        extra = ""
+        if isinstance(spec.get("enum"), list):
+            extra = f" enum={spec['enum'][:8]}"
+        lines.append(f"         - {name:22} {flag:9} {kind}{extra}")
+    return "\n" + "\n".join(lines)
+
+
+def payload_variants(
+    schema: dict[str, Any], text: str, profile_id: str, engine: str, voice: str | None
+) -> list[dict[str, Any]]:
+    """
+    Build candidate /generate bodies, best-guess first.
+
+    Starts from what the schema says is required, then falls back to broader
+    variants so a single run discovers the accepted shape instead of costing
+    another round trip.
+    """
+    props = set(schema.get("properties", {}).keys())
+    base: dict[str, Any] = {"text": text, "profile_id": profile_id}
+
+    first = dict(base)
+    if "language" in props:
+        first["language"] = "en"
+    if "engine" in props:
+        first["engine"] = engine
+    if "voice_id" in props and voice:
+        first["voice_id"] = voice
+
+    variants = [first]
+
+    # Fill every REQUIRED field the schema declares, using its default/enum.
+    filled = dict(first)
+    for name in schema.get("required", []):
+        if name in filled:
+            continue
+        spec = schema.get("properties", {}).get(name, {})
+        if "default" in spec:
+            filled[name] = spec["default"]
+        elif isinstance(spec.get("enum"), list) and spec["enum"]:
+            filled[name] = spec["enum"][0]
+        elif spec.get("type") == "string":
+            filled[name] = engine if "engine" in name else ""
+        elif spec.get("type") in ("integer", "number"):
+            filled[name] = 0
+        elif spec.get("type") == "boolean":
+            filled[name] = False
+    if filled != first:
+        variants.append(filled)
+
+    variants.append({"text": text, "profile_id": profile_id})
+    variants.append({"text": text, "profile_id": profile_id, "engine": engine, "language": "en"})
+
+    seen: list[dict[str, Any]] = []
+    for variant in variants:
+        if variant not in seen:
+            seen.append(variant)
+    return seen
+
+
+# ---------------------------------------------------------------------- main
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://127.0.0.1:17493")
     parser.add_argument("--engine", default="kokoro")
-    parser.add_argument(
-        "--voice",
-        default="",
-        help="Preset voice_id (e.g. am_puck). Defaults to the first preset voice.",
-    )
+    parser.add_argument("--voice", default="", help="Preset voice_id, e.g. bm_george")
     parser.add_argument("--profile-name", default="Nehemiah")
     parser.add_argument("--text", default="Nehemiah contract probe.")
     parser.add_argument("--out", default="voicebox-contract.json")
     args = parser.parse_args()
 
     base = args.base_url.rstrip("/")
-    captured: dict[str, Any] = {"baseUrl": base, "engine": args.engine}
-
-    def step(label: str, ok: bool, detail: str = "") -> None:
-        print(f"[{'PASS' if ok else 'FAIL'}] {label}{' — ' + detail if detail else ''}")
+    captured: dict[str, Any] = {"baseUrl": base, "engine": args.engine, "voice": args.voice}
 
     print(f"\nVoicebox contract probe → {base}\n" + "-" * 52)
 
@@ -170,54 +263,47 @@ def main() -> int:
     if status == 200 and isinstance(openapi, dict):
         paths = sorted(openapi.get("paths", {}).keys())
         captured["paths"] = paths
-        version = openapi.get("info", {}).get("version")
-        step("openapi.json", True, f"v{version} · {len(paths)} paths")
+        step("openapi.json", True, f"v{openapi.get('info', {}).get('version')} · {len(paths)} paths")
     else:
         step("openapi.json", False, f"HTTP {status}")
+        show_body("body", openapi)
 
-    # 2. Preset voices for the engine.
+    gen_schema = request_schema(openapi, "/generate")
+    captured["generateSchema"] = gen_schema
+    print("       POST /generate accepts:" + describe_schema(gen_schema))
+
+    # 2. Preset voices.
     status, presets = request("GET", f"{base}/profiles/presets/{args.engine}")
     captured["presets"] = {"status": status, "body": presets}
     step(f"presets/{args.engine}", status == 200, f"HTTP {status}")
+    if status != 200:
+        show_body("body", presets)
 
-    # 3. Find a usable PRESET profile, or create one.
-    #
-    # A profile with voice_type "cloned" and no samples is unusable: cloning
-    # requires the multi-gigabyte Qwen3-TTS model and a voice sample. A PRESET
-    # profile (voice_type "preset" + preset_engine + preset_voice_id) runs on
-    # the small Kokoro model instead. The create API silently ignores an
-    # unknown `engine` field and defaults to "cloned", so the preset fields
-    # must be set explicitly.
+    # 3. A usable PRESET profile (cloned profiles need the multi-GB Qwen model).
     status, profiles = request("GET", f"{base}/profiles")
     captured["profilesBefore"] = {"status": status, "body": profiles}
 
     profile_id = None
     if isinstance(profiles, list):
         for candidate in profiles:
-            if not isinstance(candidate, dict):
-                continue
-            if candidate.get("voice_type") == "preset" and candidate.get("preset_voice_id"):
+            if isinstance(candidate, dict) and candidate.get("voice_type") == "preset" \
+                    and candidate.get("preset_voice_id"):
+                if args.voice and candidate.get("preset_voice_id") != args.voice:
+                    continue
                 profile_id = find_id(candidate)
                 if profile_id:
                     step("existing preset profile", True,
                          f"id={profile_id} voice={candidate.get('preset_voice_id')}")
                     break
-        if profile_id is None and profiles:
-            step("existing profiles unusable", False,
-                 "found only cloned/sample-less profiles — creating a preset profile")
 
     if not profile_id:
-        preset_body = captured["presets"]["body"]
-        voices = preset_body.get("voices", []) if isinstance(preset_body, dict) else []
-        voice_id = args.voice
-        if not voice_id and voices and isinstance(voices[0], dict):
-            voice_id = voices[0].get("voice_id")
+        voices = presets.get("voices", []) if isinstance(presets, dict) else []
+        voice_id = args.voice or (voices[0].get("voice_id") if voices else None)
         if not voice_id:
-            print("\nNo preset voice available to build a profile from.")
+            step("create preset profile", False, "no preset voice available")
             write(args.out, captured)
             return 1
-
-        payload: dict[str, Any] = {
+        payload = {
             "name": args.profile_name,
             "voice_type": "preset",
             "preset_engine": args.engine,
@@ -229,77 +315,83 @@ def main() -> int:
         profile_id = find_id(created)
         ok = status in (200, 201) and bool(profile_id)
         step("create preset profile", ok, f"HTTP {status} voice={voice_id} id={profile_id}")
-        if ok and isinstance(created, dict) and created.get("voice_type") != "preset":
-            step("profile is preset", False,
-                 f"server stored voice_type={created.get('voice_type')!r} — inspect profileCreate")
-
-    if not profile_id:
-        print("\nNo usable profile_id — cannot exercise /generate.")
-        print("Inspect 'presets' and 'profileCreate' in the output file.")
-        write(args.out, captured)
-        return 1
+        if not ok:
+            show_body("400/error body", created)
+            write(args.out, captured)
+            return 1
+        captured["profileObject"] = created
 
     captured["profileId"] = profile_id
 
-    # 4. Generation — the shape the transport must send.
-    body = {"text": args.text, "profile_id": profile_id, "language": "en"}
-    status, generated = request("POST", f"{base}/generate", body)
-    captured["generate"] = {"status": status, "request": body, "response": generated}
-    generation_id = find_id(generated)
-    step("POST /generate", status == 200 and bool(generation_id),
-         f"HTTP {status} id={generation_id}")
+    # 4. Generation — try schema-derived variants until one is accepted.
+    generation_id = None
+    attempts: list[dict[str, Any]] = []
+    for index, body in enumerate(
+        payload_variants(gen_schema, args.text, profile_id, args.engine, args.voice or None), 1
+    ):
+        status, generated = request("POST", f"{base}/generate", body)
+        attempts.append({"request": body, "status": status, "response": generated})
+        generation_id = find_id(generated)
+        if status == 200 and generation_id:
+            step("POST /generate", True, f"HTTP 200 id={generation_id} (variant {index})")
+            captured["acceptedGenerateBody"] = body
+            break
+        step(f"POST /generate variant {index}", False, f"HTTP {status}")
+        show_body("rejected because", generated, 600)
+    captured["generateAttempts"] = attempts
+
+    if not generation_id:
+        print("\nNo variant accepted. The schema above and the rejection bodies show why.")
+        write(args.out, captured)
+        return 1
 
     # 5. Status stream — how completion and the audio reference are delivered.
-    if generation_id:
-        print("       (following the generation — the first run downloads a model)")
-        events = read_sse(f"{base}/generate/{generation_id}/status")
-        captured["statusEvents"] = events
-        step("SSE status", bool(events), f"{len(events)} event(s)")
-        if events:
-            print("       last: " + events[-1][:200])
+    print("       (following the generation — the first run downloads a model)")
+    events = read_sse(f"{base}/generate/{generation_id}/status")
+    captured["statusEvents"] = events
+    step("SSE status", bool(events), f"{len(events)} event(s)")
+    for event in events[-3:]:
+        print(f"       · {event[:200]}")
 
-        # THE KEY UNKNOWN: which field carries the finished audio.
-        final: dict[str, Any] | None = None
-        for payload in reversed(events):
-            try:
-                candidate = json.loads(payload)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(candidate, dict):
-                final = candidate
+    final: dict[str, Any] | None = None
+    statuses: list[Any] = []
+    for payload in events:
+        try:
+            parsed = json.loads(payload)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            final = parsed
+            statuses.append(parsed.get("status"))
+    captured["finalEvent"] = final
+    captured["observedStatuses"] = statuses
+
+    audio_url = extract_audio(final) if final else None
+    captured["audioUrlFound"] = audio_url
+    if audio_url:
+        step("audio field located", True, audio_url)
+        for key in AUDIO_KEYS:
+            if isinstance(final, dict) and isinstance(final.get(key), str):
+                captured["audioFieldName"] = key
+                print(f"       field name: {key!r}")
                 break
+    else:
+        step("audio field located", False, f"statuses seen: {statuses}")
+        if final:
+            show_body("final event", final)
 
-        audio_url = extract_audio(final) if final else None
-        captured["finalEvent"] = final
-        captured["audioUrlFound"] = audio_url
-        if audio_url:
-            step("audio field located", True, f"{audio_url}")
-        else:
-            statuses = [
-                json.loads(p).get("status")
-                for p in events
-                if p.startswith("{") and _safe_status(p)
-            ]
-            captured["observedStatuses"] = statuses
-            step("audio field located", False,
-                 f"no audio field in the final event; statuses seen: {statuses}")
-
-        # 6. Cancellation — required for latest-request-wins.
-        # HTTP 400/404/409 are CORRECT when the generation already reached a
-        # terminal state (completed/failed) — there is nothing left to cancel.
-        # Only a 5xx or a transport error is a real problem here.
-        status, cancelled = request("POST", f"{base}/generate/{generation_id}/cancel")
-        captured["cancel"] = {"status": status, "response": cancelled}
-        step(
-            "POST cancel",
-            status in (200, 204, 400, 404, 409),
-            f"HTTP {status}" + (" (already terminal — expected)" if status == 400 else ""),
-        )
+    # 6. Cancellation — 400/404/409 is CORRECT once the generation is terminal.
+    status, cancelled = request("POST", f"{base}/generate/{generation_id}/cancel")
+    captured["cancel"] = {"status": status, "response": cancelled}
+    step("POST cancel", status in (200, 204, 400, 404, 409),
+         f"HTTP {status}" + (" (already terminal — expected)" if status in (400, 409) else ""))
 
     write(args.out, captured)
     print("-" * 52)
     print(f"Contract written to: {args.out}")
-    print("Paste that file (or its key sections) back to continue the build.\n")
+    if audio_url:
+        print(f"AUDIO FIELD: {captured.get('audioFieldName')} = {audio_url}")
+    print()
     return 0
 
 
