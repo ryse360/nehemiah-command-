@@ -1,10 +1,63 @@
 # Voicebox Voice Output Phase 0 — Founder-Controlled Nehemiah Speech
 
 **Date:** 2026-07-27
-**Status:** Approved with material revisions — pre-implementation
+**Status:** Compatibility probe GO (Chrome) — cleared to build the transport
 **Scope:** The first governed speech layer for the MiP intelligence system.
 Text-to-speech output only. May be delivered as a compatibility-probe gate
 followed by one or more build PRs (see "Delivery shape").
+
+## Compatibility probe result (recorded 2026-07-27)
+
+Run on the Founder's Mac (Apple Silicon, macOS 25.5) using `public/voicebox-probe.html`
+served from `http://localhost:8000`, against a standalone Voicebox instance
+(`python3 -m backend.main --host 127.0.0.1 --port 17493`, backend PYTORCH,
+GPU MPS, Voicebox v0.5.0).
+
+| Browser | Origin | `GET /profiles` | `POST /generate` | Verdict |
+|---|---|---|---|---|
+| Chrome | `http://localhost:8000` | **PASS — HTTP 200** | 422 (validation only — see below) | **GO** |
+
+**The boundary question is answered: GO.** A page served from a different
+loopback origin than Voicebox's own defaults *can* reach Voicebox from Chrome,
+provided Voicebox's CORS allowlist includes that origin.
+
+**Required finding — CORS is not open by default.** Voicebox's
+`_configure_cors()` (`backend/app.py`) hardcodes an allowlist:
+`http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:17493`,
+`http://127.0.0.1:17493`, and `tauri://localhost` variants. Any other origin —
+including the eventual deployed Nehemiah origin — is **rejected by the browser**
+(a generic, undiagnosable `TypeError: Failed to fetch`) unless added via the
+`VOICEBOX_CORS_ORIGINS` environment variable (comma-separated, additive to the
+defaults). **This is now a required Founder setup step**, not optional — see
+"Production requirement" below.
+
+**Required finding — `profile_id` is mandatory, confirmed by the live API.**
+`POST /generate` without a `profile_id` returns `HTTP 422`:
+```json
+{"detail":[{"type":"missing","loc":["body","profile_id"],"msg":"Field required"}]}
+```
+This independently confirms item 14 of the design review (pin the approved
+profile; require `PROFILE_ID` in production) — it is not only a governance
+preference, the API itself enforces it. A fresh install has zero profiles
+(`GET /profiles` → `[]`), so profile creation (`POST /profiles`, or selecting
+from `GET /profiles/presets/{engine}`) is a required one-time setup step before
+`/generate` can succeed, separate from the boundary question this probe exists
+to answer.
+
+**Not yet exercised:** the SSE status stream and `/generate/{id}/cancel`, since
+both require a successful generation first (blocked only by the missing
+profile, not the boundary). Exercise these once a profile exists, using the
+same probe.
+
+### Production requirement this creates
+
+Before voice can be enabled against a **deployed** Nehemiah origin (not
+`localhost`), the Founder's Voicebox instance must be started with that origin
+included in `VOICEBOX_CORS_ORIGINS`. This is now a documented setup step in
+`docs/integrations/voicebox.md`, not an assumption. If the Founder runs the
+**packaged desktop app** (not the standalone backend), its CORS origins are
+fixed at build time unless the app exposes its own way to set this env var —
+confirming this is required before the transport build proceeds.
 
 ## Purpose
 

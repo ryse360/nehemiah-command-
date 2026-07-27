@@ -10,6 +10,22 @@ Voicebox directly, because Nehemiah's deployed (Vercel) server cannot reach
 See the design spec:
 `docs/superpowers/specs/2026-07-27-voicebox-voice-output-design.md`.
 
+## Confirmed: CORS must be explicitly opened per origin
+
+Voicebox's CORS allowlist is **hardcoded** to its own defaults
+(`http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:17493`,
+`http://127.0.0.1:17493`, `tauri://localhost`). Any other origin — including
+Nehemiah's deployed URL — is silently rejected by the browser unless added via:
+
+```bash
+VOICEBOX_CORS_ORIGINS=https://<your-nehemiah-origin> python3 -m backend.main --host 127.0.0.1 --port 17493
+```
+
+Comma-separate multiple origins. **This is a required setup step, not
+optional** — confirmed by the 2026-07-27 compatibility probe (see the design
+spec). If you run the packaged desktop app rather than the standalone backend,
+its CORS origins are fixed unless the app exposes its own setting for this.
+
 ## Step 0 — Run the compatibility probe first (go/no-go gate)
 
 Because a deployed HTTPS origin reaching `http://127.0.0.1` is governed by
