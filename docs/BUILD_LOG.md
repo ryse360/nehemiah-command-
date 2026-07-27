@@ -552,11 +552,20 @@ A public deployment requires either a connected GitHub repository or an authenti
 - [x] Recorded three residual high advisories, with no upstream fix available,
       as an explicit open Founder decision rather than reporting them resolved.
 
+- [x] Eliminated the three residual `postcss` and `sharp` advisories nested
+      inside Next.js using `overrides`, after the version-bump path was
+      exhausted. `npm audit --omit=dev` now reports 0 vulnerabilities across
+      220 production dependencies.
+- [x] Verified the overridden tree against every check in the repository,
+      including the CI-only performance, smoke, and security-header steps, plus
+      a direct `sharp` WebP and AVIF encode test to confirm the native image
+      path still works.
+
 ### Not completed
-- [ ] Resolution of the residual `postcss` and `sharp` advisories nested inside
-      Next.js. No forward fix exists; `npm audit` proposes a seven-major
-      downgrade to `next@9.3.3`, which was rejected. Requires Founder risk
-      acceptance or a tested `overrides` remediation.
+- [ ] Removal of the `postcss` and `sharp` overrides once Next.js bumps its own
+      pins past the vulnerable ranges. A stale override can hold a transitive
+      dependency below a future fix, so this must be re-evaluated at each
+      Next.js minor upgrade.
 
 ### Evidence
 - Audit result: `docs/production/dependency-audit-result.json`

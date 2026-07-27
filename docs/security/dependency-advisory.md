@@ -64,10 +64,14 @@ tree — 251 tests passing, strict TypeScript, 14/14 founder-compliance
 governance checks, and an optimized production build on Next.js 16.2.12. All
 20 routes built. Exit code 0.
 
-### Residual exposure — requires Founder risk acceptance
+### Residual exposure — RESOLVED via overrides, same day
 
-Three high-severity advisories remain and **have no safe remediation path
-today**:
+The three advisories described below were subsequently **eliminated**. See
+"Override remediation" further down. The analysis is retained because it
+documents why the obvious fix was rejected and what was done instead.
+
+Three high-severity advisories remained after the patch upgrade, with **no
+safe remediation path through version bumps alone**:
 
 | Package | Installed | Vulnerable range | Nature |
 | --- | --- | --- | --- |
@@ -84,21 +88,82 @@ is a downgrade of seven major versions — the same class of proposal rejected
 at v0.17.1, and rejected again here. The top-level `postcss` is already safe
 at 8.5.23; only the copy nested inside `next` is affected.
 
-Options, none applied — this is a Founder decision:
+Three options were considered:
 
-1. **Accept the risk and record it.** Both are build-time and
-   image-processing paths rather than request-handling paths. This is the
-   lowest-disruption option and would satisfy the gate item "No unresolved
-   critical or **unaccepted** high issues" by making the acceptance explicit.
-2. **Force resolution via `overrides`** in `package.json` to lift the nested
-   `postcss` to 8.5.23 and `sharp` to `>=0.35.0`. Untested here. `sharp` is a
-   native binary module, so this carries real breakage risk and would require
-   a fresh full gate plus image-optimization verification.
-3. **Wait for an upstream Next.js release** that bumps its own pins, then
-   re-audit.
+1. **Accept the risk and record it.** Lowest disruption; leaves the
+   vulnerability present.
+2. **Force resolution via `overrides`** in `package.json`.
+3. **Wait for an upstream Next.js release** that bumps its own pins.
 
-Until one of these is chosen and evidenced, the production-gate item "No
-unresolved critical or unaccepted high issues" remains open.
+Option 2 was chosen and succeeded. Option 1 was held as the fallback had the
+gate failed.
+
+## Override remediation — 2026-07-27
+
+`package.json` now carries:
+
+```json
+"overrides": {
+  "postcss": "$postcss",
+  "sharp": "0.35.3"
+}
+```
+
+`npm audit --omit=dev` now reports **0 vulnerabilities across 220 production
+dependencies**, down from 3 high. Evidence regenerated at
+`docs/production/dependency-audit-result.json`.
+
+### Why this form
+
+`postcss` uses the `$postcss` reference rather than a literal version. A
+literal fails with `EOVERRIDE — Override for postcss@^8.5.23 conflicts with
+direct dependency`, because npm requires an override on a package that is also
+a direct dependency to reference that dependency rather than restate it. The
+`$` form keeps the nested copy pinned to whatever the direct devDependency
+resolves to, so the two can never drift apart again.
+
+`sharp` is pinned to an exact `0.35.3`, matching this repository's convention
+of exact pins. It is declared by `next` as an **optional** dependency at
+`^0.34.5`, so the override is what lifts it past the vulnerable `<0.35.0`
+range.
+
+Net effect on the tree: the nested `next/node_modules/postcss@8.4.31`
+disappears entirely and dedupes to the single safe top-level `postcss@8.5.23`;
+`sharp` moves `0.34.5` → `0.35.3`.
+
+### Verification
+
+The overridden tree passed every check this repository has:
+
+| Check | Result |
+| --- | --- |
+| `npm audit --omit=dev` | **0 vulnerabilities** (220 prod deps) |
+| Tests | 251 passed, 0 failed |
+| Strict TypeScript | pass |
+| Founder compliance | 14/14 |
+| Production build | pass, all 20 routes |
+| Performance budget | pass — lab engine 1,156,963 B of 1,500,000 B |
+| Runtime smoke | pass — `/api/health` 200, `/` 200, protected routes 401 |
+| Security headers | pass, no failures |
+
+`sharp` was additionally exercised directly, because a native binary swap is
+not necessarily exercised by a build or a server boot:
+
+- `sharp` 0.35.3 on libvips 8.18.3
+- WebP encode: OK
+- AVIF encode: OK
+
+Those are the two formats Next.js uses for image optimization, so the image
+path is confirmed live rather than merely installed.
+
+### Maintenance note
+
+These overrides force versions on a dependency this project does not control.
+When Next.js next bumps its own `postcss` and `sharp` pins past the vulnerable
+ranges, **re-check whether the overrides are still needed** and remove them if
+not. Leaving a stale override in place is its own hazard: it silently pins a
+transitive dependency and can hold it *below* a future fix. Re-evaluate at each
+Next.js minor upgrade.
 
 ### Verification caveat
 

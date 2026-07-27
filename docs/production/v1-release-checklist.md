@@ -18,11 +18,16 @@
 - [ ] Encrypted backup and restore rehearsed
 - [ ] Production URL verified
 - [ ] Five-session Founder pilot passed
-- [ ] No unresolved critical or unaccepted high issues — **3 high remain**
-      (`postcss` and `sharp`, both nested inside Next.js; `next` itself is
-      clean at 16.2.12). No upstream fix exists today. Requires an explicit
-      Founder risk acceptance or an `overrides` remediation; options are laid
-      out in `docs/security/dependency-advisory.md`.
+- [ ] No unresolved critical or unaccepted high issues
+      - [x] **Dependency side cleared.** `npm audit --omit=dev` reports 0
+            vulnerabilities across 220 production dependencies, down from 3
+            high, via `overrides` on `postcss` and `sharp`. Verified against
+            the full gate plus performance, smoke, headers, and a direct
+            `sharp` WebP/AVIF encode test. See
+            `docs/security/dependency-advisory.md`.
+      - [ ] **Pilot side outstanding.** Issue severity from the five-session
+            Founder pilot cannot be assessed until that pilot runs. This item
+            stays open on that basis alone.
 - [ ] Founder release approval recorded
 
 Production v1.0.0 must not be tagged until every production-gate item has evidence.
