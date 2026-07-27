@@ -72,11 +72,34 @@ deterministic testing · no change to Founder decision authority.
 1. **Gate — deployed-origin compatibility probe** (Task 1, below). A minimal
    probe run *from the actual deployed Nehemiah origin* on the Founder's Mac,
    proving the browser→loopback boundary and capturing the exact Voicebox API
-   contract as fixtures/types. **Go/no-go before any build.**
+   contract as fixtures/types. **Go/no-go before the transport build.**
 2. **Build** — the platform speech layer + Nehemiah speech authoring + Founder
    controls. Given its size, the build may be split into sub-PRs (platform
    provider/playback; Nehemiah utterance authoring + policy; Founder controls
-   UI), each landing green under `npm run gate`.
+   UI), each landing green under `npm run gate`. **Boundary-independent work
+   (contract types, Voice Constitution, `voiceUtteranceForState`, pronunciation,
+   policy, their tests) does not wait on the probe** — it is pure and testable
+   without Voicebox, so it proceeds in parallel with the gate. Only the provider
+   *transport* is gated by the probe result.
+
+### Browser compatibility (not Mac-single-browser)
+
+The design must not assume Safari or Chromium. The Founder uses **whichever
+browser passes the probe**, and the provider is written browser-agnostically.
+The probe records a per-browser matrix, because the browser→loopback boundary
+differs sharply by engine:
+
+| Browser | Known risk on public-origin → `127.0.0.1` |
+|---|---|
+| **Firefox** | Historically the most permissive to loopback; no full PNA enforcement — a likely reliable path |
+| **Chrome / Edge / Brave (Chromium)** | Private Network Access (PNA) can block HTTPS-public → private subrequests; may require a preflight Voicebox must answer |
+| **Safari** | macOS Local Network permission prompt + its own local-network restrictions |
+
+The probe is authored once and run in each available browser; the matrix result
+selects the supported set and the transport strategy. If no browser passes
+directly, the fallback options (documented, not built yet) are: run Nehemiah from
+`localhost` in the Founder's session, or a tiny local shim/proxy — decided from
+the matrix, never guessed.
 
 ## Architecture
 
@@ -399,6 +422,8 @@ a continuously-on system. Each later phase is its own spec → plan → build cy
 - Voice remains entirely optional; with the flag off or Voicebox absent, the app
   behaves exactly as today.
 - The fake-listening control is removed / disabled / accurately labeled.
-- The deployed-origin compatibility probe passes.
+- The deployed-origin compatibility probe passes in **at least one** supported
+  browser, with the per-browser matrix recorded; the provider is
+  browser-agnostic (no single-browser assumption in code).
 - `npm run gate` passes.
 - The Hamilton, Leonidas, Anakin, and Nehemiah acceptance criteria are met.
