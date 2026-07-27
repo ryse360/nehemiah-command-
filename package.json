@@ -11,6 +11,7 @@
     "security:hash-password": "node --import tsx scripts/hash-founder-password.ts",
     "security:check-readiness": "node --import tsx scripts/check-production-readiness.ts",
     "security:verify-backup": "node --import tsx scripts/verify-backup-manifest.ts",
+    "security:scan-skills": "node --import tsx scripts/scan-skills.ts",
     "quality:performance": "node --import tsx scripts/check-performance-budget.ts",
     "quality:smoke": "node --import tsx scripts/smoke-production.ts",
     "deployment:rehearse": "node --import tsx scripts/rehearse-deployment.ts",
