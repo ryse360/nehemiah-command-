@@ -85,7 +85,11 @@ English profile; add a second pinned profile before enabling Spanish output.
 
 - The backend's `requirements.txt` is incomplete: `fastmcp` and `pedalboard`
   must be installed separately before the server starts.
-- Cloned voices additionally need `pip install qwen-tts`.
+- **Neither TTS engine's runtime ships with the backend.** Install the one the
+  profile uses, or generation fails with `No module named ...`:
+  - preset/Kokoro profiles → `pip install kokoro` (may also need
+    `brew install espeak-ng` for phonemisation of out-of-dictionary words)
+  - cloned profiles → `pip install qwen-tts`
 - Installing `qwen-tts` pins `transformers==4.57.3`, which **downgrades**
   `huggingface_hub` below 1.0 and breaks `hf-xet`, producing
   `cannot import name 'XetAuthorizationError'` during model download. Start the

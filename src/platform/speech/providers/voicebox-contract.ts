@@ -108,6 +108,19 @@ export function classifyStatusEvent(raw: string): StatusEventKind {
   return 'progress';
 }
 
+/**
+ * The POST /generate body.
+ *
+ * CONFIRMED against the live OpenAPI schema (Voicebox v0.5.0, 2026-07-27):
+ *   profile_id  REQUIRED string
+ *   text        REQUIRED string
+ *   language    optional string
+ *   (also optional: seed, model_size, instruct, engine, personality,
+ *    max_chunk_chars, crossfade_ms, normalize, effects_chain)
+ *
+ * This exact shape was accepted with HTTP 200 by the live server, so the three
+ * fields below are sufficient; the optional knobs stay unset deliberately.
+ */
 export interface GenerateRequestBody {
   text: string;
   /** REQUIRED by the live API — /generate returns 422 without it. */
