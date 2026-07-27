@@ -146,6 +146,12 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://127.0.0.1:17493")
     parser.add_argument("--engine", default="kokoro")
+    parser.add_argument(
+        "--voice",
+        default="",
+        help="Preset voice_id (e.g. am_puck). Defaults to the first preset voice.",
+    )
+    parser.add_argument("--profile-name", default="Nehemiah")
     parser.add_argument("--text", default="Nehemiah contract probe.")
     parser.add_argument("--out", default="voicebox-contract.json")
     args = parser.parse_args()
@@ -174,33 +180,58 @@ def main() -> int:
     captured["presets"] = {"status": status, "body": presets}
     step(f"presets/{args.engine}", status == 200, f"HTTP {status}")
 
-    # 3. Reuse an existing profile if present; otherwise create one.
+    # 3. Find a usable PRESET profile, or create one.
+    #
+    # A profile with voice_type "cloned" and no samples is unusable: cloning
+    # requires the multi-gigabyte Qwen3-TTS model and a voice sample. A PRESET
+    # profile (voice_type "preset" + preset_engine + preset_voice_id) runs on
+    # the small Kokoro model instead. The create API silently ignores an
+    # unknown `engine` field and defaults to "cloned", so the preset fields
+    # must be set explicitly.
     status, profiles = request("GET", f"{base}/profiles")
     captured["profilesBefore"] = {"status": status, "body": profiles}
+
     profile_id = None
-    if isinstance(profiles, list) and profiles:
-        profile_id = find_id(profiles[0])
-        step("existing profile", bool(profile_id), f"id={profile_id}")
+    if isinstance(profiles, list):
+        for candidate in profiles:
+            if not isinstance(candidate, dict):
+                continue
+            if candidate.get("voice_type") == "preset" and candidate.get("preset_voice_id"):
+                profile_id = find_id(candidate)
+                if profile_id:
+                    step("existing preset profile", True,
+                         f"id={profile_id} voice={candidate.get('preset_voice_id')}")
+                    break
+        if profile_id is None and profiles:
+            step("existing profiles unusable", False,
+                 "found only cloned/sample-less profiles — creating a preset profile")
 
     if not profile_id:
-        payload: dict[str, Any] = {"name": "Nehemiah", "engine": args.engine}
         preset_body = captured["presets"]["body"]
-        candidates = (
-            preset_body
-            if isinstance(preset_body, list)
-            else preset_body.get("presets", preset_body.get("voices", []))
-            if isinstance(preset_body, dict)
-            else []
-        )
-        if candidates and isinstance(candidates[0], dict):
-            voice = candidates[0].get("voice_id") or candidates[0].get("id")
-            if voice:
-                payload["voice_id"] = voice
+        voices = preset_body.get("voices", []) if isinstance(preset_body, dict) else []
+        voice_id = args.voice
+        if not voice_id and voices and isinstance(voices[0], dict):
+            voice_id = voices[0].get("voice_id")
+        if not voice_id:
+            print("\nNo preset voice available to build a profile from.")
+            write(args.out, captured)
+            return 1
+
+        payload: dict[str, Any] = {
+            "name": args.profile_name,
+            "voice_type": "preset",
+            "preset_engine": args.engine,
+            "preset_voice_id": voice_id,
+            "language": "en",
+        }
         status, created = request("POST", f"{base}/profiles", payload)
         captured["profileCreate"] = {"status": status, "request": payload, "response": created}
         profile_id = find_id(created)
-        step("create profile", status in (200, 201) and bool(profile_id),
-             f"HTTP {status} id={profile_id}")
+        ok = status in (200, 201) and bool(profile_id)
+        step("create preset profile", ok, f"HTTP {status} voice={voice_id} id={profile_id}")
+        if ok and isinstance(created, dict) and created.get("voice_type") != "preset":
+            step("profile is preset", False,
+                 f"server stored voice_type={created.get('voice_type')!r} — inspect profileCreate")
 
     if not profile_id:
         print("\nNo usable profile_id — cannot exercise /generate.")
