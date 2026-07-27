@@ -35,12 +35,35 @@ Placement in the toolchain:
 
 Runtime dependency:
 The skill drives the Context7 MCP server's `resolve-library-id` and
-`query-docs` tools. Without that MCP server configured for the session, the
-skill has nothing to call. Configuring it is a separate, config-level step
-(`ctx7 mcp install`, or an equivalent MCP server entry) and is deliberately
-not committed here — MCP server wiring is environment state, not project
-source, and Context7's remote transport requires network egress to
-`context7.com`.
+`query-docs` tools. That server is configured for this project in the
+repo-root `.mcp.json`, using the remote HTTP transport
+(`https://mcp.context7.com/mcp`) — the same entry `ctx7 setup --claude
+--project` writes. Claude Code prompts for approval before loading a
+project-scoped MCP server, so checking it in shares the configuration
+without granting it trust implicitly.
+
+Transport choice:
+HTTP over stdio, deliberately. The stdio alternative is
+`npx -y @upstash/context7-mcp`, which resolves and executes the latest
+published version of an external package on every session start. For a
+codebase with Founder-only data and fail-closed release gates, a pinned
+remote endpoint is the smaller supply-chain surface.
+
+API key (optional):
+The endpoint works unauthenticated at reduced rate limits, so no secret is
+required and none is committed. To raise the limits, add the key as a header
+in `.mcp.json`:
+
+    "headers": { "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}" }
+
+`CONTEXT7_API_KEY` is developer-tooling configuration, not application
+runtime configuration — it is intentionally absent from `.env.example`, which
+describes only what the Next.js app itself reads.
+
+Network requirement:
+`mcp.context7.com` must be reachable. Egress-restricted environments
+(including Claude Code web sessions on a restricted network policy) will fail
+to connect; the skill then has nothing to call and should not be invoked.
 
 Governance:
 Use when a real dependency decision or integration is on the table. Do not
