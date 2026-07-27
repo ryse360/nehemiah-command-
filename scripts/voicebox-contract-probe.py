@@ -368,17 +368,82 @@ def main() -> int:
 
     audio_url = extract_audio(final) if final else None
     captured["audioUrlFound"] = audio_url
+    audio_source = "sse"
     if audio_url:
-        step("audio field located", True, audio_url)
+        step("audio in SSE event", True, audio_url)
         for key in AUDIO_KEYS:
             if isinstance(final, dict) and isinstance(final.get(key), str):
                 captured["audioFieldName"] = key
-                print(f"       field name: {key!r}")
                 break
     else:
-        step("audio field located", False, f"statuses seen: {statuses}")
-        if final:
-            show_body("final event", final)
+        step("audio in SSE event", False,
+             "not carried by the stream — resolving via a separate endpoint")
+
+        # The completed event carries no audio reference, so the finished audio
+        # must be fetched separately. Discover the endpoint from the server's
+        # own path list rather than guessing.
+        paths = captured.get("paths") or []
+        templated = [
+            p for p in paths
+            if "{" in p and any(w in p.lower() for w in ("generation", "generate", "audio"))
+        ]
+        captured["candidateAudioPaths"] = templated
+
+        candidates: list[str] = []
+        for path in templated:
+            filled = path
+            for token in ("{generation_id}", "{id}", "{gen_id}", "{generationId}"):
+                filled = filled.replace(token, generation_id)
+            if "{" not in filled:
+                candidates.append(filled)
+        # Conventional fallbacks in case the path list is templated oddly.
+        for extra in (
+            f"/generations/{generation_id}",
+            f"/generate/{generation_id}",
+            f"/generate/{generation_id}/audio",
+            f"/generations/{generation_id}/audio",
+            f"/audio/{generation_id}",
+        ):
+            if extra not in candidates:
+                candidates.append(extra)
+
+        probes: list[dict[str, Any]] = []
+        for path in candidates:
+            status, body = request("GET", f"{base}{path}")
+            found = extract_audio(body) if isinstance(body, dict) else None
+            is_audio_bytes = status == 200 and not isinstance(body, (dict, list))
+            probes.append({
+                "path": path,
+                "status": status,
+                "audioField": found,
+                "returnedNonJson": is_audio_bytes,
+            })
+            if status == 200 and (found or is_audio_bytes):
+                audio_url = found or path
+                audio_source = path
+                captured["audioEndpoint"] = path
+                if found:
+                    for key in AUDIO_KEYS:
+                        if isinstance(body, dict) and isinstance(body.get(key), str):
+                            captured["audioFieldName"] = key
+                            break
+                    step("audio located via endpoint", True, f"GET {path} -> {found}")
+                else:
+                    step("audio located via endpoint", True,
+                         f"GET {path} returns the audio bytes directly")
+                captured["audioEndpointBody"] = body if isinstance(body, dict) else "<binary>"
+                break
+        captured["audioEndpointProbes"] = probes
+
+        if not audio_url:
+            step("audio located", False, f"statuses seen: {statuses}")
+            show_body("final SSE event", final)
+            print("       tried these endpoints:")
+            for entry in probes:
+                print(f"         GET {entry['path']:48} HTTP {entry['status']}")
+
+    captured["audioUrlFound"] = audio_url
+    captured["audioSource"] = audio_source
 
     # 6. Cancellation — 400/404/409 is CORRECT once the generation is terminal.
     status, cancelled = request("POST", f"{base}/generate/{generation_id}/cancel")
@@ -390,7 +455,14 @@ def main() -> int:
     print("-" * 52)
     print(f"Contract written to: {args.out}")
     if audio_url:
-        print(f"AUDIO FIELD: {captured.get('audioFieldName')} = {audio_url}")
+        print("\n  === THE ANSWER ===")
+        print(f"  audio source   : {captured.get('audioSource')}")
+        if captured.get("audioEndpoint"):
+            print(f"  audio endpoint : GET {captured['audioEndpoint']}")
+        if captured.get("audioFieldName"):
+            print(f"  audio field    : {captured['audioFieldName']}")
+        print(f"  audio value    : {audio_url}")
+        print(f"  profile id     : {profile_id}")
     print()
     return 0
 
