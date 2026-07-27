@@ -51,3 +51,18 @@ test('maps the Spanish locale to the Voicebox language code', () => {
   const body = buildGenerateBody({ text: 'hola', profileId: 'p1', locale: 'es-US' });
   assert.equal(body.language, 'es');
 });
+
+// Payloads captured verbatim from a live Voicebox v0.5.0 on 2026-07-27.
+test('live contract: generation id is returned as `id` (uuid)', () => {
+  assert.equal(
+    extractGenerationId({ id: 'a3efd690-9d32-474f-ae8b-e900fa8e7f12' }),
+    'a3efd690-9d32-474f-ae8b-e900fa8e7f12',
+  );
+});
+
+test('live contract: a failed status event classifies as an error, not a completion', () => {
+  const observed =
+    '{"id": "a3efd690-9d32-474f-ae8b-e900fa8e7f12", "status": "failed", "duration": 0.0, "error": "No module named \'qwen_tts\'"}';
+  assert.equal(classifyStatusEvent(observed), 'error');
+  assert.equal(extractGenerationId(JSON.parse(observed)), 'a3efd690-9d32-474f-ae8b-e900fa8e7f12');
+});

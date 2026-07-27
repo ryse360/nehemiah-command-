@@ -9,7 +9,15 @@
 
 import type { SpeechLocale } from '../types.ts';
 
+// OBSERVED LIVE (Voicebox v0.5.0, 2026-07-27): both the profile and the
+// generation return their identifier as `id` (a UUID), and the SSE status
+// payload is `{"id", "status", "duration", "error"}` with terminal statuses
+// including "failed". `id` is therefore listed first; the remaining spellings
+// are retained as defensive fallbacks across versions.
 const ID_KEYS = ['id', 'generation_id', 'generationId', 'job_id', 'jobId'] as const;
+// NOT YET OBSERVED: no successful generation has produced audio on the probe
+// machine (the PyTorch backend needs the `qwen-tts` package). Narrow this list
+// once a completed status event is captured.
 const AUDIO_KEYS = ['audio_url', 'audioUrl', 'url', 'audio_path', 'path', 'file'] as const;
 const NESTED_KEYS = ['result', 'data', 'generation', 'audio'] as const;
 

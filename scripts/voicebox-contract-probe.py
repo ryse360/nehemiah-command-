@@ -35,6 +35,10 @@ import urllib.request
 from typing import Any
 
 TIMEOUT = 15
+# The FIRST successful generation downloads a TTS model from HuggingFace, which
+# can take minutes. The status stream therefore gets a much longer budget than
+# ordinary requests.
+STREAM_TIMEOUT = 600
 
 
 def request(
@@ -75,7 +79,7 @@ def read_sse(url: str, max_events: int = 40) -> list[str]:
     events: list[str] = []
     terminal = ("complete", "done", "ready", "error", "failed", "cancel")
     try:
-        with urllib.request.urlopen(url, timeout=TIMEOUT) as stream:
+        with urllib.request.urlopen(url, timeout=STREAM_TIMEOUT) as stream:
             for raw_line in stream:
                 line = raw_line.decode(errors="replace").strip()
                 if not line.startswith("data:"):
@@ -176,9 +180,16 @@ def main() -> int:
             print("       last: " + events[-1][:120])
 
         # 6. Cancellation — required for latest-request-wins.
+        # HTTP 400/404/409 are CORRECT when the generation already reached a
+        # terminal state (completed/failed) — there is nothing left to cancel.
+        # Only a 5xx or a transport error is a real problem here.
         status, cancelled = request("POST", f"{base}/generate/{generation_id}/cancel")
         captured["cancel"] = {"status": status, "response": cancelled}
-        step("POST cancel", status in (200, 204, 404, 409), f"HTTP {status}")
+        step(
+            "POST cancel",
+            status in (200, 204, 400, 404, 409),
+            f"HTTP {status}" + (" (already terminal — expected)" if status == 400 else ""),
+        )
 
     write(args.out, captured)
     print("-" * 52)
