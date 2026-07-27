@@ -81,6 +81,33 @@ French, `if_`/`im_` Italian, `jf_`/`jm_` Japanese, `pf_`/`pm_` Portuguese,
 language field on an English profile is not sufficient. Phase 0 pins one
 English profile; add a second pinned profile before enabling Spanish output.
 
+## Use Python 3.12 — not 3.13/3.14 (the single most important setup fact)
+
+The Voicebox backend must run on **Python 3.12** in a dedicated virtualenv.
+Confirmed the hard way on 2026-07-27: on Python 3.14 the TTS engines cannot be
+installed at all. `kokoro` depends on `misaki` → `spacy` → `thinc` → `blis`,
+and `blis` has no 3.14 wheel and fails to compile from source with
+`Cython.Compiler.Errors.CompileError: blis/py.pyx`. Most of the other pitfalls
+below are downstream of the same root cause.
+
+Clean setup:
+
+```bash
+brew install python@3.12          # or install 3.12 from python.org
+cd ~/voicebox
+python3.12 -m venv .venv
+source .venv/bin/activate
+python --version                  # must print 3.12.x
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install fastmcp pedalboard kokoro   # engine + missing backend deps
+HF_HUB_DISABLE_XET=1 VOICEBOX_CORS_ORIGINS=http://localhost:3000 \
+  python -m backend.main --host 127.0.0.1 --port 17493
+```
+
+Re-activate the venv (`source .venv/bin/activate`) in any new terminal before
+starting the server.
+
 ## Known dependency pitfalls (macOS, confirmed live)
 
 - The backend's `requirements.txt` is incomplete: `fastmcp` and `pedalboard`
