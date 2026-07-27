@@ -68,7 +68,39 @@ export function extractAudioUrl(payload: unknown): string | null {
 
 export type StatusEventKind = 'progress' | 'complete' | 'error' | 'cancelled';
 
+const CANCELLED_STATUS = /^(cancell?ed|aborted)$/;
+const ERROR_STATUS = /^(error|failed|failure)$/;
+const COMPLETE_STATUS = /^(complete|completed|done|ready|finished|success)$/;
+
+/**
+ * Classify an SSE status payload.
+ *
+ * MUST read the `status` FIELD, never scan the raw text: the live payload is
+ * `{"id","status","duration","error",...}` and carries an `error` KEY on EVERY
+ * event (null when healthy). Substring-matching the raw JSON therefore reports
+ * a failure for a perfectly healthy `"status":"loading_model"` event. Observed
+ * live on Voicebox v0.5.0, 2026-07-27.
+ *
+ * Only an unparseable (non-JSON) payload falls back to scanning the text.
+ */
 export function classifyStatusEvent(raw: string): StatusEventKind {
+  let status: string | null = null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    const record = asRecord(parsed);
+    const value = record?.status;
+    if (typeof value === 'string') status = value.trim().toLowerCase();
+  } catch {
+    // Not JSON — fall through to the raw-text heuristic below.
+  }
+
+  if (status !== null) {
+    if (CANCELLED_STATUS.test(status)) return 'cancelled';
+    if (ERROR_STATUS.test(status)) return 'error';
+    if (COMPLETE_STATUS.test(status)) return 'complete';
+    return 'progress';
+  }
+
   const haystack = raw.toLowerCase();
   if (/\b(cancell?ed|aborted)\b/.test(haystack)) return 'cancelled';
   if (/\b(error|failed|failure)\b/.test(haystack)) return 'error';

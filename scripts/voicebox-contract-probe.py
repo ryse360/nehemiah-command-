@@ -63,6 +63,32 @@ def request(
         return status, raw[:2000]
 
 
+AUDIO_KEYS = ("audio_url", "audioUrl", "url", "audio_path", "path", "file", "output_path")
+NESTED_KEYS = ("result", "data", "generation", "audio", "output")
+
+
+def _safe_status(payload: str) -> bool:
+    try:
+        return isinstance(json.loads(payload), dict)
+    except json.JSONDecodeError:
+        return False
+
+
+def extract_audio(payload: Any) -> str | None:
+    """Locate the finished audio reference, whatever Voicebox calls it."""
+    if not isinstance(payload, dict):
+        return None
+    for key in AUDIO_KEYS:
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            return value
+    for nested in NESTED_KEYS:
+        found = extract_audio(payload.get(nested))
+        if found:
+            return found
+    return None
+
+
 def find_id(payload: Any) -> str | None:
     """Voicebox may name the generation id differently across versions."""
     if not isinstance(payload, dict):
@@ -74,10 +100,31 @@ def find_id(payload: Any) -> str | None:
     return None
 
 
-def read_sse(url: str, max_events: int = 40) -> list[str]:
+TERMINAL_STATUSES = {"complete", "completed", "done", "ready", "finished", "success",
+                     "error", "failed", "failure", "cancelled", "canceled", "aborted"}
+
+
+def is_terminal(payload: str) -> bool:
+    """
+    Decide termination from the `status` FIELD, never by scanning the raw text.
+
+    Every live event carries an `error` key (null when healthy), so a substring
+    search for "error" wrongly terminates on healthy events such as
+    {"status": "loading_model", "error": null}.
+    """
+    try:
+        parsed = json.loads(payload)
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(parsed, dict):
+        return False
+    status = parsed.get("status")
+    return isinstance(status, str) and status.strip().lower() in TERMINAL_STATUSES
+
+
+def read_sse(url: str, max_events: int = 200) -> list[str]:
     """Read the status stream until a terminal event or the timeout."""
     events: list[str] = []
-    terminal = ("complete", "done", "ready", "error", "failed", "cancel")
     try:
         with urllib.request.urlopen(url, timeout=STREAM_TIMEOUT) as stream:
             for raw_line in stream:
@@ -85,8 +132,8 @@ def read_sse(url: str, max_events: int = 40) -> list[str]:
                 if not line.startswith("data:"):
                     continue
                 payload = line[5:].strip()
-                events.append(payload[:400])
-                if any(word in payload.lower() for word in terminal):
+                events.append(payload[:600])
+                if is_terminal(payload):
                     break
                 if len(events) >= max_events:
                     break
@@ -173,11 +220,38 @@ def main() -> int:
 
     # 5. Status stream — how completion and the audio reference are delivered.
     if generation_id:
+        print("       (following the generation — the first run downloads a model)")
         events = read_sse(f"{base}/generate/{generation_id}/status")
         captured["statusEvents"] = events
         step("SSE status", bool(events), f"{len(events)} event(s)")
         if events:
-            print("       last: " + events[-1][:120])
+            print("       last: " + events[-1][:200])
+
+        # THE KEY UNKNOWN: which field carries the finished audio.
+        final: dict[str, Any] | None = None
+        for payload in reversed(events):
+            try:
+                candidate = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(candidate, dict):
+                final = candidate
+                break
+
+        audio_url = extract_audio(final) if final else None
+        captured["finalEvent"] = final
+        captured["audioUrlFound"] = audio_url
+        if audio_url:
+            step("audio field located", True, f"{audio_url}")
+        else:
+            statuses = [
+                json.loads(p).get("status")
+                for p in events
+                if p.startswith("{") and _safe_status(p)
+            ]
+            captured["observedStatuses"] = statuses
+            step("audio field located", False,
+                 f"no audio field in the final event; statuses seen: {statuses}")
 
         # 6. Cancellation — required for latest-request-wins.
         # HTTP 400/404/409 are CORRECT when the generation already reached a

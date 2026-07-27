@@ -66,3 +66,29 @@ test('live contract: a failed status event classifies as an error, not a complet
   assert.equal(classifyStatusEvent(observed), 'error');
   assert.equal(extractGenerationId(JSON.parse(observed)), 'a3efd690-9d32-474f-ae8b-e900fa8e7f12');
 });
+
+// REGRESSION: every live event carries an `error` KEY (null when healthy).
+// Scanning the raw JSON for the word "error" wrongly failed healthy events.
+test('live contract: a healthy event with a null error key is progress, not an error', () => {
+  const observed =
+    '{"id": "14dc733a-ffd7-4038-9dd3-6068e6b20a5f", "status": "loading_model", "duration": 0.0, "error": null, "source": "manual"}';
+  assert.equal(classifyStatusEvent(observed), 'progress');
+});
+
+test('classification reads the status field, ignoring words elsewhere in the payload', () => {
+  assert.equal(
+    classifyStatusEvent('{"status":"running","error":null,"message":"no errors so far"}'),
+    'progress',
+  );
+  assert.equal(
+    classifyStatusEvent('{"status":"completed","error":null,"note":"cancelled nothing"}'),
+    'complete',
+  );
+  assert.equal(classifyStatusEvent('{"status":"queued","error":null}'), 'progress');
+  assert.equal(classifyStatusEvent('{"status":"generating","error":null}'), 'progress');
+});
+
+test('a non-JSON payload still falls back to the raw-text heuristic', () => {
+  assert.equal(classifyStatusEvent('generation complete'), 'complete');
+  assert.equal(classifyStatusEvent('ping'), 'progress');
+});
