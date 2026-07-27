@@ -48,6 +48,50 @@ If every browser is NO-GO, use a documented fallback (run Nehemiah from
 `localhost` in the Founder's session, or a small local shim) — decided from the
 matrix, not guessed.
 
+## Voice profiles (confirmed live, 2026-07-27)
+
+Voicebox profiles come in two kinds, and the distinction decides which model
+gets downloaded:
+
+- **`preset`** — uses a built-in voice from a preset engine. Requires
+  `voice_type: "preset"`, `preset_engine`, and `preset_voice_id`. Runs on
+  **Kokoro** (~82M parameters, a few hundred MB).
+- **`cloned`** — clones a voice from an audio sample. Requires the
+  **Qwen3-TTS** model (1.7B parameters, multi-gigabyte download).
+
+**Gotcha:** `POST /profiles` silently ignores an unrecognised `engine` field and
+defaults to `voice_type: "cloned"`. A cloned profile with zero samples fails
+generation with `No module named 'qwen_tts'`. Always set the three preset fields
+explicitly:
+
+```bash
+curl -X POST http://127.0.0.1:17493/profiles \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Nehemiah","voice_type":"preset","preset_engine":"kokoro","preset_voice_id":"bm_george","language":"en"}'
+```
+
+Kokoro preset voice ids are prefixed by accent and gender: `af_`/`am_` American
+female/male, `bf_`/`bm_` British female/male, plus `ef_`/`em_` Spanish, `ff_`
+French, `if_`/`im_` Italian, `jf_`/`jm_` Japanese, `pf_`/`pm_` Portuguese,
+`zf_`/`zm_` Chinese. List them with
+`GET /profiles/presets/kokoro`.
+
+**Locale implication:** Kokoro voices are language-specific, so the spec's
+`es-US` locale needs its **own Spanish profile** (e.g. `em_alex`) — setting the
+language field on an English profile is not sufficient. Phase 0 pins one
+English profile; add a second pinned profile before enabling Spanish output.
+
+## Known dependency pitfalls (macOS, confirmed live)
+
+- The backend's `requirements.txt` is incomplete: `fastmcp` and `pedalboard`
+  must be installed separately before the server starts.
+- Cloned voices additionally need `pip install qwen-tts`.
+- Installing `qwen-tts` pins `transformers==4.57.3`, which **downgrades**
+  `huggingface_hub` below 1.0 and breaks `hf-xet`, producing
+  `cannot import name 'XetAuthorizationError'` during model download. Start the
+  server with `HF_HUB_DISABLE_XET=1` (Xet is only a transfer optimisation; the
+  downloaded files are identical), or uninstall `hf-xet`.
+
 ## Configuration (added when the transport is built)
 
 Two distinct layers — a deployment capability flag and the Founder's runtime
