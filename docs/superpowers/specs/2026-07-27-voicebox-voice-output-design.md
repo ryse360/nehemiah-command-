@@ -44,10 +44,22 @@ from `GET /profiles/presets/{engine}`) is a required one-time setup step before
 `/generate` can succeed, separate from the boundary question this probe exists
 to answer.
 
-**Not yet exercised:** the SSE status stream and `/generate/{id}/cancel`, since
-both require a successful generation first (blocked only by the missing
-profile, not the boundary). Exercise these once a profile exists, using the
-same probe.
+**Full lifecycle now exercised end to end (2026-07-27).** A real generation
+succeeded on Kokoro/MPS in 2.675s. The complete confirmed contract:
+
+| Element | Confirmed value |
+|---|---|
+| Generate request | `POST /generate` — `profile_id` and `text` REQUIRED, `language` optional |
+| Generation id | returned as `id` (UUID) |
+| Status stream | `GET /generate/{id}/status` (SSE) |
+| Status payload | `{"id","status","duration","error","source"}` — `error` is a key on EVERY event, `null` when healthy |
+| Status lifecycle | `loading_model` → `generating` → `completed` (terminal: `completed`, `failed`, `cancelled`) |
+| **Audio** | **`GET /audio/{generationId}` — returns the audio BYTES directly. The status stream never carries a URL, so the path is CONSTRUCTED from the generation id.** |
+| Cancel | `POST /generate/{id}/cancel` — 200 while running, 400 once terminal |
+| Approved profile | `6164b83a-c830-4ce1-a599-4ba4759cdba6` — Kokoro preset `bm_george` (British male) |
+
+Every one of these is pinned in `voicebox-contract.ts` with regression tests
+built from the verbatim captured payloads.
 
 ### Production requirement this creates
 

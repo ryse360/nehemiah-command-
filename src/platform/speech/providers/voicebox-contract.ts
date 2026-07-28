@@ -15,9 +15,13 @@ import type { SpeechLocale } from '../types.ts';
 // including "failed". `id` is therefore listed first; the remaining spellings
 // are retained as defensive fallbacks across versions.
 const ID_KEYS = ['id', 'generation_id', 'generationId', 'job_id', 'jobId'] as const;
-// NOT YET OBSERVED: no successful generation has produced audio on the probe
-// machine (the PyTorch backend needs the `qwen-tts` package). Narrow this list
-// once a completed status event is captured.
+// CONFIRMED LIVE: the completed status event carries NO audio reference — it is
+// only {"id","status","duration","error","source"}. The finished audio is
+// served by a SEPARATE endpoint, `GET /audio/{generationId}`, which returns the
+// bytes directly (see audioPathForGeneration below).
+//
+// These keys are kept as a defensive fallback in case a future version starts
+// embedding a URL in the event.
 const AUDIO_KEYS = ['audio_url', 'audioUrl', 'url', 'audio_path', 'path', 'file'] as const;
 const NESTED_KEYS = ['result', 'data', 'generation', 'audio'] as const;
 
@@ -126,6 +130,21 @@ export interface GenerateRequestBody {
   /** REQUIRED by the live API — /generate returns 422 without it. */
   profile_id: string;
   language: string;
+}
+
+/**
+ * Where the finished audio for a generation lives.
+ *
+ * CONFIRMED LIVE (Voicebox v0.5.0, 2026-07-27): `GET /audio/{generationId}`
+ * returns the audio BYTES directly (not JSON). The status stream never carries
+ * a URL, so this path is constructed from the generation id rather than parsed
+ * out of an event.
+ *
+ * Returned as a root-relative path; the playback controller resolves it against
+ * the configured loopback base and re-validates the origin before fetching.
+ */
+export function audioPathForGeneration(generationId: string): string {
+  return `/audio/${encodeURIComponent(generationId)}`;
 }
 
 export function buildGenerateBody(input: {

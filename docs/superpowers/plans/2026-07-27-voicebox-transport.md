@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, Next.js 16 (React 19), `node:test` + `node:assert/strict`, no new runtime dependencies.
 
-**Status (2026-07-27): Tasks 1–6 COMPLETE and pushed.** Full gate green — 323
+**Status: ALL TASKS COMPLETE (2026-07-28).** Contract pinned from a live run. Full gate green — 323
 tests, typecheck clean, governance 14/14, build OK. Only **Task 7** remains: it
 pins the live wire format and the approved voice profile, and requires the
 Founder to run `scripts/voicebox-contract-probe.py` against a running Voicebox.
@@ -1821,7 +1821,7 @@ git commit -m "feat(speech): wire Founder-controlled speech into the shell and r
 - Consumes: `scripts/voicebox-contract-probe.py` output (`voicebox-contract.json`).
 - Produces: no new exports — narrows existing ones.
 
-- [ ] **Step 1: Capture the live contract**
+- [x] **Step 1: Capture the live contract**
 
 On the Founder's Mac, with Voicebox running:
 
@@ -1829,7 +1829,7 @@ On the Founder's Mac, with Voicebox running:
 python3 scripts/voicebox-contract-probe.py --out voicebox-contract.json
 ```
 
-- [ ] **Step 2: Narrow the key lists to what the contract actually returns**
+- [x] **Step 2: Narrow the key lists to what the contract actually returns**
 
 In `voicebox-contract.ts`, reduce `ID_KEYS`, `AUDIO_KEYS`, and `NESTED_KEYS` to the single observed spelling each, keeping the extraction functions unchanged. Example, if the contract shows `{"id": "..."}` and `{"audio_url": "..."}`:
 
@@ -1839,7 +1839,7 @@ const AUDIO_KEYS = ['audio_url'] as const;
 const NESTED_KEYS = ['result'] as const;
 ```
 
-- [ ] **Step 3: Update the contract tests to assert the pinned shape**
+- [x] **Step 3: Update the contract tests to assert the pinned shape**
 
 Add to `voicebox-contract.test.ts`:
 
@@ -1851,7 +1851,7 @@ test('pinned contract: the observed live payload shape resolves', () => {
 });
 ```
 
-- [ ] **Step 4: Record the pinned profile**
+- [x] **Step 4: Record the pinned profile**
 
 Set in the Founder's environment (and document the value in `docs/integrations/voicebox.md`):
 
@@ -1860,12 +1860,12 @@ NEXT_PUBLIC_VOICEBOX_ENABLED=true
 NEXT_PUBLIC_VOICEBOX_PROFILE_ID=<id from GET /profiles>
 ```
 
-- [ ] **Step 5: Run the full gate**
+- [x] **Step 5: Run the full gate**
 
 Run: `npm run gate`
 Expected: all pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/platform/speech/providers/voicebox-contract.ts src/platform/speech/providers/voicebox-contract.test.ts docs/

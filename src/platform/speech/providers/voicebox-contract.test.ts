@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  audioPathForGeneration,
   buildGenerateBody,
   classifyStatusEvent,
   extractAudioUrl,
@@ -91,4 +92,37 @@ test('classification reads the status field, ignoring words elsewhere in the pay
 test('a non-JSON payload still falls back to the raw-text heuristic', () => {
   assert.equal(classifyStatusEvent('generation complete'), 'complete');
   assert.equal(classifyStatusEvent('ping'), 'progress');
+});
+
+// The full lifecycle observed live: loading_model -> generating -> completed.
+test('live contract: the real generation lifecycle classifies correctly', () => {
+  const id = '757e5586-42f7-4c1b-b20d-36cc7cf9899d';
+  const event = (status: string, duration = 0.0) =>
+    `{"id": "${id}", "status": "${status}", "duration": ${duration}, "error": null, "source": "manual"}`;
+
+  assert.equal(classifyStatusEvent(event('loading_model')), 'progress');
+  assert.equal(classifyStatusEvent(event('generating')), 'progress');
+  assert.equal(classifyStatusEvent(event('completed', 2.675)), 'complete');
+});
+
+test('live contract: the completed event carries NO audio reference', () => {
+  const completed = JSON.parse(
+    '{"id": "757e5586-42f7-4c1b-b20d-36cc7cf9899d", "status": "completed", "duration": 2.675, "error": null, "source": "manual"}',
+  );
+  assert.equal(
+    extractAudioUrl(completed),
+    null,
+    'the stream never carries a URL — the path must be constructed',
+  );
+});
+
+test('live contract: audio is served from /audio/{generationId}', () => {
+  assert.equal(
+    audioPathForGeneration('052bb4b7-1ae9-42e6-b278-e65c3de3a7b0'),
+    '/audio/052bb4b7-1ae9-42e6-b278-e65c3de3a7b0',
+  );
+});
+
+test('the audio path encodes an id containing unsafe characters', () => {
+  assert.equal(audioPathForGeneration('a/b?c'), '/audio/a%2Fb%3Fc');
 });

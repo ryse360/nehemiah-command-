@@ -8,6 +8,7 @@
 
 import type { SpeechFailureReason, SpeechLocale, VoiceboxConfig } from '../types.ts';
 import {
+  audioPathForGeneration,
   buildGenerateBody,
   classifyStatusEvent,
   extractAudioUrl,
@@ -152,8 +153,10 @@ export function createVoiceboxProvider(deps: VoiceboxProviderDeps): VoiceboxProv
         } catch {
           // fall through with the raw string; extraction will return null
         }
-        const audioUrl = extractAudioUrl(parsed);
-        if (!audioUrl) return finish({ ok: false, reason: 'generation-error', generationId });
+        // The completed event carries no audio reference on the confirmed live
+        // API, so the path is CONSTRUCTED from the generation id. The extract
+        // call is a forward-compatible fallback for versions that do embed one.
+        const audioUrl = extractAudioUrl(parsed) ?? audioPathForGeneration(generationId);
         finish({ ok: true, audioUrl, generationId });
       };
 

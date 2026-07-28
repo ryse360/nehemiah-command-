@@ -77,6 +77,47 @@ test('synthesize resolves the audio url from the status stream and closes it', a
   assert.equal(FakeEventSource.last!.closed, true, 'stream must be closed on completion');
 });
 
+// The real API: the completed event has no URL, so the path is constructed.
+test('synthesize constructs /audio/{id} when the event carries no url', async () => {
+  const id = '757e5586-42f7-4c1b-b20d-36cc7cf9899d';
+  const provider = createVoiceboxProvider({
+    config,
+    fetchImpl: async () => jsonResponse({ id }),
+    eventSourceFactory: esFactory,
+  });
+  const pending = provider.synthesize({ text: 'hello', locale: 'en-US' });
+  await settle();
+  FakeEventSource.last!.emit(
+    `{"id": "${id}", "status": "completed", "duration": 2.675, "error": null, "source": "manual"}`,
+  );
+  const result = await pending;
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.audioUrl, `/audio/${id}`);
+    assert.equal(result.generationId, id);
+  }
+  assert.equal(FakeEventSource.last!.closed, true);
+});
+
+test('progress events do not resolve the synthesis early', async () => {
+  const id = 'g-progress';
+  const provider = createVoiceboxProvider({
+    config,
+    fetchImpl: async () => jsonResponse({ id }),
+    eventSourceFactory: esFactory,
+  });
+  const pending = provider.synthesize({ text: 'hello', locale: 'en-US' });
+  await settle();
+  const stream = FakeEventSource.last!;
+  stream.emit(`{"id":"${id}","status":"loading_model","duration":0.0,"error":null}`);
+  stream.emit(`{"id":"${id}","status":"generating","duration":0.0,"error":null}`);
+  assert.equal(stream.closed, false, 'must still be listening after progress events');
+  stream.emit(`{"id":"${id}","status":"completed","duration":2.6,"error":null}`);
+  const result = await pending;
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.audioUrl, `/audio/${id}`);
+});
+
 test('synthesize fails silently when no profile is configured', async () => {
   const provider = createVoiceboxProvider({
     config: { ...config, profileId: undefined },
