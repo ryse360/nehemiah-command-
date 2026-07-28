@@ -61,6 +61,34 @@ succeeded on Kokoro/MPS in 2.675s. The complete confirmed contract:
 Every one of these is pinned in `voicebox-contract.ts` with regression tests
 built from the verbatim captured payloads.
 
+### Correction: the probe's GO was necessary but not sufficient
+
+`public/voicebox-probe.html` was served from a plain static server with **no
+Content-Security-Policy**, so it did not reproduce Nehemiah's own security
+context. It proved the browser→loopback boundary, but not that the boundary
+survives *this app's* headers. Running the real app exposed two blocks the
+probe could never have caught:
+
+- **`connect-src 'self'`** blocked every request to `127.0.0.1:17493` — the
+  generate call, the SSE status stream, and the audio fetch. Voice could not
+  have worked at all.
+- **`default-src 'self'`** (which `media-src` inherits) blocked playback of the
+  client-created `blob:` audio URL.
+
+A third, dev-only issue surfaced at the same time: `script-src` without
+`'unsafe-eval'` breaks React's development tooling, leaving the page rendered
+but its JavaScript inert.
+
+`next.config.ts` now composes the CSP so that:
+- `connect-src` includes the Voicebox origin **only** when voice is enabled and
+  **only** if that origin is approved loopback (fail-closed — a non-loopback URL
+  is ignored rather than widening the policy);
+- `media-src` allows `'self' blob:` for synthesised audio;
+- `'unsafe-eval'` is added to `script-src` in development builds only.
+
+**Lesson for later phases:** any future browser-boundary probe must be served
+from the app itself, under the real CSP, not from a bare static server.
+
 ### Production requirement this creates
 
 Before voice can be enabled against a **deployed** Nehemiah origin (not
