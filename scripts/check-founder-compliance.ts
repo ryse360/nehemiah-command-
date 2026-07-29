@@ -217,6 +217,7 @@ const requiredTestFiles = [
   'src/nehemiah/organism-globe-model.test.ts',
   'src/nehemiah/orb-state.test.ts',
   'src/nehemiah/orb-parameters.test.ts',
+  'src/nehemiah/organism-ecology.test.ts',
 ];
 const missingTests = requiredTestFiles.filter((file) => !existsSync(path.join(root, file)));
 check(
@@ -240,20 +241,32 @@ check(
 );
 
 // ---------------------------------------------------------------------------
-// 11b. The primary shape (network globe) is present, gated, and parameterised.
-// The globe replaced the filament shape as THE artifact, so it must stay in
-// the compliance surface: rendered by the engine, driven by the pure model,
-// and configured by real field parameters (guards against it being silently
-// removed or zeroed while the older shape's checks keep passing).
-const globeModelPresent = existsSync(path.join(root, 'src/nehemiah/organism-globe-model.ts'));
-const fieldSource = read('src/nehemiah/organism-field.ts');
+// 11b. The primary structure (intelligence ecology) is present and governed.
+// The geodesic network globe was REJECTED by the Founder: placing nodes evenly
+// on a shell and joining nearest neighbours guarantees uniform tessellation,
+// geodesic wrapping and equally-prominent nodes. It was replaced by the
+// volumetric intelligence ecology, whose anti-uniformity properties are locked
+// by tests in organism-ecology.test.ts. This check keeps the new primary shape
+// in the compliance surface so it cannot be silently removed or zeroed.
+const ecologyModelPresent = existsSync(path.join(root, 'src/nehemiah/organism-ecology.ts'));
+const ecologySource = ecologyModelPresent ? read('src/nehemiah/organism-ecology.ts') : '';
 check(
-  'primary network-globe shape governed',
-  /<NetworkGlobe/.test(engine) &&
-    /organism-globe-model/.test(engine) &&
-    globeModelPresent &&
-    /globeNodeCount:\s*\d+/.test(fieldSource),
-  'engine renders NetworkGlobe via the pure globe model with parameterised node count',
+  'primary intelligence ecology governed',
+  /<EcologyField/.test(engine) &&
+    /organism-ecology/.test(engine) &&
+    ecologyModelPresent &&
+    /nodeCount:\s*\d+/.test(ecologySource),
+  'engine renders EcologyField via the pure ecology model with parameterised node count',
+);
+
+// ---------------------------------------------------------------------------
+// 11c. The rejected shape must not come back. A geodesic net is re-introduced
+// by shell placement + nearest-neighbour joining, so the engine must not render
+// the old globe at all.
+check(
+  'rejected geodesic globe stays retired',
+  !/<NetworkGlobe/.test(engine),
+  'the engine no longer renders the shell-wrapped network globe',
 );
 
 // ---------------------------------------------------------------------------

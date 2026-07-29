@@ -255,6 +255,7 @@ export function OrganismLab() {
           parameters={parameters}
           personality={personality}
           reducedMotion={reducedMotion}
+          lifecycle={state}
         />
         <span className={styles.chargeRing} aria-hidden="true" />
       </div>

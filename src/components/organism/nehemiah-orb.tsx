@@ -23,5 +23,11 @@ export function NehemiahOrb({
   reducedMotion?: boolean;
 }) {
   const parameters = useMemo(() => orbParametersFromState(dto), [dto]);
-  return <OrganismEngine parameters={parameters} reducedMotion={reducedMotion} />;
+  return (
+    <OrganismEngine
+      parameters={parameters}
+      reducedMotion={reducedMotion}
+      lifecycle={dto.operatingState}
+    />
+  );
 }
