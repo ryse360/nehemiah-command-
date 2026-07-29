@@ -4,6 +4,11 @@ out
 coverage
 playwright-report
 test-results
+
+# Written at repo root by the CI dependency advisory step and uploaded as a
+# build artifact. The committed evidence copy lives at
+# docs/production/dependency-audit-result.json.
+/dependency-audit-result.json
 .env*
 .DS_Store
 *.tsbuildinfo

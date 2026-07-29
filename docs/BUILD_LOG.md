@@ -534,6 +534,45 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Updated CI with performance and release-candidate gates.
 - Applied safe patch updates for postgres and tsx.
 
+## 2026-07-27 — Dependency Audit Gate Closed and Next.js Security Patch
+
+### Completed
+- [x] Obtained the first current dependency audit since v0.17.1; the registry
+      endpoint that returned HTTP 502 at both v0.17.1 and v1.0.0-rc.1 responded
+      normally.
+- [x] Upgraded `next` 16.2.10 to 16.2.12, resolving nine high-severity Next.js
+      advisories including a Middleware / Proxy bypass in App Router, two
+      Server-Side Request Forgery paths, two cache-confusion issues, and
+      unauthenticated disclosure of internal Server Function endpoints.
+- [x] Verified the upgrade against the full gate: 251 tests, strict
+      TypeScript, 14/14 founder-compliance checks, optimized production build.
+- [x] Preserved the audit JSON as release evidence.
+- [x] Added a non-blocking CI dependency advisory step so registry failures and
+      new advisories surface on every run instead of silently going stale.
+- [x] Recorded three residual high advisories, with no upstream fix available,
+      as an explicit open Founder decision rather than reporting them resolved.
+- [x] Eliminated the three residual `postcss` and `sharp` advisories nested
+      inside Next.js using `overrides`, after the version-bump path was
+      exhausted. `npm audit --omit=dev` now reports 0 vulnerabilities across
+      220 production dependencies.
+- [x] Verified the overridden tree against every check in the repository,
+      including the CI-only performance, smoke, and security-header steps, plus
+      a direct `sharp` WebP and AVIF encode test to confirm the native image
+      path still works.
+
+### Not completed
+- [ ] Removal of the `postcss` and `sharp` overrides once Next.js bumps its own
+      pins past the vulnerable ranges. A stale override can hold a transitive
+      dependency below a future fix, so this must be re-evaluated at each
+      Next.js minor upgrade.
+
+### Evidence
+- Audit result: `docs/production/dependency-audit-result.json`
+- Advisory record: `docs/security/dependency-advisory.md`
+- Checklist: `docs/production/v1-release-checklist.md`
+- External actions: `docs/production/remaining-external-actions.md`
+- CI: `.github/workflows/ci.yml`
+
 ## 2026-07-27 — Skill Security Scan Gate (NVIDIA SkillSpector)
 
 ### Completed
