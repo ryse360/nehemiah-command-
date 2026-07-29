@@ -551,7 +551,6 @@ A public deployment requires either a connected GitHub repository or an authenti
       new advisories surface on every run instead of silently going stale.
 - [x] Recorded three residual high advisories, with no upstream fix available,
       as an explicit open Founder decision rather than reporting them resolved.
-
 - [x] Eliminated the three residual `postcss` and `sharp` advisories nested
       inside Next.js using `overrides`, after the version-bump path was
       exhausted. `npm audit --omit=dev` now reports 0 vulnerabilities across
@@ -573,3 +572,25 @@ A public deployment requires either a connected GitHub repository or an authenti
 - Checklist: `docs/production/v1-release-checklist.md`
 - External actions: `docs/production/remaining-external-actions.md`
 - CI: `.github/workflows/ci.yml`
+
+## 2026-07-27 — Skill Security Scan Gate (NVIDIA SkillSpector)
+
+### Completed
+- [x] Wired NVIDIA SkillSpector (Apache-2.0) into CI as a blocking gate over
+      `.claude/skills/` — the skill tree Claude Code loads as live
+      instructions, and therefore a higher trust bar than an npm dependency.
+- [x] Added `scripts/scan-skills.ts` / `npm run security:scan-skills`: any
+      finding not already reviewed into
+      `docs/security/skillspector-baseline.yaml` fails the build, independent
+      of SkillSpector's own aggregate-score threshold.
+- [x] Generated and reviewed the initial baseline: 28 static-analysis
+      findings against the vendored `obra/superpowers` skill set, all traced
+      to legitimate skill-authoring documentation and local dev-tooling
+      prose (not exploitable code paths). Full review recorded in
+      `docs/security/skill-vetting.md`.
+- [x] Pinned the scanner install to a commit SHA
+      (`fd25398d7aa99353d86237b9c260759351f0e644`, v2.4.4) rather than a
+      floating branch, so a scanner update is a deliberate, reviewed bump.
+- [x] Verified the gate blocks: injected a `curl | bash` instruction into a
+      vendored skill locally and confirmed `security:scan-skills` exits
+      non-zero; reverted and confirmed a clean baseline-only exit 0.

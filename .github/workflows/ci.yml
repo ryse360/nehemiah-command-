@@ -32,6 +32,31 @@ jobs:
       - name: Founder compliance gate
         run: npm run governance:organism
 
+      # Vendored skills under .claude/skills/ execute as live agent instructions,
+      # so they get a higher trust bar than an npm dependency: unreviewed static-
+      # analysis findings fail the build. Reviewed false positives are suppressed
+      # via docs/security/skillspector-baseline.yaml — see docs/security/skill-vetting.md
+      # for how to review a new finding and extend the baseline. Pinned to a commit
+      # SHA (not a floating branch) so a scanner change can't silently alter the gate.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install NVIDIA SkillSpector
+        run: |
+          uv tool install "git+https://github.com/NVIDIA/skillspector.git@fd25398d7aa99353d86237b9c260759351f0e644"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Skill security scan (NVIDIA SkillSpector)
+        run: npm run security:scan-skills
+
+      - name: Upload skill scan evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skillspector-scan-result
+          path: docs/security/skillspector-scan-result.json
+          if-no-files-found: warn
+
       - name: Build production application
         run: npm run build
 

@@ -18,3 +18,7 @@ test-results
 # ("./.next/dev/types" vs "./.next/types"), which produced recurring phantom
 # diffs. Regenerated automatically by `next build`; typecheck passes without it.
 next-env.d.ts
+
+# Regenerated on every `npm run security:scan-skills` run. The reviewed,
+# committed artifact is docs/security/skillspector-baseline.yaml.
+docs/security/skillspector-scan-result.json
