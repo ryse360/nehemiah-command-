@@ -772,6 +772,7 @@ const ECO_POINT_VERT = /* glsl */ `
   uniform float uMotion;
   uniform float uPulse;
   uniform float uConcentration;
+  uniform float uCoreRadius;
   uniform float uGain[8];
   varying vec3 vColor;
   varying float vAlpha;
@@ -792,7 +793,13 @@ const ECO_POINT_VERT = /* glsl */ `
       * (0.5 + 0.5 * sin(uTime * tempo + aPhase * 6.28));
 
     vColor = color * gain * twinkle;
-    vAlpha = fade * clamp(gain, 0.0, 1.6);
+    // Localised energy compression: additive contributions only pile up in the
+    // small region around the core, so the correction is applied THERE with a
+    // smooth spatial falloff instead of dimming the whole scene. Beyond
+    // uCoreRadius this is exactly 1.0 — peripheral filaments are untouched.
+    float coreD = length(position);
+    float compress = mix(0.30, 1.0, smoothstep(0.0, uCoreRadius, coreD));
+    vAlpha = fade * clamp(gain, 0.0, 1.6) * compress;
 
     // Concentration: nodes migrate toward their attractor as the system
     // focuses. ATTENDING pulls inward; BREATHING rests open.
@@ -875,10 +882,12 @@ function FilamentInteriors({
   clusterGain: number[];
 }) {
   const { principal, supportingGeo, microGeo } = useMemo(() => {
-    // goldDeep, not goldMid: additive strands over ivory accumulate toward
-    // white, so the tint must start deep for the sum to read as gold.
-    const gold = new THREE.Color(neoPalette.goldDeep);
-    const lavender = new THREE.Color(neoPalette.lavenderDark);
+    // Warm gold with restrained ivory highlight. goldDeep was too dark to read
+    // against the body and turned the filaments into grey wire; the blow-out it
+    // was meant to fix is now handled LOCALLY at the core, not by dimming
+    // everything.
+    const gold = new THREE.Color(neoPalette.goldMid);
+    const lavender = new THREE.Color(neoPalette.lavenderMid);
     const tint = { gold, lavender };
     const all = FILAMENTS.filaments;
     return {
@@ -918,7 +927,7 @@ function FilamentInteriors({
         <lineBasicMaterial
           vertexColors
           transparent
-          opacity={0.26 * intensity}
+          opacity={0.38 * intensity}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -930,7 +939,7 @@ function FilamentInteriors({
         <lineBasicMaterial
           vertexColors
           transparent
-          opacity={0.42 * intensity}
+          opacity={0.68 * intensity}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -958,7 +967,7 @@ function FilamentInteriors({
                 flow *
                 intensity *
                 Math.min(1.3, gain) *
-                (isLav ? 0.4 + 0.35 * indigoLevel : 0.55)
+                (isLav ? 0.62 + 0.38 * indigoLevel : 0.92)
               }
               resolution={MESHLINE_RESOLUTION}
               sizeAttenuation={1}
@@ -1068,6 +1077,7 @@ function EcologyField({
           uMotion: { value: 1 },
           uPulse: { value: 0.8 },
           uConcentration: { value: 0 },
+          uCoreRadius: { value: 0.46 },
           uGain: { value: new Array(8).fill(1) },
         },
         vertexShader: ECO_POINT_VERT,
@@ -1574,13 +1584,22 @@ const bodyShader = {
       float pocket = smoothstep(0.25, 0.85, lobe);
       vec3 deep = mix(uMidColor, uCenterColor, pocket);
       vec3 color = mix(uEdgeColor, deep, density);
-      float alpha = density * uOpacity * mix(0.82, 1.2, pocket);
+      // hollow the centre so the ecology stays visible THROUGH the atmosphere;
+      // the warm umber gathers around and behind the filaments, not over them.
+      float hollow = mix(0.34, 1.0, smoothstep(0.0, 0.62, length(vLocalPos)));
+      float alpha = density * uOpacity * mix(0.82, 1.2, pocket) * hollow;
       // A thin, high-frequency refractive rim right at the silhouette — this
       // is what reads as a defined glass shell rather than a fuzzy halo. Warm,
       // narrow (pow 16), and it fades with uLobe so sleep stays soft.
-      float rim = pow(1.0 - facing, 16.0);
-      color += vec3(0.62, 0.5, 0.34) * rim * (0.5 + 0.5 * uLobe);
-      alpha = max(alpha, rim * 0.85 * uOpacity);
+      // No continuous outline: a pow-16 rim draws a hard glass ring. The
+      // boundary now emerges SELECTIVELY — broad falloff, broken up by the same
+      // fbm that varies the interior, so it appears only where atmosphere and
+      // accumulated light happen to gather.
+      float rimBase = pow(1.0 - facing, 5.0);
+      float rimBreak = 0.35 + 0.65 * smoothstep(-0.25, 0.45, fbm(vLocalPos.xy * 2.4 + 11.0));
+      float rim = rimBase * rimBreak;
+      color += vec3(0.62, 0.5, 0.34) * rim * 0.5 * (0.5 + 0.5 * uLobe);
+      alpha = max(alpha, rim * 0.3 * uOpacity);
       gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
     }
   `,
@@ -1669,7 +1688,7 @@ const membraneShader = {
   uniforms: {
     uGoldColor: { value: new THREE.Color(neoPalette.goldLight) },
     uLavenderColor: { value: new THREE.Color(neoPalette.lavenderLight) },
-    uStrength: { value: 0.38 },
+    uStrength: { value: 0.26 },
   },
   vertexShader: /* glsl */ `
     varying vec3 vNormal;
@@ -1700,12 +1719,16 @@ const membraneShader = {
       float sweep = clamp(
           0.42 + 0.34 * sin(ang * 2.0 + 0.9)
                + 0.24 * sin(ang * 3.0 - 2.1 + vLocalPos.z * 1.6),
-          0.12, 1.0);
+          0.0, 1.0);
       // Refractive glass edge: a second, far tighter fresnel that hugs the
       // silhouette. It is what separates "glass sphere" from "soft halo" —
       // still a gradient (no stroked circle), but steep enough to read as a
       // surface. Modulated gently so it brightens where the sweeps do.
-      float glass = pow(1.0 - facing, 11.0) * (0.55 + 0.45 * sweep) * 2.6;
+      // The tight pow-11 fresnel drew a continuous glass container edge. The
+      // boundary must EMERGE from accumulated light, so the steep term is gone
+      // and the sweeps are allowed to fall to zero in places — some arcs glow,
+      // others dissolve entirely into air.
+      float glass = 0.0;
       float mixAmount = smoothstep(-0.6, 0.9, vLocalPos.x);
       vec3 color = mix(uGoldColor, uLavenderColor, mixAmount);
       gl_FragColor = vec4(color, (rim * sweep + glass) * uStrength);
@@ -1932,7 +1955,7 @@ function LivingScene({
         {/* 6. dark internal volumetric body — inverse-fresnel ball: dense
             warm umber at the center fading to nothing at the rim, so the
             organism has a dark interior with no hard circular border. */}
-        <VolumetricBody opacity={0.44 + parameters.shellOpacity * 0.16} lobe={goldLevel} />
+        <VolumetricBody opacity={0.26 + parameters.shellOpacity * 0.12} lobe={goldLevel} />
 
         {/* the violet reasoning hemisphere: a genuine cool VOLUME on the
             right, which is what the reference has and a lone beacon cannot
