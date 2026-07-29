@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, extend, useFrame } from '@react-three/fiber';
 import { Line, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrganismParameters } from '@/nehemiah/organism-parameters';
@@ -22,6 +22,21 @@ import {
   organismEcology,
   type EcologyState,
 } from '@/nehemiah/organism-ecology';
+import {
+  organismFilamentFlow,
+  type Filament,
+} from '@/nehemiah/organism-filament-flow';
+import { MeshLineGeometry, MeshLineMaterial, raycast as meshLineRaycast } from 'meshline';
+import type { ThreeElement } from '@react-three/fiber';
+
+// meshline ships plain three.js classes; R3F needs them declared to accept the
+// lowercase JSX form produced by extend().
+declare module '@react-three/fiber' {
+  interface ThreeElements {
+    meshLineGeometry: ThreeElement<typeof MeshLineGeometry>;
+    meshLineMaterial: ThreeElement<typeof MeshLineMaterial>;
+  }
+}
 
 // The field is deterministic and pure, so build it ONCE at module scope.
 // Calling organismField() inside six separate components cost ~8.4ms each,
@@ -29,6 +44,11 @@ import {
 const FIELD = organismField(ORGANISM_FIELD_OPTIONS);
 // The intelligence ecology is likewise pure and deterministic — built once.
 const ECOLOGY = organismEcology();
+// Filament interiors are traced through a curl field over the SAME ecology, so
+// structure and flow can never disagree. Pure + deterministic → built once.
+const FILAMENTS = organismFilamentFlow(ECOLOGY.clusters);
+// MeshLine needs the drawing-buffer size to compute screen-space width.
+const MESHLINE_RESOLUTION = new THREE.Vector2(1200, 900);
 import { neoPalette } from '@/nehemiah/organism-palette';
 import { VolumetricGlow } from './volumetric-glow';
 import { LuminousCore } from './luminous-core';
@@ -794,6 +814,162 @@ const ECO_POINT_FRAG = /* glsl */ `
   }
 `;
 
+// Filament interiors. Three legibility tiers, rendered by cost:
+//   principal  — MeshLine (pmndrs/meshline), tapered via widthCallback so the
+//                path thins at both ends. Only a few, and only these are fully
+//                legible: real macro circulation, never a thick ribbon.
+//   supporting — batched additive lines through each attractor region.
+//   micro      — batched, near-threshold; perceived as accumulated light.
+// Supporting/micro bake per-vertex alpha into vertex colour (lineBasicMaterial
+// has one uniform opacity), scaled by depth so the rear recedes.
+extend({ MeshLineGeometry, MeshLineMaterial });
+
+function buildTierGeometry(
+  filaments: readonly Filament[],
+  tint: { gold: THREE.Color; lavender: THREE.Color },
+  gain: number,
+): THREE.BufferGeometry {
+  // one batched line-segment pass for a whole tier — per-filament <Line>
+  // components cost two draw calls each and cap density hard.
+  let segs = 0;
+  for (const f of filaments) segs += f.points.length - 1;
+  const pos = new Float32Array(segs * 6);
+  const col = new Float32Array(segs * 6);
+  let k = 0;
+  for (const f of filaments) {
+    const base = f.family === 'lavender' ? tint.lavender : tint.gold;
+    for (let i = 1; i < f.points.length; i += 1) {
+      const a = f.points[i - 1];
+      const b = f.points[i];
+      pos.set([a[0], a[1], a[2], b[0], b[1], b[2]], k * 6);
+      // taper along the filament AND fade by depth, so strands emerge from and
+      // dissolve into the volume instead of ending abruptly.
+      const t = i / (f.points.length - 1);
+      const taper = Math.sin(t * Math.PI); // 0 at both ends, 1 mid
+      const da = (a[2] * 0.5 + 0.5) * 0.75 + 0.25;
+      const db = (b[2] * 0.5 + 0.5) * 0.75 + 0.25;
+      const wa = f.weight * taper * da * gain;
+      const wb = f.weight * taper * db * gain;
+      col.set(
+        [base.r * wa, base.g * wa, base.b * wa, base.r * wb, base.g * wb, base.b * wb],
+        k * 6,
+      );
+      k += 1;
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return geo;
+}
+
+function FilamentInteriors({
+  intensity,
+  indigoLevel,
+  flow,
+  clusterGain,
+}: {
+  intensity: number;
+  indigoLevel: number;
+  flow: number;
+  clusterGain: number[];
+}) {
+  const { principal, supportingGeo, microGeo } = useMemo(() => {
+    // goldDeep, not goldMid: additive strands over ivory accumulate toward
+    // white, so the tint must start deep for the sum to read as gold.
+    const gold = new THREE.Color(neoPalette.goldDeep);
+    const lavender = new THREE.Color(neoPalette.lavenderDark);
+    const tint = { gold, lavender };
+    const all = FILAMENTS.filaments;
+    return {
+      principal: all.filter((f) => f.tier === 'principal'),
+      supportingGeo: buildTierGeometry(all.filter((f) => f.tier === 'supporting'), tint, 1),
+      microGeo: buildTierGeometry(all.filter((f) => f.tier === 'micro'), tint, 1),
+    };
+  }, []);
+
+  // MeshLine geometries for the principal paths, tapered at both ends.
+  const principalGeos = useMemo(
+    () =>
+      principal.map((f) => {
+        const g = new MeshLineGeometry();
+        const flat: number[] = [];
+        for (const p of f.points) flat.push(p[0], p[1], p[2]);
+        // widthCallback is meshline's per-vertex taper: thin → full → thin
+        g.setPoints(flat, (t: number) => Math.sin(t * Math.PI) * 0.9 + 0.1);
+        return g;
+      }),
+    [principal],
+  );
+
+  useEffect(
+    () => () => {
+      principalGeos.forEach((g) => g.dispose());
+      supportingGeo.dispose();
+      microGeo.dispose();
+    },
+    [principalGeos, supportingGeo, microGeo],
+  );
+
+  return (
+    <group>
+      {/* micro: recessive, perceived through accumulated light */}
+      <lineSegments geometry={microGeo}>
+        <lineBasicMaterial
+          vertexColors
+          transparent
+          opacity={0.26 * intensity}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </lineSegments>
+
+      {/* supporting: threads each attractor region */}
+      <lineSegments geometry={supportingGeo}>
+        <lineBasicMaterial
+          vertexColors
+          transparent
+          opacity={0.42 * intensity}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </lineSegments>
+
+      {/* principal: the readable circulation. Tapered MeshLine, kept narrow so
+          it stays a filament of light and never becomes a ribbon. */}
+      {principalGeos.map((geo, i) => {
+        const f = principal[i];
+        const isLav = f.family === 'lavender';
+        const gain = clusterGain[i % clusterGain.length] ?? 1;
+        return (
+          <mesh key={i} geometry={geo} raycast={meshLineRaycast}>
+            <meshLineMaterial
+              args={[{ resolution: MESHLINE_RESOLUTION }]}
+              transparent
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+              toneMapped={false}
+              lineWidth={isLav ? 0.012 : 0.015}
+              color={isLav ? neoPalette.lavenderMid : neoPalette.goldMid}
+              opacity={
+                f.weight *
+                flow *
+                intensity *
+                Math.min(1.3, gain) *
+                (isLav ? 0.4 + 0.35 * indigoLevel : 0.55)
+              }
+              resolution={MESHLINE_RESOLUTION}
+              sizeAttenuation={1}
+            />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
 function EcologyField({
   intensity,
   motionScale,
@@ -908,6 +1084,7 @@ function EcologyField({
   const w = Math.min(1, Math.max(0, (goldLevel - 0.35) / 0.25));
   const wake = w * w * (3 - 2 * w);
   const [flow, setFlow] = useState(0.35);
+  const [gains, setGains] = useState<number[]>(() => new Array(8).fill(1));
 
   useFrame((state, delta) => {
     elapsed.current += delta;
@@ -929,6 +1106,10 @@ function EcologyField({
     const gains = material.uniforms.uGain.value as number[];
     for (let i = 0; i < 8; i += 1) gains[i] = mod.clusterGain[i] ?? 1;
     if (Math.abs(mod.flow - flow) > 0.01) setFlow(mod.flow);
+    // filament legibility follows the same reorganisation as the node field
+    if (mod.clusterGain.some((g, i) => Math.abs(g - (gains[i] ?? 1)) > 0.05)) {
+      setGains(mod.clusterGain.slice());
+    }
 
     // the ecology drifts; it does not spin as a rigid shell
     if (driftRef.current) {
@@ -981,6 +1162,14 @@ function EcologyField({
           toneMapped={false}
         />
       ))}
+
+      {/* 2b. filament interiors — directional structure through the regions */}
+      <FilamentInteriors
+        intensity={goldLevel}
+        indigoLevel={indigoLevel}
+        flow={flow}
+        clusterGain={gains}
+      />
 
       {/* 3. the volumetric field itself */}
       <points geometry={pointGeometry} material={material} />
@@ -1211,7 +1400,7 @@ function NodeConstellation({ intensity }: { intensity: number }) {
           vertexColors
           size={0.015}
           transparent
-          opacity={0.6 * intensity}
+          opacity={0.42 * intensity}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -1307,9 +1496,9 @@ const bodyShader = {
     // tones (#4a3728 / #8a6f52) lifted the whole globe to a muddy grey-brown
     // taupe and every glow lost half its contrast. Umber now only rims the
     // silhouette; the body is near-black.
-    uCenterColor: { value: new THREE.Color('#120b05') },
-    uMidColor: { value: new THREE.Color('#241a10') },
-    uEdgeColor: { value: new THREE.Color('#3a2c1e') },
+    uCenterColor: { value: new THREE.Color('#2A1E14') },
+    uMidColor: { value: new THREE.Color('#4A3A2C') },
+    uEdgeColor: { value: new THREE.Color('#6B5747') },
     uOpacity: { value: 0.9 },
     // lobe amplitude — driven from the awake level so the petal structure
     // fades to a uniform vignette in sleep and can't become the dominant
@@ -1332,6 +1521,36 @@ const bodyShader = {
     uniform vec3 uCenterColor;
     uniform vec3 uMidColor;
     uniform vec3 uEdgeColor;
+    // simplex noise + fbm adapted from canvas-ui (DavidHDev/canvas-ui,
+    // src/lib/Clouds/CloudsVanilla.ts). MIT + Commons Clause — see
+    // docs/organism/THIRD-PARTY.md.
+    vec2 cuiHash (vec2 p) {
+      p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+      return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+    }
+    float cuiNoise (vec2 p) {
+      const float K1 = 0.366025404;
+      const float K2 = 0.211324865;
+      vec2 i = floor(p + (p.x + p.y) * K1);
+      vec2 a = p - i + (i.x + i.y) * K2;
+      vec2 o = (a.x > a.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+      vec2 b = a - o + K2;
+      vec2 c = a - 1.0 + 2.0 * K2;
+      vec3 h = max(0.5 - vec3(dot(a, a), dot(b, b), dot(c, c)), 0.0);
+      vec3 n = h * h * h * h
+        * vec3(dot(a, cuiHash(i)), dot(b, cuiHash(i + o)), dot(c, cuiHash(i + 1.0)));
+      return dot(n, vec3(70.0));
+    }
+    float fbm (vec2 n) {
+      float total = 0.0;
+      float amplitude = 0.55;
+      for (int i = 0; i < 5; i++) {
+        total += cuiNoise(n) * amplitude;
+        n = n * 2.03;
+        amplitude *= 0.45;
+      }
+      return total;
+    }
     uniform float uOpacity;
     uniform float uLobe;
     varying vec3 vNormal;
@@ -1348,11 +1567,10 @@ const bodyShader = {
       // sleep — otherwise the petals become the brightest remaining structure
       // once the glow fades and read as a dark pinwheel.
       // NO angular term: any sin(ang * N) produces an N-fold pinwheel, which
-      // is a radial sunburst — a prohibited read. Interior variation now comes
-      // from position in DEPTH, so the body stays a soft volume with no spokes.
-      float lobe = 0.5
-        + uLobe * (0.16 * sin(vLocalPos.z * 2.3 + vLocalPos.y * 1.1 + 0.7)
-                 + 0.10 * sin(vLocalPos.x * 1.7 - vLocalPos.z * 1.3 - 1.9));
+      // is a radial sunburst — a prohibited read. Density is fbm-driven, so
+      // the interior is unevenly dense and partially dissolved rather than a
+      // smooth grey mass, with no directional structure at all.
+      float lobe = 0.5 + uLobe * 0.42 * fbm(vLocalPos.xy * 1.7 + vLocalPos.z * 0.6);
       float pocket = smoothstep(0.25, 0.85, lobe);
       vec3 deep = mix(uMidColor, uCenterColor, pocket);
       vec3 color = mix(uEdgeColor, deep, density);
