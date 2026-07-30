@@ -1,0 +1,10 @@
+import { chromium } from 'playwright-core';
+const OUT='/tmp/claude-0/-home-user-nehemiah-command-/7449b498-056b-5b61-bd83-d53575d6ebbf/scratchpad';
+const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome',args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-sandbox']});
+const p=await b.newPage({viewport:{width:1200,height:900},deviceScaleFactor:1});
+const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://127.0.0.1:3114/lab/organism?idleMs=9000000',{waitUntil:'networkidle',timeout:90000});
+await p.waitForTimeout(9000);
+await p.locator('canvas').first().screenshot({path:`${OUT}/${process.argv[2]}-resting.png`});
+console.log('state:', await p.locator('[aria-live="polite"]').first().innerText(), '| errors:', errs.length);
+await b.close();

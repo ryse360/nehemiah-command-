@@ -1569,6 +1569,20 @@ const bodyShader = {
     void main() {
       float facing = abs(dot(normalize(vNormal), normalize(vViewDir)));
       float density = pow(facing, 0.95);
+      // DENSITY-ENVELOPE dissolution. A radially uniform falloff dies at the
+      // same facing value in every direction, so its perceptible-alpha isoline
+      // is a constant-radius contour — a drawn circle no matter how soft the
+      // rim lighting above it is. The envelope itself must be directional:
+      // fbm sampled on the silhouette DIRECTION (radius-independent) shifts
+      // both where dissolution begins and where it completes, per direction.
+      // Some sectors of atmosphere reach further out, others retract inward,
+      // so no circular isoline exists for the eye to trace — while the fbm's
+      // low frequency keeps the boundary coherent, atmospheric, not torn.
+      float edge = 1.0 - facing;
+      vec3 dirN = normalize(vLocalPos);
+      float envN = fbm(dirN.xy * 3.1 + vec2(7.3, 3.7) + dirN.z * 1.9);
+      float dissolve = 1.0 - smoothstep(0.42 + 0.30 * envN, 0.92 + 0.16 * envN, edge);
+      density *= dissolve;
       // Lobed darkness: the deep tone gathers in petal-shaped pockets rather
       // than one uniform vignette, so the interior reads as segmented volume
       // (the reference's mandala structure) instead of amorphous haze. Two
@@ -1596,10 +1610,10 @@ const bodyShader = {
       // fbm that varies the interior, so it appears only where atmosphere and
       // accumulated light happen to gather.
       float rimBase = pow(1.0 - facing, 5.0);
-      float rimBreak = 0.35 + 0.65 * smoothstep(-0.25, 0.45, fbm(vLocalPos.xy * 2.4 + 11.0));
+      float rimBreak = smoothstep(-0.15, 0.5, fbm(vLocalPos.xy * 2.4 + 11.0));
       float rim = rimBase * rimBreak;
-      color += vec3(0.62, 0.5, 0.34) * rim * 0.5 * (0.5 + 0.5 * uLobe);
-      alpha = max(alpha, rim * 0.3 * uOpacity);
+      color += vec3(0.62, 0.5, 0.34) * rim * 0.5 * dissolve * (0.5 + 0.5 * uLobe);
+      alpha = max(alpha, rim * 0.3 * uOpacity * dissolve);
       gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
     }
   `,
@@ -1688,7 +1702,7 @@ const membraneShader = {
   uniforms: {
     uGoldColor: { value: new THREE.Color(neoPalette.goldLight) },
     uLavenderColor: { value: new THREE.Color(neoPalette.lavenderLight) },
-    uStrength: { value: 0.26 },
+    uStrength: { value: 0.18 },
   },
   vertexShader: /* glsl */ `
     varying vec3 vNormal;
