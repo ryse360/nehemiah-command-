@@ -466,3 +466,7 @@ body[data-state="proof-created"] .organism-core { box-shadow:0 0 34px 14px rgba(
   html:focus-within { scroll-behavior:auto; }
   .organism::before,.organism::after,.shell-one,.shell-two,.shell-three { animation:none !important; }
 }
+
+/* The conversation loop: Nehemiah's spoken reply, and the live mic state. */
+.nehemiah-reply { max-width:560px; margin:14px auto 0; text-align:center; font-size:15px; line-height:1.5; color:#5d5546; font-style:italic; }
+.voice-button[data-listening="true"] { color:#8E7358; animation:pulse 1.2s ease-in-out infinite; }

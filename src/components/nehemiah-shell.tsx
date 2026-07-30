@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createFounderJourney,
   reduceFounderJourney,
@@ -67,6 +67,9 @@ function usePrefersReducedMotion(): boolean {
 export function NehemiahShell() {
   const [journey, setJourney] = useState(createFounderJourney);
   const [command, setCommand] = useState('');
+  const [nehemiahReply, setNehemiahReply] = useState<string | null>(null);
+  const [conversing, setConversing] = useState(false);
+  const [micActive, setMicActive] = useState(false);
   const [decisionOpen, setDecisionOpen] = useState(false);
   const [proof, setProof] = useState('');
   const [lesson, setLesson] = useState('');
@@ -102,8 +105,13 @@ export function NehemiahShell() {
   // only when memory or the state changes is exact enough; Date.now() is read
   // but is not a reactive dependency.
   const orbState = useMemo(
-    () => orbStateFromMemory(memory, model.organismState, Date.now()),
-    [memory, model.organismState],
+    () =>
+      orbStateFromMemory(
+        memory,
+        micActive ? 'listening' : conversing ? 'decision-required' : model.organismState,
+        Date.now(),
+      ),
+    [memory, model.organismState, micActive, conversing],
   );
   const strategicRecall = useMemo(
     () => journey.lifecycle === 'decision-required'
@@ -171,11 +179,83 @@ export function NehemiahShell() {
     setJourney((current) => reduceFounderJourney(current, event));
   }
 
+  const converse = useCallback(
+    async (utterance: string) => {
+      setConversing(true);
+      setNehemiahReply(null);
+      try {
+        const response = await fetch('/api/founder-conversation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            utterance,
+            decisionsInMemory: memory.decisions.length,
+            openJourney: journey.lifecycle !== 'resting',
+          }),
+        });
+        if (!response.ok) throw new Error('conversation unavailable');
+        const data = (await response.json()) as { reply?: string };
+        const reply = typeof data.reply === 'string' ? data.reply : null;
+        setNehemiahReply(reply);
+        if (reply && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(new SpeechSynthesisUtterance(reply));
+        }
+      } catch {
+        setNehemiahReply('I could not reach my reasoning engine just now.');
+      } finally {
+        setConversing(false);
+      }
+    },
+    [memory.decisions.length, journey.lifecycle],
+  );
+
   function submitCommand(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!command.trim() || journey.lifecycle !== 'resting') return;
+    const utterance = command;
     dispatch({ type: 'command-submitted', command });
     setCommand('');
+    // the journey structures the decision; the conversation answers the Founder
+    void converse(utterance);
+  }
+
+  // Voice in: real speech recognition where the browser provides it. The mic
+  // fills the input and submits, so speaking IS the command path.
+  function startListening() {
+    type RecognitionCtor = new () => {
+      lang: string;
+      interimResults: boolean;
+      onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+      onend: (() => void) | null;
+      onerror: (() => void) | null;
+      start: () => void;
+    };
+    const w = window as unknown as {
+      SpeechRecognition?: RecognitionCtor;
+      webkitSpeechRecognition?: RecognitionCtor;
+    };
+    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+    if (!Ctor) {
+      setNehemiahReply('Voice input is not available in this browser — type to me instead.');
+      return;
+    }
+    const recognition = new Ctor();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    setMicActive(true);
+    recognition.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript ?? '';
+      if (transcript.trim()) {
+        setCommand(transcript);
+        dispatch({ type: 'command-submitted', command: transcript });
+        setCommand('');
+        void converse(transcript);
+      }
+    };
+    recognition.onend = () => setMicActive(false);
+    recognition.onerror = () => setMicActive(false);
+    recognition.start();
   }
 
   function advanceJourney() {
@@ -401,9 +481,14 @@ export function NehemiahShell() {
             <form className="command-bar" onSubmit={submitCommand}>
               <label className="sr-only" htmlFor="command-input">Ask Nehemiah</label>
               <input id="command-input" value={command} onChange={(event) => setCommand(event.target.value)} placeholder={journey.lifecycle === 'resting' ? 'Ask Nehemiah anything…' : journey.command || 'Journey in progress'} autoComplete="off" disabled={journey.lifecycle !== 'resting'} />
-              <button type="button" className="voice-button" aria-label="Start listening" disabled={journey.lifecycle !== 'resting'} onClick={() => setCommand('Listen to my decision about the restricted pilot.')}>◉</button>
+              <button type="button" className="voice-button" aria-label={micActive ? 'Listening…' : 'Start listening'} data-listening={micActive} disabled={journey.lifecycle !== 'resting'} onClick={startListening}>◉</button>
               <button type="submit" className="send-button" aria-label="Send command" disabled={journey.lifecycle !== 'resting'}>↑</button>
             </form>
+            {conversing || nehemiahReply ? (
+              <p className="nehemiah-reply" aria-live="polite">
+                {conversing ? 'Nehemiah is weighing…' : nehemiahReply}
+              </p>
+            ) : null}
           </section>
 
           <div className={`decision-slot${model.showDecision ? ' is-visible' : ''}`}>
