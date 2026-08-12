@@ -555,3 +555,13 @@ A public deployment requires either a connected GitHub repository or an authenti
 - [x] Verified the gate blocks: injected a `curl | bash` instruction into a
       vendored skill locally and confirmed `security:scan-skills` exits
       non-zero; reverted and confirmed a clean baseline-only exit 0.
+
+## 2026-08-12 — DeepSeek Claude Code Dev Tooling Doc
+
+### Completed
+- [x] Added `docs/integrations/deepseek-claude-code.md` documenting the
+      optional `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_MODEL`
+      swap that points a contributor's own Claude Code CLI session at
+      DeepSeek's Anthropic-compatible endpoint. Dev-tooling only — no
+      application code touched, and unrelated to `NEHEMIAH_AI_*`, which
+      configures the app's own governed AI orchestration.
